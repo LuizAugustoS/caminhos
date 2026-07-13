@@ -1,0 +1,22 @@
+{
+  "name": "caminhos-do-caparao",
+  "version": "1.0.0",
+  "description": "Caminhos do Caparaó — marketplace de turismo rural (painel administrativo PWA + API + PostgreSQL)",
+  "main": "server/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "db:migrate": "node db/migrate.js",
+    "db:seed": "node db/seed.js",
+    "db:setup": "npm run db:migrate && npm run db:seed"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "pg": "^8.13.1"
+  },
+  "license": "MIT"
+}

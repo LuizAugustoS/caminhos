@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caminhos do Caparaó — Admin</title>
+<meta name="description" content="Painel administrativo do marketplace de turismo rural Caminhos do Caparaó">
+<meta name="theme-color" content="#14402E">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<!-- ═══ Tela de login ═══ -->
+<div id="login-screen" class="backdrop login-wrap hidden">
+  <form id="login-form" class="login-card">
+    <div class="brand">
+      <div class="brand-mark">
+        <div class="brand-sun"></div>
+        <div class="brand-peak-green"></div>
+        <div class="brand-peak-brown"></div>
+        <div class="brand-bean"></div>
+      </div>
+      <div class="brand-title">
+        <strong>Caminhos do Caparaó</strong>
+        <small>Turismo rural · Marketplace</small>
+      </div>
+    </div>
+    <h1>Acesso administrativo</h1>
+    <p>Entre com suas credenciais para gerenciar a plataforma.</p>
+    <div class="field">
+      <label for="login-email">E-mail</label>
+      <input id="login-email" type="email" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label for="login-password">Senha</label>
+      <input id="login-password" type="password" autocomplete="current-password" required>
+    </div>
+    <p id="login-error" class="login-error"></p>
+    <button type="submit" class="btn-primary">Entrar</button>
+    <p class="login-hint">Área restrita a administradores da plataforma.</p>
+  </form>
+</div>
+
+<!-- ═══ App ═══ -->
+<div id="app-screen" class="backdrop hidden">
+  <div class="app-frame">
+    <div class="offline-banner">Você está offline — exibindo os últimos dados sincronizados.</div>
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <div class="brand-sun"></div>
+          <div class="brand-peak-green"></div>
+          <div class="brand-peak-brown"></div>
+          <div class="brand-bean"></div>
+        </div>
+        <div class="brand-title">
+          <strong>Caminhos do Caparaó</strong>
+          <small>Turismo rural · Marketplace</small>
+        </div>
+      </div>
+
+      <div class="search">
+        <div class="search-glass"></div>
+        <input id="global-search" type="search" placeholder="Buscar turistas, produtores, anúncios…">
+        <kbd>⌘K</kbd>
+      </div>
+
+      <div class="topbar-right">
+        <button class="bell" title="Notificações">
+          <div class="bell-body"></div>
+          <div class="bell-base"></div>
+          <div class="bell-dot"></div>
+        </button>
+        <div class="profile" id="profile" title="Sair">
+          <div class="profile-avatar" id="profile-initials">–</div>
+          <div class="profile-info">
+            <strong id="profile-name">–</strong>
+            <small>Administradora</small>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="body">
+      <nav class="sidenav" id="sidenav"></nav>
+
+      <main class="main">
+        <div class="page-head">
+          <div>
+            <h1>Controle Geral — Admin</h1>
+            <p id="page-date">—</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn-secondary" id="btn-export">Exportar relatório</button>
+            <button class="btn-primary">+ Novo cadastro</button>
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="kpi-grid"></div>
+
+        <div class="panel-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Gestão de Produtores e Conteúdo</h2>
+                <span class="sub" id="producers-sub">Aplicações recentes</span>
+              </div>
+              <a href="#">Ver todas →</a>
+            </div>
+            <div class="producer-list" id="producer-list"></div>
+          </section>
+
+          <section class="panel panel-col">
+            <div class="panel-head">
+              <div>
+                <h2>Monitoramento de Turismo</h2>
+                <span class="sub">Mapa de calor · buscas dos últimos 7 dias</span>
+              </div>
+              <div class="offline-pill" title="Todos os itinerários publicados estão disponíveis para uso offline no PWA">
+                <div class="dot"></div>
+                <span>Itinerários Offline-Prontos</span>
+              </div>
+            </div>
+            <div class="heatmap">
+              <div class="heat-grid" id="heat-grid"></div>
+              <div class="heat-peak" id="heat-peak"></div>
+              <div class="heat-legend">
+                <span>baixo</span>
+                <i style="background:#DCE8DD"></i>
+                <i style="background:#8AA98F"></i>
+                <i style="background:#1C6B4A"></i>
+                <i style="background:#14402E"></i>
+                <span>alto</span>
+              </div>
+            </div>
+            <div class="heat-stats" id="heat-stats"></div>
+          </section>
+        </div>
+
+        <section class="panel" style="margin-bottom:20px;">
+          <div class="panel-head" style="flex-wrap:wrap; gap:12px;">
+            <h2>Listas de Conteúdo Recentes</h2>
+            <div class="tabs" id="listing-tabs">
+              <button class="tab active" data-type="product">Produtos</button>
+              <button class="tab" data-type="service">Serviços</button>
+              <button class="tab" data-type="event">Eventos</button>
+            </div>
+          </div>
+          <div class="table-head">
+            <span></span>
+            <span>Título</span>
+            <span>Criador</span>
+            <span>Data</span>
+            <span>Status</span>
+            <span>Aprovação</span>
+          </div>
+          <div id="listing-rows"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Chat &amp; Atividade</h2>
+            <a href="#">Abrir chat interno →</a>
+          </div>
+          <div class="chat-grid">
+            <div class="chat-col" id="chat-list"></div>
+            <div class="chat-col" id="alert-list"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/app.js"></script>
+</body>
+</html>
