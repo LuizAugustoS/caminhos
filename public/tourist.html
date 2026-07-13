@@ -76,8 +76,58 @@
             <h1>Meus Roteiros</h1>
             <p>Salvos no seu dispositivo — funcionam sem internet e sincronizam sozinhos</p>
           </div>
-          <button class="btn-primary" id="btn-new-trip">+ Novo roteiro</button>
+          <div style="display:flex; gap:10px;">
+            <button class="btn-secondary" id="btn-ai-trip">✨ Montar roteiro pra mim</button>
+            <button class="btn-primary" id="btn-new-trip">+ Novo roteiro</button>
+          </div>
         </div>
+
+        <!-- ═══ Gerador de roteiro por IA ═══ -->
+        <form class="panel ai-form hidden" id="ai-form">
+          <h2>✨ Conte seus gostos e a gente monta o roteiro</h2>
+          <div class="field">
+            <label>Do que você gosta?</label>
+            <div class="chip-row" id="ai-interests">
+              <button type="button" class="chip" data-v="cafe">☕ Café</button>
+              <button type="button" class="chip" data-v="trilhas">⛰ Trilhas</button>
+              <button type="button" class="chip" data-v="cachoeiras">💧 Cachoeiras</button>
+              <button type="button" class="chip" data-v="gastronomia">🧀 Gastronomia</button>
+              <button type="button" class="chip" data-v="artesanato">🧺 Artesanato</button>
+              <button type="button" class="chip" data-v="eventos">✦ Eventos</button>
+              <button type="button" class="chip" data-v="hospedagem">🏡 Hospedagem</button>
+              <button type="button" class="chip" data-v="astronomia">🌌 Céu estrelado</button>
+              <button type="button" class="chip" data-v="cavalgada">🐎 Cavalgada</button>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label for="ai-duration">Quanto tempo você tem?</label>
+              <select id="ai-duration">
+                <option value="meio dia">Meio dia</option>
+                <option value="1 dia" selected>1 dia</option>
+                <option value="fim de semana">Fim de semana</option>
+                <option value="3+ dias">3 dias ou mais</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="ai-pace">Ritmo da viagem</label>
+              <select id="ai-pace">
+                <option value="tranquilo">Tranquilo</option>
+                <option value="moderado" selected>Moderado</option>
+                <option value="intenso">Intenso</option>
+              </select>
+            </div>
+            <div class="field span-2">
+              <label for="ai-text">O que você quer viver? (opcional)</label>
+              <textarea id="ai-text" rows="2" placeholder="Ex.: ver o nascer do sol no pico, provar café especial e voltar com queijo da serra…"></textarea>
+            </div>
+          </div>
+          <div class="row-actions">
+            <button type="submit" class="btn-primary" id="ai-submit">✨ Montar meu roteiro</button>
+            <button type="button" class="btn-secondary" id="ai-cancel">Cancelar</button>
+          </div>
+        </form>
+
         <div id="trips-list" class="trips-grid"></div>
         <div id="trip-detail" class="hidden"></div>
       </section>

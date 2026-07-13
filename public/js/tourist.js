@@ -192,6 +192,7 @@ async function pullTripsFromServer() {
       await CaparaoDB.put('trips', t.client_uid, {
         client_uid: t.client_uid, title: t.title, notes: t.notes,
         updated_at: t.updated_at, items: t.items,
+        origin: t.origin, preferences: t.preferences,
       });
     }
   } catch { /* mantém os dados locais */ }
@@ -215,9 +216,9 @@ async function renderTrips() {
   currentTripUid = null;
   $('#trips-list').innerHTML = trips.map(t => `
     <div class="panel trip-card" data-uid="${esc(t.client_uid)}">
-      <h2>${esc(t.title)}</h2>
+      <h2>${t.origin === 'ai' ? '<span class="ai-badge">✨ IA</span> ' : ''}${esc(t.title)}</h2>
       <p class="trip-notes">${esc(t.notes || '')}</p>
-      <span class="trip-meta">${(t.items || []).length} parada${(t.items || []).length === 1 ? '' : 's'}</span>
+      <span class="trip-meta">${(t.items || []).length} parada${(t.items || []).length === 1 ? '' : 's'}${t.origin === 'ai' ? ' · gerado a partir dos seus gostos' : ''}</span>
       <div class="row-actions">
         <button class="btn-primary" data-action="open">Abrir</button>
         <button class="btn-reject" data-action="delete" title="Excluir">✕</button>
@@ -232,12 +233,19 @@ async function renderTripDetail(uid) {
   $('#trips-list').classList.add('hidden');
   const detail = $('#trip-detail');
   detail.classList.remove('hidden');
+  const prefs = trip.preferences;
+  const prefsLine = prefs ? [
+    prefs.interests?.length ? `Gostos: ${prefs.interests.join(', ')}` : null,
+    prefs.duration, prefs.pace,
+    prefs.text ? `“${prefs.text}”` : null,
+  ].filter(Boolean).join(' · ') : '';
   detail.innerHTML = `
     <div class="panel">
       <div class="panel-head">
         <div>
-          <h2>${esc(trip.title)}</h2>
+          <h2>${trip.origin === 'ai' ? '<span class="ai-badge">✨ IA</span> ' : ''}${esc(trip.title)}</h2>
           <span class="sub">${esc(trip.notes || 'Sem observações')} · <a href="#" id="trip-edit">editar</a></span>
+          ${prefsLine ? `<span class="sub trip-prefs">Preferências informadas — ${esc(prefsLine)}</span>` : ''}
         </div>
         <button class="btn-secondary" id="trip-back">← Voltar</button>
       </div>
@@ -305,6 +313,49 @@ $('#trips-list').addEventListener('click', async e => {
     await CaparaoDB.del('trips', uid);
     await CaparaoDB.enqueue({ method: 'DELETE', path: `/api/trips/${uid}` });
     renderTrips();
+  }
+});
+
+// ─── Gerador de roteiro por IA ───────────────────────────────────────────────
+$('#btn-ai-trip').addEventListener('click', () => {
+  if (!navigator.onLine) return toast('Conecte-se para gerar um roteiro por IA');
+  $('#ai-form').classList.toggle('hidden');
+});
+$('#ai-cancel').addEventListener('click', () => $('#ai-form').classList.add('hidden'));
+$('#ai-interests').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (chip) chip.classList.toggle('on');
+});
+
+$('#ai-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const interests = $$('#ai-interests .chip.on').map(c => c.dataset.v);
+  const text = $('#ai-text').value.trim();
+  if (!interests.length && !text) return toast('Selecione ao menos um gosto ou escreva o que quer viver');
+
+  const btn = $('#ai-submit');
+  btn.disabled = true;
+  btn.textContent = '✨ Montando seu roteiro…';
+  try {
+    const trip = await api('/trips/generate', {
+      method: 'POST',
+      body: JSON.stringify({
+        interests,
+        duration: $('#ai-duration').value,
+        pace: $('#ai-pace').value,
+        text: text || null,
+      }),
+    });
+    $('#ai-form').classList.add('hidden');
+    toast('Roteiro montado pra você ✨');
+    await pullTripsFromServer();
+    await renderTrips();
+    renderTripDetail(trip.client_uid);
+  } catch (err) {
+    if (!err.unauthorized) toast(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ Montar meu roteiro';
   }
 });
 
