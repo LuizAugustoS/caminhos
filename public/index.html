@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Caminhos do Caparaó — Admin</title>
-<meta name="description" content="Painel administrativo do marketplace de turismo rural Caminhos do Caparaó">
+<title>Caminhos do Caparaó</title>
+<meta name="description" content="Marketplace de turismo rural da região do Caparaó — explore, planeje roteiros e converse com produtores locais">
 <meta name="theme-color" content="#14402E">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
@@ -16,44 +16,10 @@
 </head>
 <body>
 
-<!-- ═══ Tela de login ═══ -->
-<div id="login-screen" class="backdrop login-wrap hidden">
-  <form id="login-form" class="login-card">
-    <div class="brand">
-      <div class="brand-mark">
-        <div class="brand-sun"></div>
-        <div class="brand-peak-green"></div>
-        <div class="brand-peak-brown"></div>
-        <div class="brand-bean"></div>
-      </div>
-      <div class="brand-title">
-        <strong>Caminhos do Caparaó</strong>
-        <small>Turismo rural · Marketplace</small>
-      </div>
-    </div>
-    <h1>Acesso administrativo</h1>
-    <p>Entre com suas credenciais para gerenciar a plataforma.</p>
-    <div class="field">
-      <label for="login-email">E-mail</label>
-      <input id="login-email" type="email" autocomplete="username" required>
-    </div>
-    <div class="field">
-      <label for="login-password">Senha</label>
-      <input id="login-password" type="password" autocomplete="current-password" required>
-    </div>
-    <p id="login-error" class="login-error"></p>
-    <button type="submit" class="btn-primary">Entrar</button>
-    <p class="login-hint">Área restrita a administradores da plataforma.</p>
-  </form>
-</div>
-
-<!-- ═══ App ═══ -->
-<div id="app-screen" class="backdrop hidden">
-  <div class="app-frame">
-    <div class="offline-banner">Você está offline — exibindo os últimos dados sincronizados.</div>
-
-    <header class="topbar">
-      <div class="brand">
+<div class="backdrop login-wrap">
+  <div class="landing">
+    <div class="landing-hero">
+      <div class="brand landing-brand">
         <div class="brand-mark">
           <div class="brand-sun"></div>
           <div class="brand-peak-green"></div>
@@ -65,121 +31,114 @@
           <small>Turismo rural · Marketplace</small>
         </div>
       </div>
+      <h1>Explore a serra, apoie quem produz.</h1>
+      <p>Roteiros personalizados que funcionam <strong>mesmo sem internet</strong>, vitrines de café, queijo e artesanato de altitude, e conversa direta com produtores da região do Caparaó (ES/MG).</p>
+      <ul class="landing-feats">
+        <li>⛰ Monte seu roteiro offline e sincronize depois</li>
+        <li>☕ Produtos, serviços e eventos de parceiros locais</li>
+        <li>◍ Chat direto para dúvidas e reservas</li>
+      </ul>
+    </div>
 
-      <div class="search">
-        <div class="search-glass"></div>
-        <input id="global-search" type="search" placeholder="Buscar turistas, produtores, anúncios…">
-        <kbd>⌘K</kbd>
+    <div class="login-card">
+      <div class="tabs auth-tabs">
+        <button class="tab active" data-mode="login">Entrar</button>
+        <button class="tab" data-mode="signup">Criar conta</button>
       </div>
 
-      <div class="topbar-right">
-        <button class="bell" title="Notificações">
-          <div class="bell-body"></div>
-          <div class="bell-base"></div>
-          <div class="bell-dot"></div>
-        </button>
-        <div class="profile" id="profile" title="Sair">
-          <div class="profile-avatar" id="profile-initials">–</div>
-          <div class="profile-info">
-            <strong id="profile-name">–</strong>
-            <small>Administradora</small>
+      <form id="auth-form">
+        <div id="signup-fields" class="hidden">
+          <div class="field">
+            <label>Quero usar como</label>
+            <div class="role-pick">
+              <label class="role-opt"><input type="radio" name="role" value="tourist" checked>
+                <span><strong>Turista</strong><small>explorar e montar roteiros</small></span></label>
+              <label class="role-opt"><input type="radio" name="role" value="producer">
+                <span><strong>Produtor</strong><small>vender produtos e serviços</small></span></label>
+            </div>
           </div>
-        </div>
-      </div>
-    </header>
-
-    <div class="body">
-      <nav class="sidenav" id="sidenav"></nav>
-
-      <main class="main">
-        <div class="page-head">
-          <div>
-            <h1>Controle Geral — Admin</h1>
-            <p id="page-date">—</p>
+          <div class="field">
+            <label for="f-name">Nome completo</label>
+            <input id="f-name" type="text" autocomplete="name">
           </div>
-          <div style="display:flex; gap:10px;">
-            <button class="btn-secondary" id="btn-export">Exportar relatório</button>
-            <button class="btn-primary">+ Novo cadastro</button>
+          <div class="field hidden" id="field-establishment">
+            <label for="f-establishment">Nome do estabelecimento</label>
+            <input id="f-establishment" type="text" placeholder="Ex.: Sítio Boa Esperança">
+          </div>
+          <div class="field">
+            <label for="f-city">Cidade</label>
+            <input id="f-city" type="text" placeholder="Ex.: Alto Caparaó">
           </div>
         </div>
 
-        <div class="kpi-grid" id="kpi-grid"></div>
-
-        <div class="panel-grid">
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2>Gestão de Produtores e Conteúdo</h2>
-                <span class="sub" id="producers-sub">Aplicações recentes</span>
-              </div>
-              <a href="#">Ver todas →</a>
-            </div>
-            <div class="producer-list" id="producer-list"></div>
-          </section>
-
-          <section class="panel panel-col">
-            <div class="panel-head">
-              <div>
-                <h2>Monitoramento de Turismo</h2>
-                <span class="sub">Mapa de calor · buscas dos últimos 7 dias</span>
-              </div>
-              <div class="offline-pill" title="Todos os itinerários publicados estão disponíveis para uso offline no PWA">
-                <div class="dot"></div>
-                <span>Itinerários Offline-Prontos</span>
-              </div>
-            </div>
-            <div class="heatmap">
-              <div class="heat-grid" id="heat-grid"></div>
-              <div class="heat-peak" id="heat-peak"></div>
-              <div class="heat-legend">
-                <span>baixo</span>
-                <i style="background:#DCE8DD"></i>
-                <i style="background:#8AA98F"></i>
-                <i style="background:#1C6B4A"></i>
-                <i style="background:#14402E"></i>
-                <span>alto</span>
-              </div>
-            </div>
-            <div class="heat-stats" id="heat-stats"></div>
-          </section>
+        <div class="field">
+          <label for="f-email">E-mail</label>
+          <input id="f-email" type="email" autocomplete="username" required>
         </div>
-
-        <section class="panel" style="margin-bottom:20px;">
-          <div class="panel-head" style="flex-wrap:wrap; gap:12px;">
-            <h2>Listas de Conteúdo Recentes</h2>
-            <div class="tabs" id="listing-tabs">
-              <button class="tab active" data-type="product">Produtos</button>
-              <button class="tab" data-type="service">Serviços</button>
-              <button class="tab" data-type="event">Eventos</button>
-            </div>
-          </div>
-          <div class="table-head">
-            <span></span>
-            <span>Título</span>
-            <span>Criador</span>
-            <span>Data</span>
-            <span>Status</span>
-            <span>Aprovação</span>
-          </div>
-          <div id="listing-rows"></div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <h2>Chat &amp; Atividade</h2>
-            <a href="#">Abrir chat interno →</a>
-          </div>
-          <div class="chat-grid">
-            <div class="chat-col" id="chat-list"></div>
-            <div class="chat-col" id="alert-list"></div>
-          </div>
-        </section>
-      </main>
+        <div class="field">
+          <label for="f-password">Senha</label>
+          <input id="f-password" type="password" autocomplete="current-password" required minlength="8">
+        </div>
+        <p id="auth-error" class="login-error"></p>
+        <button type="submit" class="btn-primary" id="auth-submit">Entrar</button>
+        <p class="login-hint" id="auth-hint">Produtores passam por aprovação da equipe antes de publicar.</p>
+      </form>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="/app.js"></script>
+<script src="/js/shared.js"></script>
+<script>
+(async () => {
+  // Sessão ativa → vai direto para a área do perfil
+  try {
+    const me = await api('/me');
+    location.href = HOME_BY_ROLE[me.role] || '/';
+    return;
+  } catch { /* sem sessão: mostra login */ }
+
+  let mode = 'login';
+  $$('.auth-tabs .tab').forEach(tab => tab.addEventListener('click', () => {
+    mode = tab.dataset.mode;
+    $$('.auth-tabs .tab').forEach(t => t.classList.toggle('active', t === tab));
+    $('#signup-fields').classList.toggle('hidden', mode === 'login');
+    $('#auth-submit').textContent = mode === 'login' ? 'Entrar' : 'Criar conta';
+    $('#f-password').autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+    $('#auth-error').textContent = '';
+  }));
+
+  $$('input[name=role]').forEach(r => r.addEventListener('change', () => {
+    $('#field-establishment').classList.toggle('hidden', r.value !== 'producer' || !r.checked);
+  }));
+
+  $('#auth-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    $('#auth-error').textContent = '';
+    try {
+      let user;
+      if (mode === 'login') {
+        user = await api('/login', { method: 'POST', body: JSON.stringify({
+          email: $('#f-email').value, password: $('#f-password').value,
+        }) });
+      } else {
+        const role = $('input[name=role]:checked').value;
+        if (!$('#f-name').value.trim()) throw new Error('Informe seu nome');
+        user = await api('/register', { method: 'POST', body: JSON.stringify({
+          name: $('#f-name').value,
+          email: $('#f-email').value,
+          password: $('#f-password').value,
+          role,
+          city: $('#f-city').value || null,
+          establishment: role === 'producer' ? $('#f-establishment').value : null,
+        }) });
+      }
+      location.href = HOME_BY_ROLE[user.role] || '/';
+    } catch (err) {
+      $('#auth-error').textContent = err.unauthorized ? 'E-mail ou senha inválidos' : err.message;
+    }
+  });
+})();
+</script>
 </body>
 </html>

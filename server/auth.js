@@ -1,6 +1,6 @@
 // Autenticação por sessão via cookie HMAC-assinado (sem dependências extras).
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { query } from './db.js';
+import { pool, query } from './db.js';
 
 const SECRET = process.env.SESSION_SECRET || 'dev-secret-inseguro';
 const COOKIE = 'caparao_session';
@@ -63,20 +63,74 @@ export function clearSession(res) {
 export function requireAuth(req, res, next) {
   const session = verify(parseCookies(req)[COOKIE]);
   if (!session) return res.status(401).json({ error: 'Não autenticado' });
-  req.admin = session;
+  req.user = session;
+  req.admin = session; // compatibilidade com rotas antigas
   next();
 }
+
+export const requireRole = (...roles) => [requireAuth, (req, res, next) => {
+  if (!roles.includes(req.user.role)) return res.status(403).json({ error: 'Acesso negado para este perfil' });
+  next();
+}];
 
 export async function login(req, res) {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'Informe e-mail e senha' });
-  const { rows } = await query('SELECT id, name, email, password_hash, role FROM admins WHERE email = $1', [email]);
-  const admin = rows[0];
-  if (!admin || !verifyPassword(password, admin.password_hash)) {
+  const { rows } = await query('SELECT id, name, email, password_hash, role FROM users WHERE email = $1', [email]);
+  const user = rows[0];
+  if (!user || !verifyPassword(password, user.password_hash)) {
     return res.status(401).json({ error: 'E-mail ou senha inválidos' });
   }
-  setSession(res, admin);
-  res.json({ id: admin.id, name: admin.name, email: admin.email, role: admin.role });
+  setSession(res, user);
+  res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
+}
+
+const initialsOf = name => name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+// Cadastro de turista ou produtor. Produtores entram na fila de moderação do admin.
+export async function register(req, res) {
+  const { name, email, password, role, city, establishment } = req.body || {};
+  if (!name?.trim() || !email?.trim() || !password || password.length < 8) {
+    return res.status(400).json({ error: 'Informe nome, e-mail e senha (mínimo 8 caracteres)' });
+  }
+  if (!['tourist', 'producer'].includes(role)) {
+    return res.status(400).json({ error: "Perfil deve ser 'tourist' ou 'producer'" });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: [user] } = await client.query(
+      `INSERT INTO users (name, email, password_hash, role, city)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, role`,
+      [name.trim(), email.trim().toLowerCase(), hashPassword(password), role, city || null]
+    );
+    if (role === 'tourist') {
+      await client.query(
+        `INSERT INTO tourists (name, email, city, user_id) VALUES ($1, $2, $3, $4)`,
+        [user.name, user.email, city || null, user.id]
+      );
+    } else {
+      const estName = establishment?.trim() || `${user.name} — Estabelecimento`;
+      const { rows: [producer] } = await client.query(
+        `INSERT INTO producers (name, kind, initials, status, city, user_id)
+         VALUES ($1, $2, $3, 'pending', $4, $5) RETURNING id`,
+        [estName, 'Novo parceiro · aguardando revisão', initialsOf(estName), city || null, user.id]
+      );
+      await client.query(
+        `INSERT INTO establishments (producer_id, name, city) VALUES ($1, $2, $3)`,
+        [producer.id, estName, city || null]
+      );
+    }
+    await client.query('COMMIT');
+    setSession(res, user);
+    res.status(201).json(user);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '23505') return res.status(409).json({ error: 'E-mail já cadastrado' });
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export function logout(_req, res) {
@@ -85,5 +139,5 @@ export function logout(_req, res) {
 }
 
 export function me(req, res) {
-  res.json({ id: req.admin.id, name: req.admin.name, role: req.admin.role });
+  res.json({ id: req.user.id, name: req.user.name, role: req.user.role });
 }

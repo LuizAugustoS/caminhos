@@ -1,18 +1,26 @@
-/* Service worker — Caminhos do Caparaó Admin
+/* Service worker — Caminhos do Caparaó PWA
  * Estratégia:
- *  - App shell (HTML/CSS/JS/ícones): cache-first com atualização em segundo plano
- *  - API GET (dashboard, listas, itinerários): network-first com fallback ao cache,
- *    garantindo que o painel e os itinerários funcionem offline com os últimos dados.
+ *  - App shell (páginas, CSS/JS, ícones): cache-first com atualização em 2º plano
+ *  - API GET (exploração, roteiros, conversas…): network-first com fallback ao
+ *    cache — o app continua utilizável offline com os últimos dados.
+ *  - Mutações offline NÃO passam por aqui: ficam na fila do IndexedDB (js/idb.js)
+ *    e são reenviadas quando a conexão volta, com rotas idempotentes no servidor.
  */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL_CACHE = `shell-${VERSION}`;
 const DATA_CACHE = `data-${VERSION}`;
 
 const SHELL_ASSETS = [
   '/',
-  '/index.html',
+  '/app',
+  '/portal',
+  '/admin',
   '/styles.css',
-  '/app.js',
+  '/admin.js',
+  '/js/shared.js',
+  '/js/idb.js',
+  '/js/tourist.js',
+  '/js/producer.js',
   '/manifest.webmanifest',
   '/icons/icon.svg',
   '/icons/icon-192.png',
@@ -60,30 +68,43 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Google Fonts: cache-first (fica disponível offline após a primeira visita)
+  // Google Fonts: cache-first com timeout — uma fonte lenta ou bloqueada nunca
+  // pode travar o parser (folha de estilo pendente bloqueia os scripts da página).
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+    const fallback = new Response('/* fonte indisponível */', {
+      status: 200, headers: { 'Content-Type': 'text/css' },
+    });
     event.respondWith(
-      caches.match(request).then(cached => cached || fetch(request).then(response => {
-        const copy = response.clone();
-        caches.open(SHELL_CACHE).then(cache => cache.put(request, copy));
-        return response;
-      }).catch(() => cached))
+      caches.match(request).then(cached => {
+        if (cached) return cached;
+        return Promise.race([
+          fetch(request).then(response => {
+            if (response.ok) {
+              const copy = response.clone();
+              caches.open(SHELL_CACHE).then(cache => cache.put(request, copy));
+            }
+            return response;
+          }),
+          new Promise(resolve => setTimeout(() => resolve(fallback), 4000)),
+        ]).catch(() => fallback);
+      })
     );
     return;
   }
 
-  // App shell: cache-first com revalidação em segundo plano
+  // App shell: cache-first com revalidação em segundo plano.
+  // Navegações são cacheadas pela URL da página (/, /app, /portal, /admin).
   if (url.origin === location.origin) {
+    const key = request.mode === 'navigate' ? url.pathname : request;
     event.respondWith(
-      caches.match(request.mode === 'navigate' ? '/index.html' : request).then(cached => {
+      caches.match(key).then(cached => {
         const network = fetch(request).then(response => {
           if (response.ok) {
             const copy = response.clone();
-            caches.open(SHELL_CACHE).then(cache =>
-              cache.put(request.mode === 'navigate' ? '/index.html' : request, copy));
+            caches.open(SHELL_CACHE).then(cache => cache.put(key, copy));
           }
           return response;
-        }).catch(() => cached);
+        }).catch(() => cached || new Response('offline', { status: 503 }));
         return cached || network;
       })
     );

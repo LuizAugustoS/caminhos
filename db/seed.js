@@ -16,15 +16,25 @@ function hashPassword(password) {
 await client.connect();
 await client.query('BEGIN');
 
-await client.query(`TRUNCATE admins, tourists, producers, listings, transactions,
-  search_events, itineraries, chat_messages, alerts RESTART IDENTITY CASCADE`);
+await client.query(`TRUNCATE users, tourists, producers, listings, transactions,
+  search_events, itineraries, chat_messages, alerts, establishments, trips,
+  trip_items, favorites, conversations, messages RESTART IDENTITY CASCADE`);
 
-// ─── Admin ────────────────────────────────────────────────────────────────
+// ─── Usuários (admin + contas demo de turista e produtor) ─────────────────
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@caminhosdocaparao.com.br';
 const adminPassword = process.env.ADMIN_PASSWORD || 'caparao2026';
-await client.query(
-  `INSERT INTO admins (name, email, password_hash, role) VALUES ($1, $2, $3, 'admin')`,
+const demoPassword = process.env.DEMO_PASSWORD || 'caparao2026';
+const { rows: [adminUser] } = await client.query(
+  `INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, 'admin') RETURNING id`,
   ['Marina Rocha', adminEmail, hashPassword(adminPassword)]
+);
+const { rows: [touristUser] } = await client.query(
+  `INSERT INTO users (name, email, password_hash, role, city) VALUES ($1, $2, $3, 'tourist', 'Vitória') RETURNING id`,
+  ['Ana Ribeiro', 'turista@demo.com', hashPassword(demoPassword)]
+);
+const { rows: [producerUser] } = await client.query(
+  `INSERT INTO users (name, email, password_hash, role, city) VALUES ($1, $2, $3, 'producer', 'Alto Caparaó') RETURNING id`,
+  ['Sebastião Moreira', 'produtor@demo.com', hashPassword(demoPassword)]
 );
 
 // ─── Turistas: ~1.248 nos últimos 30 dias + base anterior (para o delta) ──
@@ -76,6 +86,25 @@ await client.query(`
          (ARRAY['Alto Caparaó','Ibitirama','Iúna','Dores do Rio Preto','Espera Feliz','Manhuaçu'])[1 + g % 6],
          now() - (random() * interval '360 days')
   FROM generate_series(1, 302) g`);
+
+// Vincula as contas demo e cria estabelecimentos dos produtores em destaque
+await client.query(
+  `UPDATE producers SET user_id = $1, status = 'approved' WHERE name = 'Sítio Boa Esperança'`,
+  [producerUser.id]
+);
+await client.query(
+  `INSERT INTO tourists (name, email, city, user_id, created_at)
+   VALUES ('Ana Ribeiro', 'turista@demo.com', 'Vitória', $1, now())`,
+  [touristUser.id]
+);
+await client.query(`
+  INSERT INTO establishments (producer_id, name, description, category, city, address, phone, open_hours)
+  SELECT id, name, kind || '. Recepção de visitantes com agendamento.',
+         (ARRAY['Café e agroturismo','Artesanato','Hospedagem','Guias e trilhas','Gastronomia'])[1 + id % 5],
+         coalesce(city, 'Alto Caparaó'),
+         'Zona rural, km ' || (2 + id % 30), '(28) 9 9' || lpad((100000 + id * 137)::text, 6, '0'),
+         'Sáb–Dom, 8h às 17h'
+  FROM producers WHERE id <= 14`);
 
 // ─── Anúncios em destaque (listas do painel) ──────────────────────────────
 // [tipo, glyph, image_kind, image_label, título, subtítulo, produtor, data, status]
@@ -201,6 +230,42 @@ for (const [title, meta, severity, ago] of alerts) {
     [title, meta, severity, ago]
   );
 }
+
+// ─── Roteiro demo do turista (offline-first) ───────────────────────────────
+const { rows: [trip] } = await client.query(
+  `INSERT INTO trips (user_id, client_uid, title, notes)
+   VALUES ($1, 'seed-trip-1', 'Fim de semana no Caparaó', 'Chegada sexta à noite, subida ao pico no sábado.')
+   RETURNING id`,
+  [touristUser.id]
+);
+await client.query(`
+  INSERT INTO trip_items (trip_id, client_uid, position, listing_id, label, note)
+  VALUES
+    ($1, 'seed-item-1', 0, (SELECT id FROM listings WHERE title LIKE 'Guia Nascer do Sol%' LIMIT 1), NULL, 'Levar agasalho — madrugada fria'),
+    ($1, 'seed-item-2', 1, (SELECT id FROM listings WHERE title LIKE 'Tour de Colheita%' LIMIT 1), NULL, NULL),
+    ($1, 'seed-item-3', 2, NULL, 'Almoço na praça de Alto Caparaó', NULL)`,
+  [trip.id]
+);
+await client.query(
+  `INSERT INTO favorites (user_id, listing_id)
+   SELECT $1, id FROM listings WHERE title LIKE 'Café Arábica%' OR title LIKE 'Travessia do Caparaó%'`,
+  [touristUser.id]
+);
+
+// ─── Conversa demo turista ↔ produtor ──────────────────────────────────────
+const { rows: [conv] } = await client.query(
+  `INSERT INTO conversations (tourist_id, producer_id)
+   VALUES ($1, (SELECT id FROM producers WHERE name = 'Sítio Boa Esperança'))
+   RETURNING id`,
+  [touristUser.id]
+);
+await client.query(
+  `INSERT INTO messages (conversation_id, sender_id, body, created_at) VALUES
+   ($1, $2, 'Olá! O tour de colheita tem vaga para 2 pessoas neste sábado?', now() - interval '3 hours'),
+   ($1, $3, 'Olá, Ana! Temos sim — a saída é às 9h, com degustação no final. Posso reservar?', now() - interval '2 hours'),
+   ($1, $2, 'Pode reservar, por favor! Chegamos na sexta à noite.', now() - interval '1 hour')`,
+  [conv.id, touristUser.id, producerUser.id]
+);
 
 await client.query('COMMIT');
 

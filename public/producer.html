@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caminhos do Caparaó — Portal do Produtor</title>
+<meta name="description" content="Vitrine virtual, mensagens e perfil do seu estabelecimento no Caminhos do Caparaó">
+<meta name="theme-color" content="#14402E">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div class="backdrop">
+  <div class="app-frame">
+    <div class="offline-banner">Você está offline — exibindo os últimos dados sincronizados.</div>
+
+    <header class="topbar">
+      <div id="brand-slot"></div>
+      <div class="topbar-right">
+        <span class="status-pill hidden" id="producer-status"></span>
+        <div class="profile" id="profile" title="Sair">
+          <div class="profile-avatar" id="profile-initials">–</div>
+          <div class="profile-info">
+            <strong id="profile-name">–</strong>
+            <small>Produtor parceiro</small>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="view-tabs">
+      <button class="vtab active" data-view="showcase">▤ Minha Vitrine</button>
+      <button class="vtab" data-view="chat">◍ Mensagens <span class="nav-badge hidden" id="chat-badge"></span></button>
+      <button class="vtab" data-view="profile">⌂ Meu Estabelecimento</button>
+    </nav>
+
+    <main class="main">
+
+      <!-- ═══ Vitrine ═══ -->
+      <section id="view-showcase" class="view">
+        <div class="page-head">
+          <div>
+            <h1>Minha Vitrine</h1>
+            <p id="showcase-sub">Anúncios de produtos, serviços e eventos</p>
+          </div>
+          <button class="btn-primary" id="btn-new-listing">+ Novo anúncio</button>
+        </div>
+
+        <div class="kpi-grid kpi-grid-3" id="portal-kpis"></div>
+
+        <section class="panel">
+          <div class="table-head listing-cols">
+            <span></span>
+            <span>Título</span>
+            <span>Tipo</span>
+            <span>Data</span>
+            <span>Status</span>
+            <span>Ações</span>
+          </div>
+          <div id="my-listings"></div>
+        </section>
+
+        <form class="panel listing-form hidden" id="listing-form">
+          <h2 id="listing-form-title">Novo anúncio</h2>
+          <div class="form-grid">
+            <div class="field">
+              <label for="l-type">Tipo</label>
+              <select id="l-type">
+                <option value="product">Produto</option>
+                <option value="service">Serviço</option>
+                <option value="event">Evento</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="l-image">Estilo do cartão</label>
+              <select id="l-image">
+                <option value="cafe">Café / terra</option>
+                <option value="arte">Artesanato / terracota</option>
+                <option value="verde">Natureza / floresta</option>
+                <option value="sage">Campo / sálvia</option>
+              </select>
+            </div>
+            <div class="field span-2">
+              <label for="l-title">Título</label>
+              <input id="l-title" type="text" placeholder="Ex.: Café Arábica Torra Média — 500g" required>
+            </div>
+            <div class="field span-2">
+              <label for="l-subtitle">Descrição curta</label>
+              <input id="l-subtitle" type="text" placeholder="Ex.: Microlote 1.400m · nota 88 SCA">
+            </div>
+          </div>
+          <p class="login-hint" style="text-align:left">Todo anúncio novo ou editado passa pela moderação da equipe antes de aparecer para os turistas.</p>
+          <div class="row-actions">
+            <button type="submit" class="btn-primary" id="listing-save">Enviar para revisão</button>
+            <button type="button" class="btn-secondary" id="listing-cancel">Cancelar</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ═══ Mensagens ═══ -->
+      <section id="view-chat" class="view hidden">
+        <div class="page-head">
+          <div>
+            <h1>Mensagens</h1>
+            <p>Dúvidas e reservas de turistas</p>
+          </div>
+        </div>
+        <div class="chat-layout">
+          <div class="panel conv-list" id="conv-list"></div>
+          <div class="panel conv-thread" id="conv-thread">
+            <p class="empty-note">Selecione uma conversa ao lado.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ Perfil ═══ -->
+      <section id="view-profile" class="view hidden">
+        <div class="page-head">
+          <div>
+            <h1>Meu Estabelecimento</h1>
+            <p>Como turistas veem o seu negócio na plataforma</p>
+          </div>
+        </div>
+        <form class="panel listing-form" id="profile-form">
+          <div class="form-grid">
+            <div class="field span-2">
+              <label for="e-name">Nome do estabelecimento</label>
+              <input id="e-name" type="text" required>
+            </div>
+            <div class="field span-2">
+              <label for="e-description">Descrição</label>
+              <textarea id="e-description" rows="3" placeholder="Conte a história do seu negócio…"></textarea>
+            </div>
+            <div class="field">
+              <label for="e-category">Categoria</label>
+              <input id="e-category" type="text" placeholder="Ex.: Café e agroturismo">
+            </div>
+            <div class="field">
+              <label for="e-city">Cidade</label>
+              <input id="e-city" type="text">
+            </div>
+            <div class="field">
+              <label for="e-address">Endereço</label>
+              <input id="e-address" type="text">
+            </div>
+            <div class="field">
+              <label for="e-phone">Telefone/WhatsApp</label>
+              <input id="e-phone" type="text">
+            </div>
+            <div class="field span-2">
+              <label for="e-hours">Horário de visitação</label>
+              <input id="e-hours" type="text" placeholder="Ex.: Sáb–Dom, 8h às 17h">
+            </div>
+          </div>
+          <div class="row-actions">
+            <button type="submit" class="btn-primary">Salvar perfil</button>
+          </div>
+        </form>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/js/shared.js"></script>
+<script src="/js/producer.js"></script>
+</body>
+</html>
