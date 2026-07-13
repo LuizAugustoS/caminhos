@@ -1,10 +1,14 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { login, logout, me, requireAuth } from './auth.js';
+import { login, logout, me, register, requireAuth, requireRole } from './auth.js';
 import { dashboard } from './routes/dashboard.js';
 import { producers, listings } from './routes/moderation.js';
 import { misc } from './routes/misc.js';
+import { explore } from './routes/explore.js';
+import { trips, favorites } from './routes/trips.js';
+import { conversations } from './routes/chat.js';
+import { portal } from './routes/portal.js';
 import { pool } from './db.js';
 
 const app = express();
@@ -23,13 +27,28 @@ app.get('/api/health', async (_req, res) => {
 });
 
 app.post('/api/login', login);
+app.post('/api/register', register);
 app.post('/api/logout', logout);
 app.get('/api/me', requireAuth, me);
 
-app.use('/api/dashboard', requireAuth, dashboard);
-app.use('/api/producers', requireAuth, producers);
-app.use('/api/listings', requireAuth, listings);
-app.use('/api', requireAuth, misc);
+// Público (vitrine para turistas, mesmo sem conta)
+app.use('/api/explore', explore);
+
+// Turista
+app.use('/api/trips', requireRole('tourist'), trips);
+app.use('/api/favorites', requireRole('tourist'), favorites);
+
+// Turista + produtor (chat assimétrico)
+app.use('/api/conversations', requireRole('tourist', 'producer', 'admin'), conversations);
+
+// Produtor
+app.use('/api/portal', requireRole('producer'), portal);
+
+// Admin
+app.use('/api/dashboard', requireRole('admin'), dashboard);
+app.use('/api/producers', requireRole('admin'), producers);
+app.use('/api/listings', requireRole('admin'), listings);
+app.use('/api', requireRole('admin'), misc);
 
 // ─── PWA estático ───────────────────────────────────────────────────────────
 app.use(express.static(publicDir, {
@@ -38,6 +57,9 @@ app.use(express.static(publicDir, {
     if (path.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-cache');
   },
 }));
+app.get('/admin', (_req, res) => res.sendFile(join(publicDir, 'admin.html')));
+app.get('/app', (_req, res) => res.sendFile(join(publicDir, 'tourist.html')));
+app.get('/portal', (_req, res) => res.sendFile(join(publicDir, 'producer.html')));
 app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(join(publicDir, 'index.html')));
 
 // eslint-disable-next-line no-unused-vars

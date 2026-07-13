@@ -49,12 +49,10 @@ async function api(path, options = {}) {
 
 // ─── Telas ───────────────────────────────────────────────────────────────────
 function showLogin() {
-  $('#login-screen').classList.remove('hidden');
-  $('#app-screen').classList.add('hidden');
+  location.href = '/'; // login centralizado na landing
 }
 
 function showApp(admin) {
-  $('#login-screen').classList.add('hidden');
   $('#app-screen').classList.remove('hidden');
   $('#profile-name').textContent = admin.name;
   $('#profile-initials').textContent = admin.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -326,22 +324,7 @@ $('#listing-tabs').addEventListener('click', e => {
   loadListings();
 });
 
-// ─── Login / logout ──────────────────────────────────────────────────────────
-$('#login-form').addEventListener('submit', async e => {
-  e.preventDefault();
-  $('#login-error').textContent = '';
-  try {
-    const admin = await api('/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: $('#login-email').value, password: $('#login-password').value }),
-    });
-    showApp(admin);
-  } catch (err) {
-    $('#login-error').textContent = err.message === 'unauthorized' ? 'E-mail ou senha inválidos' : err.message;
-    showLogin();
-  }
-});
-
+// ─── Logout ──────────────────────────────────────────────────────────────────
 $('#profile').addEventListener('click', async () => {
   if (!confirm('Sair do painel?')) return;
   await api('/logout', { method: 'POST' }).catch(() => {});
@@ -384,4 +367,10 @@ if ('serviceWorker' in navigator) {
 }
 
 // ─── Boot: sessão existente? ─────────────────────────────────────────────────
-api('/me').then(showApp).catch(() => showLogin());
+const HOME_BY_ROLE = { admin: '/admin', tourist: '/app', producer: '/portal' };
+api('/me')
+  .then(me => {
+    if (me.role !== 'admin') { location.href = HOME_BY_ROLE[me.role] || '/'; return; }
+    showApp(me);
+  })
+  .catch(() => showLogin());

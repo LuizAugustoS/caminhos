@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caminhos do Caparaó — Explorar</title>
+<meta name="description" content="Explore o Caparaó, monte roteiros offline e converse com produtores locais">
+<meta name="theme-color" content="#14402E">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div class="backdrop">
+  <div class="app-frame">
+    <div class="offline-banner">Você está offline — seus roteiros continuam funcionando e sincronizam quando a conexão voltar.</div>
+
+    <header class="topbar">
+      <div id="brand-slot"></div>
+      <div class="topbar-right">
+        <div class="sync-pill" id="sync-pill" title="Estado da sincronização offline">
+          <div class="dot"></div><span id="sync-label">Sincronizado</span>
+        </div>
+        <div class="profile" id="profile" title="Sair">
+          <div class="profile-avatar" id="profile-initials">–</div>
+          <div class="profile-info">
+            <strong id="profile-name">–</strong>
+            <small>Turista</small>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="view-tabs">
+      <button class="vtab active" data-view="explore">⛰ Explorar</button>
+      <button class="vtab" data-view="trips">✎ Meus Roteiros</button>
+      <button class="vtab" data-view="favorites">♥ Favoritos</button>
+      <button class="vtab" data-view="chat">◍ Mensagens <span class="nav-badge hidden" id="chat-badge"></span></button>
+    </nav>
+
+    <main class="main">
+
+      <!-- ═══ Explorar ═══ -->
+      <section id="view-explore" class="view">
+        <div class="page-head">
+          <div>
+            <h1>Explorar o Caparaó</h1>
+            <p>Produtos, experiências, eventos e estabelecimentos da região — ES/MG</p>
+          </div>
+        </div>
+        <div class="explore-bar">
+          <div class="search explore-search">
+            <div class="search-glass"></div>
+            <input id="explore-q" type="search" placeholder="Buscar café, trilhas, queijos, pousadas…">
+          </div>
+          <div class="tabs" id="explore-chips">
+            <button class="tab active" data-kind="">Tudo</button>
+            <button class="tab" data-kind="product">Produtos</button>
+            <button class="tab" data-kind="service">Serviços</button>
+            <button class="tab" data-kind="event">Eventos</button>
+            <button class="tab" data-kind="places">Estabelecimentos</button>
+          </div>
+        </div>
+        <div class="card-grid" id="explore-grid"></div>
+      </section>
+
+      <!-- ═══ Meus Roteiros ═══ -->
+      <section id="view-trips" class="view hidden">
+        <div class="page-head">
+          <div>
+            <h1>Meus Roteiros</h1>
+            <p>Salvos no seu dispositivo — funcionam sem internet e sincronizam sozinhos</p>
+          </div>
+          <button class="btn-primary" id="btn-new-trip">+ Novo roteiro</button>
+        </div>
+        <div id="trips-list" class="trips-grid"></div>
+        <div id="trip-detail" class="hidden"></div>
+      </section>
+
+      <!-- ═══ Favoritos ═══ -->
+      <section id="view-favorites" class="view hidden">
+        <div class="page-head">
+          <div>
+            <h1>Favoritos</h1>
+            <p>Também disponíveis offline</p>
+          </div>
+        </div>
+        <div class="card-grid" id="favorites-grid"></div>
+      </section>
+
+      <!-- ═══ Mensagens ═══ -->
+      <section id="view-chat" class="view hidden">
+        <div class="page-head">
+          <div>
+            <h1>Mensagens</h1>
+            <p>Converse com produtores para dúvidas e reservas</p>
+          </div>
+        </div>
+        <div class="chat-layout">
+          <div class="panel conv-list" id="conv-list"></div>
+          <div class="panel conv-thread" id="conv-thread">
+            <p class="empty-note">Selecione uma conversa ao lado, ou toque em “Conversar” em um anúncio.</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/js/shared.js"></script>
+<script src="/js/idb.js"></script>
+<script src="/js/tourist.js"></script>
+</body>
+</html>

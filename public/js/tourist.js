@@ -1,0 +1,453 @@
+/* Área do Turista — offline-first.
+ * Roteiros e favoritos vivem no IndexedDB (fonte da verdade local); toda
+ * mutação entra na fila de sincronização e é reenviada quando há rede.
+ * A exploração usa a rede quando disponível e cai para o cache local offline.
+ */
+'use strict';
+
+let me = null;
+let exploreKind = '';
+let currentTripUid = null;
+let currentConvId = null;
+
+// ─── Sincronização: indicador ────────────────────────────────────────────────
+CaparaoDB.onPendingChange(n => {
+  const pill = $('#sync-pill'), label = $('#sync-label');
+  if (!pill) return;
+  pill.classList.toggle('pending', n > 0);
+  label.textContent = n > 0
+    ? `${n} alteraç${n > 1 ? 'ões' : 'ão'} aguardando conexão`
+    : 'Sincronizado';
+});
+
+// ─── Views ───────────────────────────────────────────────────────────────────
+const VIEWS = { explore: loadExplore, trips: renderTrips, favorites: renderFavorites, chat: loadConversations };
+
+function switchView(name) {
+  $$('.vtab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+  $$('.view').forEach(v => v.classList.toggle('hidden', v.id !== `view-${name}`));
+  VIEWS[name]();
+}
+$$('.vtab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+
+// ─── Explorar ────────────────────────────────────────────────────────────────
+async function loadExplore() {
+  const q = $('#explore-q').value.trim();
+  let listings = [], places = [];
+
+  if (navigator.onLine) {
+    try {
+      if (exploreKind === 'places') {
+        ({ establishments: places } = await api(`/explore/establishments?q=${encodeURIComponent(q)}`));
+        for (const e of places) await CaparaoDB.put('establishments', e.id, e);
+      } else {
+        const typeParam = exploreKind ? `&type=${exploreKind}` : '';
+        ({ listings } = await api(`/explore/listings?q=${encodeURIComponent(q)}${typeParam}`));
+        for (const l of listings) await CaparaoDB.put('listings', l.id, l);
+      }
+    } catch { /* cai para o cache local */ }
+  }
+
+  if (!navigator.onLine || (!listings.length && !places.length)) {
+    const norm = s => (s || '').toLowerCase();
+    if (exploreKind === 'places') {
+      places = (await CaparaoDB.all('establishments'))
+        .filter(e => !q || norm(e.name).includes(norm(q)) || norm(e.city).includes(norm(q)) || norm(e.category).includes(norm(q)));
+    } else {
+      listings = (await CaparaoDB.all('listings'))
+        .filter(l => !exploreKind || l.type === exploreKind)
+        .filter(l => !q || norm(l.title).includes(norm(q)) || norm(l.subtitle).includes(norm(q)) || norm(l.producer_name).includes(norm(q)));
+    }
+  }
+
+  const favIds = new Set((await CaparaoDB.all('favorites')).map(f => f.listing_id));
+
+  $('#explore-grid').innerHTML =
+    (exploreKind === 'places' ? places.map(placeCard) : listings.map(l => listingCard(l, favIds))).join('')
+    || `<p class="empty-note">Nada encontrado${navigator.onLine ? '' : ' no cache offline — conecte-se para explorar mais'}.</p>`;
+}
+
+const listingCard = (l, favIds) => `
+  <div class="ex-card" data-id="${l.id}" data-producer="${l.producer_id}">
+    <div class="ex-thumb img-${esc(l.image_kind)}">${esc(l.glyph)}</div>
+    <div class="ex-body">
+      <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')}</span>
+      <strong class="ex-title">${esc(l.title)}</strong>
+      <span class="ex-sub">${esc(l.subtitle || '')}</span>
+      <div class="ex-producer">
+        <div class="avatar sm" style="background:${esc(l.producer_color || '#1C6B4A')}">${esc(l.producer_initials || '')}</div>
+        <span>${esc(l.producer_name)}</span>
+      </div>
+    </div>
+    <div class="ex-actions">
+      <button class="btn-fav ${favIds.has(l.id) ? 'on' : ''}" data-action="fav" title="Favoritar">♥</button>
+      <button class="btn-secondary" data-action="add-trip">+ Roteiro</button>
+      <button class="btn-primary" data-action="chat">Conversar</button>
+    </div>
+  </div>`;
+
+const placeCard = e => `
+  <div class="ex-card" data-producer="${e.producer_id}">
+    <div class="ex-thumb img-verde">⌂</div>
+    <div class="ex-body">
+      <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')}</span>
+      <strong class="ex-title">${esc(e.name)}</strong>
+      <span class="ex-sub">${esc(e.description || e.kind || '')}</span>
+      <span class="ex-meta">${esc(e.address || '')}${e.open_hours ? ' · ' + esc(e.open_hours) : ''}${e.phone ? ' · ' + esc(e.phone) : ''}</span>
+    </div>
+    <div class="ex-actions">
+      <button class="btn-secondary" data-action="add-place">+ Roteiro</button>
+      <button class="btn-primary" data-action="chat">Conversar</button>
+    </div>
+  </div>`;
+
+$('#explore-q').addEventListener('input', () => { clearTimeout(window._qT); window._qT = setTimeout(loadExplore, 300); });
+$('#explore-chips').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  exploreKind = tab.dataset.kind;
+  $$('#explore-chips .tab').forEach(t => t.classList.toggle('active', t === tab));
+  loadExplore();
+});
+
+$('#explore-grid').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const card = btn.closest('.ex-card');
+  const listingId = Number(card.dataset.id) || null;
+  const producerId = Number(card.dataset.producer) || null;
+
+  if (btn.dataset.action === 'fav') return toggleFavorite(listingId, btn);
+  if (btn.dataset.action === 'add-trip' || btn.dataset.action === 'add-place') {
+    const item = btn.dataset.action === 'add-trip'
+      ? { listing_id: listingId }
+      : { establishment_id: (await CaparaoDB.all('establishments')).find(x => x.producer_id === producerId)?.id || null,
+          label: card.querySelector('.ex-title').textContent };
+    return addToTrip(item, card.querySelector('.ex-title').textContent);
+  }
+  if (btn.dataset.action === 'chat') return startConversation(producerId);
+});
+
+// ─── Favoritos ───────────────────────────────────────────────────────────────
+async function toggleFavorite(listingId, btn) {
+  const existing = await CaparaoDB.get('favorites', listingId);
+  if (existing) {
+    await CaparaoDB.del('favorites', listingId);
+    btn?.classList.remove('on');
+    await CaparaoDB.enqueue({ method: 'DELETE', path: `/api/favorites/${listingId}` });
+    toast('Removido dos favoritos');
+  } else {
+    const snapshot = (await CaparaoDB.get('listings', listingId)) || { id: listingId };
+    await CaparaoDB.put('favorites', listingId, { listing_id: listingId, ...snapshot });
+    btn?.classList.add('on');
+    await CaparaoDB.enqueue({ method: 'PUT', path: `/api/favorites/${listingId}` });
+    toast('Adicionado aos favoritos ♥');
+  }
+}
+
+async function renderFavorites() {
+  // Online: sincroniza a lista do servidor para o cache local
+  if (navigator.onLine) {
+    try {
+      const { favorites } = await api('/favorites');
+      await CaparaoDB.clear('favorites');
+      for (const f of favorites) await CaparaoDB.put('favorites', f.listing_id, f);
+    } catch { /* usa o cache */ }
+  }
+  const favs = await CaparaoDB.all('favorites');
+  $('#favorites-grid').innerHTML = favs.map(f => `
+    <div class="ex-card" data-id="${f.listing_id}" data-producer="${f.producer_id || ''}">
+      <div class="ex-thumb img-${esc(f.image_kind || 'verde')}">${esc(f.glyph || '◉')}</div>
+      <div class="ex-body">
+        <span class="ex-type">${TYPE_LABEL[f.type] || ''}</span>
+        <strong class="ex-title">${esc(f.title || 'Anúncio #' + f.listing_id)}</strong>
+        <span class="ex-sub">${esc(f.subtitle || '')}</span>
+        <div class="ex-producer"><span>${esc(f.producer_name || '')}</span></div>
+      </div>
+      <div class="ex-actions">
+        <button class="btn-fav on" data-action="fav" title="Remover">♥</button>
+        <button class="btn-secondary" data-action="add-trip">+ Roteiro</button>
+      </div>
+    </div>`).join('') || '<p class="empty-note">Nenhum favorito ainda — explore e toque no ♥.</p>';
+}
+
+$('#favorites-grid').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const card = btn.closest('.ex-card');
+  const listingId = Number(card.dataset.id);
+  if (btn.dataset.action === 'fav') { await toggleFavorite(listingId); renderFavorites(); }
+  if (btn.dataset.action === 'add-trip') addToTrip({ listing_id: listingId }, card.querySelector('.ex-title').textContent);
+});
+
+// ─── Roteiros (IndexedDB é a fonte da verdade) ──────────────────────────────
+async function pullTripsFromServer() {
+  if (!navigator.onLine) return;
+  const synced = await CaparaoDB.flush();       // envia pendências primeiro
+  if (!synced) return;                          // ainda há fila: não sobrescreve
+  try {
+    const { trips } = await api('/trips');
+    await CaparaoDB.clear('trips');
+    for (const t of trips) {
+      await CaparaoDB.put('trips', t.client_uid, {
+        client_uid: t.client_uid, title: t.title, notes: t.notes,
+        updated_at: t.updated_at, items: t.items,
+      });
+    }
+  } catch { /* mantém os dados locais */ }
+}
+
+async function saveTripLocalAndQueue(trip) {
+  trip.updated_at = new Date().toISOString();
+  await CaparaoDB.put('trips', trip.client_uid, trip);
+  await CaparaoDB.enqueue({
+    method: 'PUT',
+    path: `/api/trips/${trip.client_uid}`,
+    body: { title: trip.title, notes: trip.notes, items: trip.items },
+  });
+}
+
+async function renderTrips() {
+  await pullTripsFromServer();
+  const trips = (await CaparaoDB.all('trips')).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  $('#trip-detail').classList.add('hidden');
+  $('#trips-list').classList.remove('hidden');
+  currentTripUid = null;
+  $('#trips-list').innerHTML = trips.map(t => `
+    <div class="panel trip-card" data-uid="${esc(t.client_uid)}">
+      <h2>${esc(t.title)}</h2>
+      <p class="trip-notes">${esc(t.notes || '')}</p>
+      <span class="trip-meta">${(t.items || []).length} parada${(t.items || []).length === 1 ? '' : 's'}</span>
+      <div class="row-actions">
+        <button class="btn-primary" data-action="open">Abrir</button>
+        <button class="btn-reject" data-action="delete" title="Excluir">✕</button>
+      </div>
+    </div>`).join('') || '<p class="empty-note">Nenhum roteiro ainda. Crie um e adicione paradas explorando a região — funciona até sem internet.</p>';
+}
+
+async function renderTripDetail(uid) {
+  const trip = await CaparaoDB.get('trips', uid);
+  if (!trip) return renderTrips();
+  currentTripUid = uid;
+  $('#trips-list').classList.add('hidden');
+  const detail = $('#trip-detail');
+  detail.classList.remove('hidden');
+  detail.innerHTML = `
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>${esc(trip.title)}</h2>
+          <span class="sub">${esc(trip.notes || 'Sem observações')} · <a href="#" id="trip-edit">editar</a></span>
+        </div>
+        <button class="btn-secondary" id="trip-back">← Voltar</button>
+      </div>
+      <div class="trip-items">
+        ${(trip.items || []).map((it, i) => `
+          <div class="trip-item" data-i="${i}">
+            <span class="trip-pos">${i + 1}</span>
+            <div class="trip-item-body">
+              <strong>${esc(it.listing_title || it.establishment_name || it.label || 'Parada')}</strong>
+              ${it.note ? `<small>${esc(it.note)}</small>` : ''}
+            </div>
+            <div class="row-actions">
+              <button class="btn-view" data-action="up" title="Subir">↑</button>
+              <button class="btn-view" data-action="down" title="Descer">↓</button>
+              <button class="btn-view" data-action="note" title="Anotação">✎</button>
+              <button class="btn-reject" data-action="remove" title="Remover">✕</button>
+            </div>
+          </div>`).join('') || '<p class="empty-note">Sem paradas — adicione pela aba Explorar ou crie uma parada livre.</p>'}
+      </div>
+      <button class="btn-secondary" id="trip-add-free">+ Parada livre</button>
+    </div>`;
+
+  $('#trip-back').addEventListener('click', renderTrips);
+  $('#trip-edit').addEventListener('click', async e => {
+    e.preventDefault();
+    const title = prompt('Título do roteiro:', trip.title);
+    if (!title?.trim()) return;
+    trip.notes = prompt('Observações:', trip.notes || '') ?? trip.notes;
+    trip.title = title.trim();
+    await saveTripLocalAndQueue(trip);
+    renderTripDetail(uid);
+  });
+  $('#trip-add-free').addEventListener('click', async () => {
+    const label = prompt('Nome da parada (ex.: Mirante, almoço na praça):');
+    if (!label?.trim()) return;
+    trip.items.push({ client_uid: CaparaoDB.uid(), label: label.trim() });
+    await saveTripLocalAndQueue(trip);
+    renderTripDetail(uid);
+  });
+  detail.querySelector('.trip-items').addEventListener('click', async e => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const i = Number(btn.closest('.trip-item').dataset.i);
+    const items = trip.items;
+    if (btn.dataset.action === 'up' && i > 0) [items[i - 1], items[i]] = [items[i], items[i - 1]];
+    if (btn.dataset.action === 'down' && i < items.length - 1) [items[i + 1], items[i]] = [items[i], items[i + 1]];
+    if (btn.dataset.action === 'remove') items.splice(i, 1);
+    if (btn.dataset.action === 'note') {
+      const note = prompt('Anotação da parada:', items[i].note || '');
+      if (note === null) return;
+      items[i].note = note.trim() || null;
+    }
+    await saveTripLocalAndQueue(trip);
+    renderTripDetail(uid);
+  });
+}
+
+$('#trips-list').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const uid = btn.closest('.trip-card').dataset.uid;
+  if (btn.dataset.action === 'open') return renderTripDetail(uid);
+  if (btn.dataset.action === 'delete') {
+    if (!confirm('Excluir este roteiro?')) return;
+    await CaparaoDB.del('trips', uid);
+    await CaparaoDB.enqueue({ method: 'DELETE', path: `/api/trips/${uid}` });
+    renderTrips();
+  }
+});
+
+$('#btn-new-trip').addEventListener('click', async () => {
+  const title = prompt('Nome do roteiro (ex.: Fim de semana no pico):');
+  if (!title?.trim()) return;
+  const trip = { client_uid: CaparaoDB.uid(), title: title.trim(), notes: null, items: [] };
+  await saveTripLocalAndQueue(trip);
+  toast(navigator.onLine ? 'Roteiro criado' : 'Roteiro criado offline — sincroniza depois');
+  renderTrips();
+});
+
+async function addToTrip(itemBase, label) {
+  const trips = (await CaparaoDB.all('trips')).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  let trip;
+  if (!trips.length) {
+    const title = prompt('Você ainda não tem roteiros. Nome do novo roteiro:', 'Meu roteiro no Caparaó');
+    if (!title?.trim()) return;
+    trip = { client_uid: CaparaoDB.uid(), title: title.trim(), notes: null, items: [] };
+  } else if (trips.length === 1) {
+    trip = trips[0];
+  } else {
+    const names = trips.map((t, i) => `${i + 1}. ${t.title}`).join('\n');
+    const pick = prompt(`Adicionar “${label}” em qual roteiro?\n${names}\n\nDigite o número:`, '1');
+    trip = trips[Number(pick) - 1];
+    if (!trip) return;
+  }
+  trip.items = trip.items || [];
+  trip.items.push({ client_uid: CaparaoDB.uid(), ...itemBase });
+  await saveTripLocalAndQueue(trip);
+  toast(`Adicionado a “${trip.title}”${navigator.onLine ? '' : ' (offline)'}`);
+}
+
+// ─── Mensagens (chat assimétrico) ────────────────────────────────────────────
+async function startConversation(producerId) {
+  if (!producerId) return;
+  if (!navigator.onLine) return toast('Conecte-se para iniciar uma nova conversa');
+  try {
+    const conv = await api('/conversations', { method: 'POST', body: JSON.stringify({ producer_id: producerId }) });
+    switchView('chat');
+    openThread(conv.id);
+  } catch (err) { toast(err.message); }
+}
+
+async function loadConversations() {
+  let convs = [];
+  if (navigator.onLine) {
+    try {
+      ({ conversations: convs } = await api('/conversations'));
+      await CaparaoDB.put('kv', 'conversations', convs);
+    } catch { convs = (await CaparaoDB.get('kv', 'conversations')) || []; }
+  } else {
+    convs = (await CaparaoDB.get('kv', 'conversations')) || [];
+  }
+  const unread = convs.reduce((s, c) => s + Number(c.unread || 0), 0);
+  const badge = $('#chat-badge');
+  badge.classList.toggle('hidden', !unread);
+  badge.textContent = unread || '';
+  $('#conv-list').innerHTML = convs.map(c => `
+    <div class="conv-row ${c.id === currentConvId ? 'active' : ''}" data-id="${c.id}">
+      <div class="avatar md" style="background:${esc(c.producer_color || '#1C6B4A')}">${esc(c.producer_initials || '?')}</div>
+      <div class="conv-info">
+        <strong>${esc(c.producer_name)}</strong>
+        <small>${esc((c.last_message || 'Sem mensagens').slice(0, 48))}</small>
+      </div>
+      ${Number(c.unread) ? `<span class="nav-badge">${c.unread}</span>` : ''}
+    </div>`).join('') || '<p class="empty-note">Nenhuma conversa ainda.</p>';
+}
+
+async function openThread(convId) {
+  currentConvId = convId;
+  let msgs = [];
+  if (navigator.onLine) {
+    try {
+      ({ messages: msgs } = await api(`/conversations/${convId}/messages`));
+      await CaparaoDB.put('kv', `messages-${convId}`, msgs);
+    } catch { msgs = (await CaparaoDB.get('kv', `messages-${convId}`)) || []; }
+  } else {
+    msgs = (await CaparaoDB.get('kv', `messages-${convId}`)) || [];
+  }
+  const queued = (await CaparaoDB.get('kv', `queued-${convId}`)) || [];
+  $('#conv-thread').innerHTML = `
+    <div class="thread-msgs" id="thread-msgs">
+      ${msgs.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('')}
+      ${queued.map(q => msgBubble(q.body, true, 'aguardando envio ⏳')).join('')}
+    </div>
+    <form class="thread-form" id="thread-form">
+      <input id="thread-input" type="text" placeholder="Escreva sua mensagem…" autocomplete="off">
+      <button type="submit" class="btn-primary">Enviar</button>
+    </form>`;
+  const box = $('#thread-msgs');
+  box.scrollTop = box.scrollHeight;
+  $('#thread-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const body = $('#thread-input').value.trim();
+    if (!body) return;
+    $('#thread-input').value = '';
+    const clientUid = CaparaoDB.uid();
+    const q = (await CaparaoDB.get('kv', `queued-${convId}`)) || [];
+    q.push({ body, client_uid: clientUid });
+    await CaparaoDB.put('kv', `queued-${convId}`, q);
+    await CaparaoDB.enqueue({
+      method: 'POST',
+      path: `/api/conversations/${convId}/messages`,
+      body: { body, client_uid: clientUid },
+    });
+    if (navigator.onLine) await clearQueuedIfSynced(convId);
+    openThread(convId);
+  });
+  loadConversations();
+}
+
+// Remove da lista "aguardando envio" tudo que já subiu com a fila
+async function clearQueuedIfSynced(convId) {
+  if (await CaparaoDB.pendingCount() === 0) await CaparaoDB.del('kv', `queued-${convId}`);
+}
+window.addEventListener('online', async () => {
+  await CaparaoDB.flush();
+  if (currentConvId) { await clearQueuedIfSynced(currentConvId); openThread(currentConvId); }
+});
+
+$('#conv-list').addEventListener('click', e => {
+  const row = e.target.closest('.conv-row');
+  if (row) openThread(Number(row.dataset.id));
+});
+
+// ─── Boot ────────────────────────────────────────────────────────────────────
+(async () => {
+  me = await requireSession('tourist');
+  if (!me) return;
+  $('#brand-slot').outerHTML = brandHTML;
+  $('#profile-name').textContent = me.name;
+  $('#profile-initials').textContent = initialsOf(me.name);
+  $('#profile').addEventListener('click', async () => {
+    if (!confirm('Sair da conta?')) return;
+    await api('/logout', { method: 'POST' }).catch(() => {});
+    location.href = '/';
+  });
+  await CaparaoDB.flush();
+  loadExplore();
+  // Pré-aquece o cache offline dos roteiros e favoritos em segundo plano
+  pullTripsFromServer();
+  if (navigator.onLine) api('/favorites').then(async ({ favorites }) => {
+    for (const f of favorites) await CaparaoDB.put('favorites', f.listing_id, f);
+  }).catch(() => {});
+})();
