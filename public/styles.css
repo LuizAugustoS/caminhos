@@ -527,6 +527,23 @@ body.offline .offline-banner { display: block; }
 
 .empty-note { font-size: 13px; color: var(--muted); font-weight: 600; padding: 18px 4px; }
 
+/* ─── Gerador de roteiro por IA ─── */
+.ai-form { margin-bottom: 20px; border-top: 3px solid var(--terra); }
+.ai-form h2 { margin: 0 0 16px; font-size: 16px; font-weight: 800; color: var(--forest); }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 8px 14px; border-radius: 20px; border: 1px solid #E3D8C2; background: var(--cream);
+  font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--muted-2); cursor: pointer;
+}
+.chip:hover { border-color: var(--green); }
+.chip.on { background: #E4F0E7; border-color: var(--green); color: var(--forest); }
+.ai-badge {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .4px; vertical-align: middle;
+  background: linear-gradient(135deg, #F8EAE1, #FBEFDD); color: #9A6224;
+  border: 1px solid #EBD9B8; border-radius: 20px; padding: 3px 9px;
+}
+.trip-prefs { display: block; margin-top: 4px; font-style: italic; }
+
 @media (max-width: 900px) {
   .chat-layout { grid-template-columns: 1fr; }
   .kpi-grid-3 { grid-template-columns: 1fr; }

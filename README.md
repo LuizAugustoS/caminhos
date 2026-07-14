@@ -8,6 +8,7 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 
 ### 🧭 Turista (`/app`)
 - **Explorar**: busca de produtos, serviços, eventos e estabelecimentos da região
+- **✨ Montar roteiro pra mim**: o turista informa seus gostos (café, trilhas, cachoeiras…), o tempo disponível, o ritmo e o que quer viver — e uma **IA (ou fluxo N8N) monta o roteiro** usando o catálogo aprovado da plataforma. O roteiro é salvo com as preferências informadas e fica disponível em "Meus Roteiros" para consultar depois (inclusive offline)
 - **Meus Roteiros**: criação e gestão de itinerários personalizados **100% offline-first** — os roteiros vivem no IndexedDB do dispositivo, funcionam sem rede e sincronizam automaticamente quando a conexão volta
 - **Favoritos**: disponíveis offline
 - **Mensagens**: chat assimétrico com produtores (dúvidas/reservas); envios offline entram na fila e são entregues ao reconectar
@@ -27,6 +28,18 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 | **Service Worker** (`public/sw.js`) | App shell em *cache-first*; API GET em *network-first* com fallback ao cache; fontes com timeout (nunca bloqueiam a página) |
 | **IndexedDB** (`public/js/idb.js`, JS puro) | Dados operacionais locais: roteiros (fonte da verdade), favoritos, caches de exploração e conversas |
 | **Fila de sincronização** (outbox no IndexedDB) | Toda mutação offline (roteiro, favorito, mensagem) entra na fila e é reenviada no evento `online`; o servidor expõe rotas **idempotentes** por `client_uid`, então reenvio nunca duplica |
+
+## Geração de roteiros por IA / N8N
+
+O motor é plugável via `AI_PROVIDER` no `.env` (`server/ai.js`):
+
+| Provedor | Configuração | Comportamento |
+| --- | --- | --- |
+| `local` *(padrão)* | nenhuma | Gerador por regras sobre o catálogo aprovado — funciona sem chave/serviço externo |
+| `anthropic` | `ANTHROPIC_API_KEY` (+ `ANTHROPIC_MODEL`, padrão `claude-opus-4-8`) | Claude monta o roteiro a partir das preferências + catálogo, com saída estruturada (JSON Schema) |
+| `n8n` | `N8N_WEBHOOK_URL` | POST `{ preferences, catalog }` para o seu fluxo N8N, que responde `{ title, notes, items: [{listing_id\|null, label\|null, note\|null}] }` |
+
+Se o provedor externo falhar (timeout, erro, recusa), o gerador local assume automaticamente — o turista sempre recebe um roteiro. Toda geração valida os `listing_id` contra o catálogo antes de salvar, e o roteiro é gravado em `trips` com `origin='ai'` e as `preferences` em JSONB.
 
 ## Stack
 

@@ -1,14 +1,16 @@
 // Roteiros personalizados do turista — API idempotente para sincronização
 // offline-first: o dispositivo é a fonte da verdade e envia o roteiro inteiro
 // (upsert por client_uid), então repetir uma operação da fila nunca duplica.
+import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { pool, query } from '../db.js';
+import { generateItinerary, INTERESTS } from '../ai.js';
 
 export const trips = Router();
 
 trips.get('/', async (req, res) => {
   const { rows } = await query(
-    `SELECT t.id, t.client_uid, t.title, t.notes, t.updated_at,
+    `SELECT t.id, t.client_uid, t.title, t.notes, t.updated_at, t.origin, t.preferences,
             coalesce(json_agg(json_build_object(
               'client_uid', i.client_uid, 'position', i.position,
               'listing_id', i.listing_id, 'establishment_id', i.establishment_id,
@@ -26,6 +28,49 @@ trips.get('/', async (req, res) => {
     [req.user.id]
   );
   res.json({ trips: rows });
+});
+
+// Gera um roteiro por IA/N8N a partir dos gostos do turista e o salva
+// como roteiro normal (aparece em "Meus Roteiros" e funciona offline).
+trips.post('/generate', async (req, res) => {
+  const { interests, duration, pace, text } = req.body || {};
+  const preferences = {
+    interests: (Array.isArray(interests) ? interests : []).filter(i => INTERESTS.includes(i)).slice(0, 10),
+    duration: ['meio dia', '1 dia', 'fim de semana', '3+ dias'].includes(duration) ? duration : null,
+    pace: ['tranquilo', 'moderado', 'intenso'].includes(pace) ? pace : null,
+    text: text ? String(text).slice(0, 500) : null,
+  };
+  if (!preferences.interests.length && !preferences.text) {
+    return res.status(400).json({ error: 'Conte seus gostos (selecione interesses ou escreva o que quer viver)' });
+  }
+
+  const itinerary = await generateItinerary(preferences);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: [trip] } = await client.query(
+      `INSERT INTO trips (user_id, client_uid, title, notes, origin, preferences)
+       VALUES ($1, $2, $3, $4, 'ai', $5)
+       RETURNING id, client_uid, title, notes, origin, preferences, updated_at`,
+      [req.user.id, randomUUID(), itinerary.title, itinerary.notes,
+       JSON.stringify({ ...preferences, provider: itinerary.provider })]
+    );
+    for (const [pos, item] of itinerary.items.entries()) {
+      await client.query(
+        `INSERT INTO trip_items (trip_id, client_uid, position, listing_id, label, note)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [trip.id, randomUUID(), pos, item.listing_id, item.label, item.note]
+      );
+    }
+    await client.query('COMMIT');
+    res.status(201).json(trip);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 // Upsert completo do roteiro (título, notas e itens) — idempotente.
