@@ -60,6 +60,9 @@
       <nav class="sidenav" id="sidenav"></nav>
 
       <main class="main">
+
+        <!-- ═══ Visão Geral ═══ -->
+        <section id="view-overview" class="admin-view">
         <div class="page-head">
           <div>
             <h1>Controle Geral — Admin</h1>
@@ -80,7 +83,7 @@
                 <h2>Gestão de Produtores e Conteúdo</h2>
                 <span class="sub" id="producers-sub">Aplicações recentes</span>
               </div>
-              <a href="#">Ver todas →</a>
+              <a href="#" data-goto="producers">Ver todas →</a>
             </div>
             <div class="producer-list" id="producer-list"></div>
           </section>
@@ -135,13 +138,187 @@
         <section class="panel">
           <div class="panel-head">
             <h2>Chat &amp; Atividade</h2>
-            <a href="#">Abrir chat interno →</a>
+            <a href="#" data-goto="chat">Abrir chat interno →</a>
           </div>
           <div class="chat-grid">
             <div class="chat-col" id="chat-list"></div>
             <div class="chat-col" id="alert-list"></div>
           </div>
         </section>
+        </section><!-- /view-overview -->
+
+        <!-- ═══ Turistas ═══ -->
+        <section id="view-tourists" class="admin-view hidden">
+          <div class="page-head">
+            <div>
+              <h1>Turistas</h1>
+              <p id="tourists-sub">Cadastros na plataforma</p>
+            </div>
+            <div class="search explore-search">
+              <div class="search-glass"></div>
+              <input id="tourists-q" type="search" placeholder="Buscar por nome, e-mail ou cidade…">
+            </div>
+          </div>
+          <section class="panel">
+            <div class="table-head tourists-cols">
+              <span>Nome</span><span>E-mail</span><span>Cidade</span><span>Cadastro</span><span>Conta</span>
+            </div>
+            <div id="tourists-rows"></div>
+          </section>
+        </section>
+
+        <!-- ═══ Produtores/Comerciantes ═══ -->
+        <section id="view-producers" class="admin-view hidden">
+          <div class="page-head">
+            <div>
+              <h1>Produtores/Comerciantes</h1>
+              <p>Parceiros da plataforma — aprovação, recusa e busca</p>
+            </div>
+            <div class="search explore-search">
+              <div class="search-glass"></div>
+              <input id="producers-q" type="search" placeholder="Buscar por nome, atividade ou cidade…">
+            </div>
+          </div>
+          <div class="tabs" id="producers-filter" style="margin-bottom:16px; max-width:fit-content;">
+            <button class="tab active" data-status="">Todos</button>
+            <button class="tab" data-status="pending">Pendentes</button>
+            <button class="tab" data-status="in_review">Em análise</button>
+            <button class="tab" data-status="approved">Aprovados</button>
+            <button class="tab" data-status="rejected">Recusados</button>
+          </div>
+          <section class="panel">
+            <div class="producer-list" id="producers-all"></div>
+          </section>
+        </section>
+
+        <!-- ═══ Cadastros (fila de moderação) ═══ -->
+        <section id="view-registrations" class="admin-view hidden">
+          <div class="page-head">
+            <div>
+              <h1>Cadastros</h1>
+              <p>Tudo que aguarda a sua revisão — produtores e anúncios</p>
+            </div>
+          </div>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>Produtores aguardando</h2></div>
+              <div class="producer-list" id="reg-producers"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Anúncios aguardando</h2></div>
+              <div class="producer-list" id="reg-listings"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- ═══ Publicações ═══ -->
+        <section id="view-listings" class="admin-view hidden">
+          <div class="page-head">
+            <div>
+              <h1>Publicações</h1>
+              <p>Todos os anúncios da plataforma</p>
+            </div>
+            <div class="search explore-search">
+              <div class="search-glass"></div>
+              <input id="pubs-q" type="search" placeholder="Buscar por título ou criador…">
+            </div>
+          </div>
+          <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+            <div class="tabs" id="pubs-type">
+              <button class="tab active" data-type="">Todos</button>
+              <button class="tab" data-type="product">Produtos</button>
+              <button class="tab" data-type="service">Serviços</button>
+              <button class="tab" data-type="event">Eventos</button>
+            </div>
+            <div class="tabs" id="pubs-status">
+              <button class="tab active" data-status="">Qualquer status</button>
+              <button class="tab" data-status="pending">Pendentes</button>
+              <button class="tab" data-status="approved">Aprovados</button>
+              <button class="tab" data-status="rejected">Recusados</button>
+            </div>
+          </div>
+          <section class="panel">
+            <div class="table-head">
+              <span></span><span>Título</span><span>Criador</span><span>Data</span><span>Status</span><span>Aprovação</span>
+            </div>
+            <div id="pubs-rows"></div>
+          </section>
+        </section>
+
+        <!-- ═══ Eventos ═══ -->
+        <section id="view-events" class="admin-view hidden">
+          <div class="page-head">
+            <div>
+              <h1>Eventos</h1>
+              <p>Agenda de eventos publicados e em moderação</p>
+            </div>
+          </div>
+          <section class="panel">
+            <div class="table-head">
+              <span></span><span>Evento</span><span>Organizador</span><span>Data</span><span>Status</span><span>Aprovação</span>
+            </div>
+            <div id="events-rows"></div>
+          </section>
+        </section>
+
+        <!-- ═══ Chat Interno ═══ -->
+        <section id="view-chat" class="admin-view hidden">
+          <div class="page-head">
+            <div>
+              <h1>Chat Interno</h1>
+              <p>Comunicação da equipe com os parceiros</p>
+            </div>
+          </div>
+          <section class="panel conv-thread" style="max-width:760px;">
+            <div class="thread-msgs" id="internal-msgs" style="max-height:520px;"></div>
+            <form class="thread-form" id="internal-form">
+              <input id="internal-input" type="text" placeholder="Escreva uma mensagem para a equipe…" autocomplete="off">
+              <button type="submit" class="btn-primary">Enviar</button>
+            </form>
+          </section>
+        </section>
+
+        <!-- ═══ Analytics ═══ -->
+        <section id="view-analytics" class="admin-view hidden">
+          <div class="page-head">
+            <div>
+              <h1>Analytics</h1>
+              <p>Buscas, destinos e desempenho da plataforma</p>
+            </div>
+          </div>
+          <div class="kpi-grid kpi-grid-3" id="analytics-kpis"></div>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>Destinos mais buscados (7 dias)</h2></div>
+              <div id="analytics-spots"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Resumo do período</h2></div>
+              <div id="analytics-summary"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- ═══ Configurações ═══ -->
+        <section id="view-settings" class="admin-view hidden">
+          <div class="page-head">
+            <div>
+              <h1>Configurações</h1>
+              <p>Sua conta e informações da plataforma</p>
+            </div>
+          </div>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>Minha conta</h2></div>
+              <div id="settings-account"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Plataforma</h2></div>
+              <div id="settings-platform"></div>
+            </section>
+          </div>
+        </section>
+
       </main>
     </div>
   </div>
