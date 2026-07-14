@@ -652,6 +652,13 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Busca global do topo: Enter pesquisa nas Publicações
+$('#global-search').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  $('#pubs-q').value = e.target.value.trim();
+  switchView('listings'); // o loader da tela já lê o termo preenchido acima
+});
+
 // ─── Estado online/offline ───────────────────────────────────────────────────
 function updateOnlineState() {
   document.body.classList.toggle('offline', !navigator.onLine);
