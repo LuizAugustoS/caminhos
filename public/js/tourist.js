@@ -134,9 +134,72 @@ $('#explore-chips').addEventListener('click', e => {
   loadExplore();
 });
 
+// ─── Detalhe do anúncio ──────────────────────────────────────────────────────
+async function openListingDetail(listingId) {
+  let l = null;
+  if (navigator.onLine) {
+    try { l = await api(`/explore/listings/${listingId}`); } catch { /* cache */ }
+  }
+  if (!l) {
+    const cached = await CaparaoDB.get('listings', listingId);
+    if (!cached) return toast('Detalhes indisponíveis offline — conecte-se');
+    const est = (await CaparaoDB.all('establishments')).find(x => x.producer_id === cached.producer_id);
+    l = { ...cached, est_name: est?.name, est_description: est?.description, est_category: est?.category,
+          address: est?.address, phone: est?.phone, open_hours: est?.open_hours, city: cached.city || est?.city };
+  }
+  const isFav = !!(await CaparaoDB.get('favorites', l.id));
+  const hero = l.image_path
+    ? `<div class="detail-hero"><img src="${esc(l.image_path)}" alt=""></div>`
+    : `<div class="detail-hero img-${esc(l.image_kind || 'verde')}">${esc(l.glyph || '◉')}</div>`;
+  const partnerLines = [
+    l.est_description || l.producer_kind,
+    l.address ? `📍 ${l.address}${l.city ? ` — ${l.city}` : ''}` : (l.city ? `📍 ${l.city}` : null),
+    l.open_hours ? `🕗 ${l.open_hours}` : null,
+    l.phone ? `📞 ${l.phone}` : null,
+  ].filter(Boolean);
+
+  const { overlay, close } = openModal(`
+    <div class="detail-modal-inner">
+      ${hero}
+      <div class="detail-body">
+        <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')}</span>
+        <h3>${esc(l.title)}</h3>
+        ${l.subtitle ? `<p class="detail-sub">${esc(l.subtitle)}</p>` : ''}
+        <div class="detail-partner">
+          <div class="avatar lg" style="background:${esc(l.producer_color || '#1C6B4A')}">${esc(l.producer_initials || '')}</div>
+          <div class="detail-partner-info">
+            <strong>${esc(l.est_name || l.producer_name)}</strong>
+            ${partnerLines.map(line => `<small>${esc(line)}</small>`).join('')}
+          </div>
+        </div>
+        <div class="ex-actions">
+          <button class="btn-fav ${isFav ? 'on' : ''}" data-detail="fav" title="Favoritar">♥</button>
+          <button class="btn-secondary" data-detail="add-trip">+ Roteiro</button>
+          <button class="btn-primary" data-detail="chat">Conversar</button>
+        </div>
+      </div>
+    </div>`);
+  overlay.querySelector('.modal').classList.add('detail-modal');
+  overlay.querySelector('[data-detail=fav]').addEventListener('click', e =>
+    toggleFavorite(l.id, e.currentTarget).then(loadExplore));
+  overlay.querySelector('[data-detail=add-trip]').addEventListener('click', () => {
+    close();
+    addToTrip({ listing_id: l.id }, l.title);
+  });
+  overlay.querySelector('[data-detail=chat]').addEventListener('click', () => {
+    close();
+    startConversation(l.producer_id);
+  });
+}
+
 $('#explore-grid').addEventListener('click', async e => {
   const btn = e.target.closest('button[data-action]');
-  if (!btn) return;
+  if (!btn) {
+    // clique no corpo do card de anúncio abre o detalhe
+    const card = e.target.closest('.ex-card[data-id]');
+    if (card && !e.target.closest('.ex-actions')) openListingDetail(Number(card.dataset.id));
+    return;
+  }
   const card = btn.closest('.ex-card');
   const listingId = Number(card.dataset.id) || null;
   const producerId = Number(card.dataset.producer) || null;
@@ -306,17 +369,27 @@ async function renderTripDetail(uid) {
   $('#trip-back').addEventListener('click', renderTrips);
   $('#trip-edit').addEventListener('click', async e => {
     e.preventDefault();
-    const title = prompt('Título do roteiro:', trip.title);
-    if (!title?.trim()) return;
-    trip.notes = prompt('Observações:', trip.notes || '') ?? trip.notes;
-    trip.title = title.trim();
+    const values = await modalForm({
+      title: 'Editar roteiro',
+      fields: [
+        { name: 'title', label: 'Título', value: trip.title },
+        { name: 'notes', label: 'Observações', type: 'textarea', value: trip.notes || '', required: false },
+      ],
+    });
+    if (!values?.title) return;
+    trip.title = values.title;
+    trip.notes = values.notes || null;
     await saveTripLocalAndQueue(trip);
     renderTripDetail(uid);
   });
   $('#trip-add-free').addEventListener('click', async () => {
-    const label = prompt('Nome da parada (ex.: Mirante, almoço na praça):');
-    if (!label?.trim()) return;
-    trip.items.push({ client_uid: CaparaoDB.uid(), label: label.trim() });
+    const values = await modalForm({
+      title: 'Parada livre',
+      confirmText: 'Adicionar',
+      fields: [{ name: 'label', label: 'Nome da parada', placeholder: 'Ex.: Mirante, almoço na praça…' }],
+    });
+    if (!values?.label) return;
+    trip.items.push({ client_uid: CaparaoDB.uid(), label: values.label });
     await saveTripLocalAndQueue(trip);
     renderTripDetail(uid);
   });
@@ -329,9 +402,12 @@ async function renderTripDetail(uid) {
     if (btn.dataset.action === 'down' && i < items.length - 1) [items[i + 1], items[i]] = [items[i], items[i + 1]];
     if (btn.dataset.action === 'remove') items.splice(i, 1);
     if (btn.dataset.action === 'note') {
-      const note = prompt('Anotação da parada:', items[i].note || '');
-      if (note === null) return;
-      items[i].note = note.trim() || null;
+      const values = await modalForm({
+        title: 'Anotação da parada',
+        fields: [{ name: 'note', label: 'Dica ou lembrete', type: 'textarea', value: items[i].note || '', required: false }],
+      });
+      if (values === null) return;
+      items[i].note = values.note || null;
     }
     await saveTripLocalAndQueue(trip);
     renderTripDetail(uid);
@@ -344,7 +420,13 @@ $('#trips-list').addEventListener('click', async e => {
   const uid = btn.closest('.trip-card').dataset.uid;
   if (btn.dataset.action === 'open') return renderTripDetail(uid);
   if (btn.dataset.action === 'delete') {
-    if (!confirm('Excluir este roteiro?')) return;
+    const ok = await modalConfirm({
+      title: 'Excluir roteiro',
+      message: 'O roteiro e todas as suas paradas serão removidos. Essa ação não pode ser desfeita.',
+      confirmText: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
     await CaparaoDB.del('trips', uid);
     await CaparaoDB.enqueue({ method: 'DELETE', path: `/api/trips/${uid}` });
     renderTrips();
@@ -394,11 +476,21 @@ $('#ai-form').addEventListener('submit', async e => {
   }
 });
 
-$('#btn-new-trip').addEventListener('click', async () => {
-  const title = prompt('Nome do roteiro (ex.: Fim de semana no pico):');
-  if (!title?.trim()) return;
-  const trip = { client_uid: CaparaoDB.uid(), title: title.trim(), notes: null, items: [] };
+async function createTripViaModal(defaultTitle = '') {
+  const values = await modalForm({
+    title: 'Novo roteiro',
+    confirmText: 'Criar',
+    fields: [{ name: 'title', label: 'Nome do roteiro', value: defaultTitle, placeholder: 'Ex.: Fim de semana no pico' }],
+  });
+  if (!values?.title) return null;
+  const trip = { client_uid: CaparaoDB.uid(), title: values.title, notes: null, items: [] };
   await saveTripLocalAndQueue(trip);
+  return trip;
+}
+
+$('#btn-new-trip').addEventListener('click', async () => {
+  const trip = await createTripViaModal();
+  if (!trip) return;
   toast(navigator.onLine ? 'Roteiro criado' : 'Roteiro criado offline — sincroniza depois');
   renderTrips();
 });
@@ -407,15 +499,24 @@ async function addToTrip(itemBase, label) {
   const trips = (await CaparaoDB.all('trips')).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
   let trip;
   if (!trips.length) {
-    const title = prompt('Você ainda não tem roteiros. Nome do novo roteiro:', 'Meu roteiro no Caparaó');
-    if (!title?.trim()) return;
-    trip = { client_uid: CaparaoDB.uid(), title: title.trim(), notes: null, items: [] };
+    trip = await createTripViaModal('Meu roteiro no Caparaó');
+    if (!trip) return;
   } else if (trips.length === 1) {
     trip = trips[0];
   } else {
-    const names = trips.map((t, i) => `${i + 1}. ${t.title}`).join('\n');
-    const pick = prompt(`Adicionar “${label}” em qual roteiro?\n${names}\n\nDigite o número:`, '1');
-    trip = trips[Number(pick) - 1];
+    const NEW = '__new__';
+    const pick = await modalPick({
+      title: `Adicionar “${label}” em qual roteiro?`,
+      options: [
+        ...trips.map(t => ({
+          value: t.client_uid, label: t.title,
+          sub: `${(t.items || []).length} parada${(t.items || []).length === 1 ? '' : 's'}`,
+        })),
+        { value: NEW, label: '➕ Criar novo roteiro' },
+      ],
+    });
+    if (!pick) return;
+    trip = pick === NEW ? await createTripViaModal() : trips.find(t => t.client_uid === pick);
     if (!trip) return;
   }
   trip.items = trip.items || [];
@@ -525,7 +626,7 @@ $('#conv-list').addEventListener('click', e => {
   $('#profile-name').textContent = me.name;
   $('#profile-initials').textContent = initialsOf(me.name);
   $('#profile').addEventListener('click', async () => {
-    if (!confirm('Sair da conta?')) return;
+    if (!await modalConfirm({ title: 'Sair da conta', confirmText: 'Sair' })) return;
     await api('/logout', { method: 'POST' }).catch(() => {});
     location.href = '/';
   });

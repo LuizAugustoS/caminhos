@@ -70,6 +70,24 @@ explore.get('/listings', async (req, res) => {
   res.json({ listings: rows });
 });
 
+// Detalhe de um anúncio aprovado, com dados do parceiro e do estabelecimento
+explore.get('/listings/:id', async (req, res) => {
+  const { rows } = await query(
+    `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.listed_at,
+            p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
+            p.avatar_color AS producer_color, p.kind AS producer_kind,
+            e.name AS est_name, e.description AS est_description, e.category AS est_category,
+            e.city, e.address, e.phone, e.open_hours
+     FROM listings l
+     JOIN producers p ON p.id = l.producer_id AND p.status = 'approved'
+     LEFT JOIN establishments e ON e.producer_id = p.id
+     WHERE l.id = $1 AND l.status = 'approved'`,
+    [req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Anúncio não encontrado' });
+  res.json(rows[0]);
+});
+
 explore.get('/establishments', async (req, res) => {
   const q = (req.query.q || '').trim();
   const limit = Math.min(Number(req.query.limit) || 24, 60);

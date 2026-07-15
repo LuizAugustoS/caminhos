@@ -18,6 +18,7 @@ const SHELL_ASSETS = [
   '/styles.css',
   '/admin.js',
   '/js/shared.js',
+  '/js/landing.js',
   '/js/idb.js',
   '/js/tourist.js',
   '/js/producer.js',

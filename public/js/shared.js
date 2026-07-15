@@ -76,6 +76,91 @@ const msgBubble = (body, mine, meta) => `
     <small class="msg-meta">${esc(meta)}</small>
   </div>`;
 
+// ─── Modais (substituem prompt/confirm nativos) ─────────────────────────────
+function openModal(innerHTML) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${innerHTML}</div>`;
+  document.body.appendChild(overlay);
+  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') { close(); overlay.dispatchEvent(new Event('modal-cancel')); } };
+  document.addEventListener('keydown', onKey);
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay || e.target.closest('[data-modal-cancel]')) {
+      close();
+      overlay.dispatchEvent(new Event('modal-cancel'));
+    }
+  });
+  return { overlay, close };
+}
+
+// Formulário: resolve com {campo: valor} ou null se cancelado
+function modalForm({ title, fields, confirmText = 'Salvar' }) {
+  return new Promise(resolve => {
+    const { overlay, close } = openModal(`
+      <h3>${esc(title)}</h3>
+      <form class="modal-form">
+        ${fields.map(f => `
+          <div class="field">
+            <label>${esc(f.label)}</label>
+            ${f.type === 'textarea'
+              ? `<textarea name="${f.name}" rows="3" placeholder="${esc(f.placeholder || '')}">${esc(f.value || '')}</textarea>`
+              : `<input name="${f.name}" type="text" value="${esc(f.value || '')}" placeholder="${esc(f.placeholder || '')}" ${f.required !== false ? 'required' : ''}>`}
+          </div>`).join('')}
+        <div class="row-actions modal-actions">
+          <button type="submit" class="btn-primary">${esc(confirmText)}</button>
+          <button type="button" class="btn-secondary" data-modal-cancel>Cancelar</button>
+        </div>
+      </form>`);
+    overlay.addEventListener('modal-cancel', () => resolve(null));
+    const form = overlay.querySelector('form');
+    form.querySelector('input, textarea')?.focus();
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const values = {};
+      for (const f of fields) values[f.name] = form.elements[f.name].value.trim();
+      close();
+      resolve(values);
+    });
+  });
+}
+
+// Confirmação: resolve true/false
+function modalConfirm({ title, message, confirmText = 'Confirmar', danger = false }) {
+  return new Promise(resolve => {
+    const { overlay, close } = openModal(`
+      <h3>${esc(title)}</h3>
+      ${message ? `<p class="modal-msg">${esc(message)}</p>` : ''}
+      <div class="row-actions modal-actions">
+        <button class="${danger ? 'btn-danger' : 'btn-primary'}" data-modal-ok>${esc(confirmText)}</button>
+        <button class="btn-secondary" data-modal-cancel>Cancelar</button>
+      </div>`);
+    overlay.addEventListener('modal-cancel', () => resolve(false));
+    overlay.querySelector('[data-modal-ok]').addEventListener('click', () => { close(); resolve(true); });
+  });
+}
+
+// Escolha em lista: resolve com o value da opção ou null
+function modalPick({ title, options }) {
+  return new Promise(resolve => {
+    const { overlay, close } = openModal(`
+      <h3>${esc(title)}</h3>
+      <div class="modal-options">
+        ${options.map(o => `
+          <button class="modal-option" data-value="${esc(o.value)}">
+            <strong>${esc(o.label)}</strong>
+            ${o.sub ? `<small>${esc(o.sub)}</small>` : ''}
+          </button>`).join('')}
+      </div>
+      <div class="row-actions modal-actions">
+        <button class="btn-secondary" data-modal-cancel>Cancelar</button>
+      </div>`);
+    overlay.addEventListener('modal-cancel', () => resolve(null));
+    overlay.querySelectorAll('.modal-option').forEach(btn =>
+      btn.addEventListener('click', () => { close(); resolve(btn.dataset.value); }));
+  });
+}
+
 function updateOnlineState() {
   document.body.classList.toggle('offline', !navigator.onLine);
 }

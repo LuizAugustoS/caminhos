@@ -111,6 +111,16 @@ public/        PWA: landing (index), /app turista, /portal produtor,
                /admin, styles.css, sw.js, js/ (shared, idb, tourist, producer)
 ```
 
+## Deploy (produção)
+
+O app é um único serviço Node + um PostgreSQL — roda em qualquer host (Railway, Render, Fly.io, VPS). Requisitos:
+
+1. **HTTPS obrigatório** — sem ele o PWA não é instalável fora do localhost (as plataformas acima já fornecem TLS)
+2. Variáveis: `DATABASE_URL` (Postgres gerenciado), `SESSION_SECRET` (valor longo e aleatório), `NODE_ENV=production` (ativa o cookie `Secure`), `PORT` (a plataforma define). Opcional: `AI_PROVIDER`/`ANTHROPIC_API_KEY` ou `N8N_WEBHOOK_URL`, `UPLOADS_DIR` (aponte para um volume persistente — em filesystem efêmero as fotos se perdem no redeploy)
+3. Build: `npm ci` · Release: `npm run db:migrate` · Start: `npm start` (rode o seed apenas uma vez, se quiser dados demo)
+
+Proteções já embutidas: CSP e security headers, HSTS sob HTTPS, rate-limiting em login (10/15min por IP+e-mail) e cadastro (5/h por IP), cookie de sessão `HttpOnly`+`SameSite`+`Secure`, senhas com scrypt e uploads validados por tipo/tamanho.
+
 ## Testado de ponta a ponta
 
 O MVP foi verificado em navegador real (Chromium): cadastro de turista, exploração, favoritos, **criação de roteiro em modo offline com sincronização automática ao reconectar**, chat turista ↔ produtor nos dois sentidos, criação de anúncio pelo produtor caindo na moderação do admin, e o painel admin completo.

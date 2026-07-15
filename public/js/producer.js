@@ -131,7 +131,13 @@ $('#my-listings').addEventListener('click', async e => {
   } else if (btn.dataset.action === 'edit') {
     openListingForm(myListings.find(l => l.id === id));
   } else if (btn.dataset.action === 'delete') {
-    if (!confirm('Excluir este anúncio?')) return;
+    const ok = await modalConfirm({
+      title: 'Excluir anúncio',
+      message: 'O anúncio sairá da vitrine e da plataforma. Essa ação não pode ser desfeita.',
+      confirmText: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api(`/portal/listings/${id}`, { method: 'DELETE' });
       toast('Anúncio excluído');
@@ -240,7 +246,7 @@ $('#profile-form').addEventListener('submit', async e => {
   $('#profile-name').textContent = me.name;
   $('#profile-initials').textContent = initialsOf(me.name);
   $('#profile').addEventListener('click', async () => {
-    if (!confirm('Sair da conta?')) return;
+    if (!await modalConfirm({ title: 'Sair da conta', confirmText: 'Sair' })) return;
     await api('/logout', { method: 'POST' }).catch(() => {});
     location.href = '/';
   });
