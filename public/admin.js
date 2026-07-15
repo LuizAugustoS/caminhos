@@ -383,7 +383,7 @@ async function loadTouristsView() {
   const { tourists, total } = await api(`/tourists?q=${encodeURIComponent(q)}&limit=30`);
   $('#tourists-sub').textContent = `${fmtInt(total)} turistas cadastrados · exibindo ${tourists.length}`;
   $('#tourists-rows').innerHTML = tourists.map(t => `
-    <div class="table-row tourists-cols">
+    <div class="table-row tourists-cols" data-id="${t.id}">
       <div class="cell-title"><div class="t">${esc(t.name)}</div></div>
       <span class="cell-date">${esc(t.email || '—')}</span>
       <span class="cell-date">${esc(t.city || '—')}</span>
@@ -655,6 +655,199 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     $('#global-search').focus();
   }
+});
+
+// ═══ Detalhes (produtor, anúncio, turista) ══════════════════════════════════
+
+function openAdminModal(innerHTML) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${innerHTML}</div>`;
+  document.body.appendChild(overlay);
+  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay || e.target.closest('[data-modal-cancel]')) close();
+  });
+  return { overlay, close };
+}
+
+const infoLine = (label, value) => value
+  ? `<div class="settings-item"><span>${label}</span><strong>${esc(value)}</strong></div>` : '';
+
+// Aprovar/recusar de dentro do detalhe e recarregar a tela atual
+function detailActions(kind, id, status) {
+  if (status !== 'pending' && status !== 'in_review') return '';
+  return `
+    <div class="row-actions modal-actions">
+      <button class="btn-approve wide" data-review="approve" style="flex:1">✓ Aprovar</button>
+      <button class="btn-danger" data-review="reject" style="flex:1">✕ Recusar</button>
+    </div>`;
+}
+
+function bindDetailReview(overlay, close, kind, id) {
+  overlay.querySelectorAll('[data-review]').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      await review(kind, id, btn.dataset.review);
+      close();
+      VIEW_LOADERS[currentView]();
+    }));
+}
+
+// ─── Detalhe do produtor ─────────────────────────────────────────────────────
+async function openProducerDetail(id) {
+  try {
+    const { producer: p, listings, conversations } = await api(`/producers/${id}`);
+    const { overlay, close } = openAdminModal(`
+      <div class="detail-head">
+        <div class="avatar lg" style="background:${esc(p.avatar_color)}">${esc(p.initials)}</div>
+        <div>
+          <h3>${esc(p.name)}</h3>
+          <span class="sub">${esc(p.kind)}</span>
+        </div>
+        <span class="status-pill status-${p.status}" style="margin-left:auto">${STATUS_LABEL[p.status]}</span>
+      </div>
+
+      <h4 class="detail-section">Estabelecimento</h4>
+      <div class="settings-list">
+        ${infoLine('Descrição', p.est_description)}
+        ${infoLine('Categoria', p.est_category)}
+        ${infoLine('Endereço', p.address ? `${p.address}${p.city ? ' — ' + p.city : ''}` : p.city)}
+        ${infoLine('Telefone', p.phone)}
+        ${infoLine('Visitação', p.open_hours)}
+      </div>
+
+      <h4 class="detail-section">Conta e histórico</h4>
+      <div class="settings-list">
+        ${infoLine('E-mail da conta', p.account_email || 'sem conta no app (cadastro da equipe)')}
+        ${infoLine('Responsável', p.account_name)}
+        ${infoLine('Cadastro', fmtDate(p.created_at))}
+        ${p.reviewed_at ? infoLine('Última revisão', fmtDate(p.reviewed_at)) : ''}
+        ${infoLine('Conversas com turistas', String(conversations))}
+      </div>
+
+      <h4 class="detail-section">Anúncios (${listings.length})</h4>
+      <div class="detail-mini-list">
+        ${listings.map(l => `
+          <div class="settings-item detail-mini" data-listing="${l.id}">
+            <span>${esc(l.title)}</span>
+            <span class="status-pill status-${l.status}">${STATUS_LABEL[l.status]}</span>
+          </div>`).join('') || '<p class="empty-note">Nenhum anúncio ainda.</p>'}
+      </div>
+
+      ${detailActions('producers', p.id, p.status)}
+      <div class="row-actions modal-actions">
+        <button class="btn-secondary" data-modal-cancel style="flex:1">Fechar</button>
+      </div>`);
+    bindDetailReview(overlay, close, 'producers', p.id);
+    overlay.querySelectorAll('[data-listing]').forEach(row =>
+      row.addEventListener('click', () => { close(); openListingDetailAdmin(Number(row.dataset.listing)); }));
+  } catch (err) {
+    if (err.message !== 'unauthorized') toast(err.message);
+  }
+}
+
+// ─── Detalhe do anúncio ──────────────────────────────────────────────────────
+async function openListingDetailAdmin(id) {
+  try {
+    const l = await api(`/listings/${id}`);
+    const hero = l.image_path
+      ? `<div class="detail-hero"><img src="${esc(l.image_path)}" alt=""></div>`
+      : `<div class="detail-hero img-${esc(l.image_kind || 'verde')}">${esc(l.glyph || '◉')}</div>`;
+    const { overlay, close } = openAdminModal(`
+      <div class="detail-modal-inner">
+        ${hero}
+        <div class="detail-body">
+          <span class="ex-type">${TYPE_LABEL_ADMIN[l.type]} · ${esc(l.city || 'Caparaó')}</span>
+          <h3>${esc(l.title)}</h3>
+          ${l.subtitle ? `<p class="detail-sub">${esc(l.subtitle)}</p>` : ''}
+          <div class="settings-list">
+            ${infoLine('Status', STATUS_LABEL[l.status])}
+            ${infoLine('Publicado em', fmtDate(l.listed_at))}
+            ${l.reviewed_at ? infoLine('Última revisão', fmtDate(l.reviewed_at)) : ''}
+            ${l.image_path ? '' : infoLine('Foto', 'sem foto enviada — capa ilustrativa')}
+          </div>
+          <h4 class="detail-section">Parceiro</h4>
+          <div class="detail-partner" data-producer="${l.producer_id}" style="cursor:pointer" title="Ver perfil completo">
+            <div class="avatar lg" style="background:${esc(l.producer_color)}">${esc(l.producer_initials)}</div>
+            <div class="detail-partner-info">
+              <strong>${esc(l.est_name || l.producer_name)}</strong>
+              <small>${esc(l.producer_kind || '')} · cadastro ${STATUS_LABEL[l.producer_status]}</small>
+              ${l.address ? `<small>📍 ${esc(l.address)}${l.city ? ' — ' + esc(l.city) : ''}</small>` : ''}
+              ${l.phone ? `<small>📞 ${esc(l.phone)}</small>` : ''}
+            </div>
+          </div>
+          ${detailActions('listings', l.id, l.status)}
+          <div class="row-actions modal-actions">
+            <button class="btn-secondary" data-modal-cancel style="flex:1">Fechar</button>
+          </div>
+        </div>
+      </div>`);
+    overlay.querySelector('.modal').classList.add('detail-modal');
+    bindDetailReview(overlay, close, 'listings', l.id);
+    overlay.querySelector('[data-producer]').addEventListener('click', () => {
+      close();
+      openProducerDetail(l.producer_id);
+    });
+  } catch (err) {
+    if (err.message !== 'unauthorized') toast(err.message);
+  }
+}
+
+// ─── Detalhe do turista ──────────────────────────────────────────────────────
+async function openTouristDetail(id) {
+  try {
+    const t = await api(`/tourists/${id}`);
+    const { overlay } = openAdminModal(`
+      <div class="detail-head">
+        <div class="avatar lg" style="background:#4A3226">${esc(t.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase())}</div>
+        <div>
+          <h3>${esc(t.name)}</h3>
+          <span class="sub">${esc(t.city || 'cidade não informada')}</span>
+        </div>
+        <span class="status-pill ${t.user_id ? 'status-approved' : 'status-in_review'}" style="margin-left:auto">
+          ${t.user_id ? 'Conta no app' : 'Registro'}</span>
+      </div>
+      <div class="settings-list">
+        ${infoLine('E-mail', t.account_email || t.email)}
+        ${infoLine('Cadastro', fmtDate(t.created_at))}
+        ${t.account_since ? infoLine('Conta criada em', fmtDate(t.account_since)) : ''}
+      </div>
+      ${t.user_id ? `
+        <h4 class="detail-section">Atividade na plataforma</h4>
+        <div class="heat-stats" style="margin-bottom:14px">
+          <div class="heat-stat"><strong>${fmtInt(t.trips)}</strong><small>roteiros (${t.ai_trips} por IA)</small></div>
+          <div class="heat-stat"><strong>${fmtInt(t.favorites)}</strong><small>favoritos</small></div>
+          <div class="heat-stat"><strong>${fmtInt(t.conversations)}</strong><small>conversas</small></div>
+        </div>` : '<p class="empty-note">Registro sem conta no app — sem atividade rastreável.</p>'}
+      <div class="row-actions modal-actions">
+        <button class="btn-secondary" data-modal-cancel style="flex:1">Fechar</button>
+      </div>`);
+  } catch (err) {
+    if (err.message !== 'unauthorized') toast(err.message);
+  }
+}
+
+// Clique no corpo de qualquer linha abre o detalhe correspondente
+document.addEventListener('click', e => {
+  if (e.target.closest('button, a, input, .modal-overlay')) return;
+  const prow = e.target.closest('#producer-list .producer-row, #producers-all .producer-row, #reg-producers .producer-row');
+  if (prow?.dataset.id) return openProducerDetail(Number(prow.dataset.id));
+  const lrow = e.target.closest('#listing-rows .table-row, #pubs-rows .table-row, #events-rows .table-row, #reg-listings .producer-row');
+  if (lrow?.dataset.id) return openListingDetailAdmin(Number(lrow.dataset.id));
+  const trow = e.target.closest('#tourists-rows .table-row');
+  if (trow?.dataset.id) return openTouristDetail(Number(trow.dataset.id));
+});
+
+// O botão "→" (ver perfil/anúncio) também abre o detalhe
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.btn-view[title="Ver perfil"], .btn-view[title="Ver anúncio"]');
+  if (!btn) return;
+  const row = btn.closest('[data-id]');
+  if (!row) return;
+  if (btn.title === 'Ver perfil') openProducerDetail(Number(row.dataset.id));
+  else openListingDetailAdmin(Number(row.dataset.id));
 });
 
 // Busca global do topo: Enter pesquisa nas Publicações

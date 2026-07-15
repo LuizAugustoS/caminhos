@@ -24,6 +24,38 @@ producers.get('/', async (req, res) => {
   res.json({ producers: rows, pendingCount: Number(pending.rows[0].n) });
 });
 
+// Detalhe completo do produtor: perfil, estabelecimento, conta e anúncios —
+// tudo que o admin precisa para decidir uma aprovação.
+producers.get('/:id', async (req, res) => {
+  const { rows } = await query(
+    `SELECT p.id, p.name, p.kind, p.initials, p.avatar_color, p.status, p.city,
+            p.created_at, p.reviewed_at,
+            e.name AS est_name, e.description AS est_description, e.category AS est_category,
+            e.address, e.phone, e.open_hours,
+            u.email AS account_email, u.name AS account_name, u.created_at AS account_since
+     FROM producers p
+     LEFT JOIN establishments e ON e.producer_id = p.id
+     LEFT JOIN users u ON u.id = p.user_id
+     WHERE p.id = $1`,
+    [req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Produtor não encontrado' });
+  const { rows: producerListings } = await query(
+    `SELECT id, type, title, subtitle, glyph, image_kind, image_path, status, listed_at
+     FROM listings
+     WHERE producer_id = $1 AND image_label <> 'Foto do anúncio'
+     ORDER BY created_at DESC
+     LIMIT 12`,
+    [req.params.id]
+  );
+  const { rows: [msgs] } = await query(
+    `SELECT count(DISTINCT c.id) AS conversations
+     FROM conversations c WHERE c.producer_id = $1`,
+    [req.params.id]
+  );
+  res.json({ producer: rows[0], listings: producerListings, conversations: Number(msgs.conversations) });
+});
+
 producers.post('/:id/status', async (req, res) => {
   const { status } = req.body || {};
   if (!REVIEW_STATUSES.has(status)) {
@@ -64,6 +96,25 @@ listings.get('/', async (req, res) => {
     [type || null, limit, status || null, q]
   );
   res.json({ listings: rows });
+});
+
+// Detalhe completo do anúncio, com o parceiro e o estabelecimento
+listings.get('/:id', async (req, res) => {
+  const { rows } = await query(
+    `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path,
+            l.image_label, l.status, l.listed_at, l.created_at, l.reviewed_at,
+            p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
+            p.avatar_color AS producer_color, p.kind AS producer_kind, p.status AS producer_status,
+            e.name AS est_name, e.category AS est_category, coalesce(e.city, p.city) AS city,
+            e.address, e.phone, e.open_hours
+     FROM listings l
+     JOIN producers p ON p.id = l.producer_id
+     LEFT JOIN establishments e ON e.producer_id = p.id
+     WHERE l.id = $1`,
+    [req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Anúncio não encontrado' });
+  res.json(rows[0]);
 });
 
 listings.post('/:id/status', async (req, res) => {
