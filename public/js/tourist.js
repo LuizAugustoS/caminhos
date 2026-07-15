@@ -33,11 +33,14 @@ $$('.vtab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.
 // ─── Explorar ────────────────────────────────────────────────────────────────
 async function loadExplore() {
   const q = $('#explore-q').value.trim();
-  let listings = [], places = [];
+  let listings = [], places = [], itineraries = [];
 
   if (navigator.onLine) {
     try {
-      if (exploreKind === 'places') {
+      if (exploreKind === 'itineraries') {
+        ({ itineraries } = await api('/explore/itineraries'));
+        await CaparaoDB.put('kv', 'published-itineraries', itineraries);
+      } else if (exploreKind === 'places') {
         ({ establishments: places } = await api(`/explore/establishments?q=${encodeURIComponent(q)}`));
         for (const e of places) await CaparaoDB.put('establishments', e.id, e);
       } else {
@@ -48,9 +51,12 @@ async function loadExplore() {
     } catch { /* cai para o cache local */ }
   }
 
-  if (!navigator.onLine || (!listings.length && !places.length)) {
+  if (!navigator.onLine || (!listings.length && !places.length && !itineraries.length)) {
     const norm = s => (s || '').toLowerCase();
-    if (exploreKind === 'places') {
+    if (exploreKind === 'itineraries') {
+      itineraries = ((await CaparaoDB.get('kv', 'published-itineraries')) || [])
+        .filter(it => !q || norm(it.title).includes(norm(q)) || norm(it.region).includes(norm(q)));
+    } else if (exploreKind === 'places') {
       places = (await CaparaoDB.all('establishments'))
         .filter(e => !q || norm(e.name).includes(norm(q)) || norm(e.city).includes(norm(q)) || norm(e.category).includes(norm(q)));
     } else {
@@ -62,14 +68,16 @@ async function loadExplore() {
 
   const favIds = new Set((await CaparaoDB.all('favorites')).map(f => f.listing_id));
 
-  $('#explore-grid').innerHTML =
-    (exploreKind === 'places' ? places.map(placeCard) : listings.map(l => listingCard(l, favIds))).join('')
+  const cards = exploreKind === 'itineraries' ? itineraries.map(itineraryCard)
+    : exploreKind === 'places' ? places.map(placeCard)
+    : listings.map(l => listingCard(l, favIds));
+  $('#explore-grid').innerHTML = cards.join('')
     || `<p class="empty-note">Nada encontrado${navigator.onLine ? '' : ' no cache offline — conecte-se para explorar mais'}.</p>`;
 }
 
 const listingCard = (l, favIds) => `
   <div class="ex-card" data-id="${l.id}" data-producer="${l.producer_id}">
-    <div class="ex-thumb img-${esc(l.image_kind)}">${esc(l.glyph)}</div>
+    ${thumbHTML(l, 'ex-thumb')}
     <div class="ex-body">
       <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')}</span>
       <strong class="ex-title">${esc(l.title)}</strong>
@@ -101,6 +109,22 @@ const placeCard = e => `
     </div>
   </div>`;
 
+// Roteiros publicados pela equipe (disponíveis offline no PWA)
+const itineraryCard = it => `
+  <div class="ex-card" data-itinerary="${it.id}" data-title="${esc(it.title)}"
+       data-region="${esc(it.region || '')}" data-duration="${esc(it.duration || '')}">
+    <div class="ex-thumb img-verde">⛰</div>
+    <div class="ex-body">
+      <span class="ex-type">Roteiro publicado · ${esc(it.region || 'Caparaó')}</span>
+      <strong class="ex-title">${esc(it.title)}</strong>
+      <span class="ex-sub">Duração: ${esc(it.duration || 'livre')}</span>
+      ${it.offline_ready ? '<span class="ex-meta">📴 Pronto para uso offline</span>' : ''}
+    </div>
+    <div class="ex-actions">
+      <button class="btn-primary" data-action="use-itinerary">Usar como base</button>
+    </div>
+  </div>`;
+
 $('#explore-q').addEventListener('input', () => { clearTimeout(window._qT); window._qT = setTimeout(loadExplore, 300); });
 $('#explore-chips').addEventListener('click', e => {
   const tab = e.target.closest('.tab');
@@ -117,6 +141,17 @@ $('#explore-grid').addEventListener('click', async e => {
   const listingId = Number(card.dataset.id) || null;
   const producerId = Number(card.dataset.producer) || null;
 
+  if (btn.dataset.action === 'use-itinerary') {
+    const trip = {
+      client_uid: CaparaoDB.uid(),
+      title: card.dataset.title,
+      notes: `Baseado no roteiro publicado "${card.dataset.title}"${card.dataset.region ? ` · ${card.dataset.region}` : ''}${card.dataset.duration ? ` · ${card.dataset.duration}` : ''}`,
+      items: [],
+    };
+    await saveTripLocalAndQueue(trip);
+    toast(`Roteiro copiado para Meus Roteiros${navigator.onLine ? '' : ' (offline)'}`);
+    return;
+  }
   if (btn.dataset.action === 'fav') return toggleFavorite(listingId, btn);
   if (btn.dataset.action === 'add-trip' || btn.dataset.action === 'add-place') {
     const item = btn.dataset.action === 'add-trip'
@@ -157,7 +192,7 @@ async function renderFavorites() {
   const favs = await CaparaoDB.all('favorites');
   $('#favorites-grid').innerHTML = favs.map(f => `
     <div class="ex-card" data-id="${f.listing_id}" data-producer="${f.producer_id || ''}">
-      <div class="ex-thumb img-${esc(f.image_kind || 'verde')}">${esc(f.glyph || '◉')}</div>
+      ${thumbHTML(f, 'ex-thumb')}
       <div class="ex-body">
         <span class="ex-type">${TYPE_LABEL[f.type] || ''}</span>
         <strong class="ex-title">${esc(f.title || 'Anúncio #' + f.listing_id)}</strong>

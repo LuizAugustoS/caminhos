@@ -8,7 +8,7 @@ import { misc } from './routes/misc.js';
 import { explore } from './routes/explore.js';
 import { trips, favorites } from './routes/trips.js';
 import { conversations } from './routes/chat.js';
-import { portal } from './routes/portal.js';
+import { portal, UPLOADS_DIR } from './routes/portal.js';
 import { pool } from './db.js';
 
 const app = express();
@@ -49,6 +49,9 @@ app.use('/api/dashboard', requireRole('admin'), dashboard);
 app.use('/api/producers', requireRole('admin'), producers);
 app.use('/api/listings', requireRole('admin'), listings);
 app.use('/api', requireRole('admin'), misc);
+
+// Fotos enviadas pelos produtores (imutáveis: nome de arquivo aleatório)
+app.use('/uploads', express.static(UPLOADS_DIR, { immutable: true, maxAge: '30d' }));
 
 // ─── PWA estático ───────────────────────────────────────────────────────────
 app.use(express.static(publicDir, {

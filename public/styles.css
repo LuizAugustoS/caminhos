@@ -321,6 +321,8 @@ button { font-family: inherit; }
   width: 52px; height: 44px; border-radius: 9px; border: 1px solid rgba(74,50,38,.12);
   display: flex; align-items: center; justify-content: center; font-size: 18px; color: #FFF9EC;
 }
+.has-photo { padding: 0; overflow: hidden; background: #EFE9DA; }
+.has-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .img-cafe { background: linear-gradient(135deg, #7A4B2E, #4A3226); }
 .img-arte { background: linear-gradient(135deg, #C0714F, #9A5638); }
 .img-verde { background: linear-gradient(135deg, #1C6B4A, #14402E); }

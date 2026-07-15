@@ -7,14 +7,14 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 ## Perfis e funcionalidades
 
 ### 🧭 Turista (`/app`)
-- **Explorar**: busca de produtos, serviços, eventos e estabelecimentos da região
+- **Explorar**: busca de produtos, serviços, eventos, estabelecimentos e **roteiros publicados** pela equipe (com "usar como base", que copia para os seus roteiros — funciona offline). Cada busca real alimenta o mapa de calor do admin
 - **✨ Montar roteiro pra mim**: o turista informa seus gostos (café, trilhas, cachoeiras…), o tempo disponível, o ritmo e o que quer viver — e uma **IA (ou fluxo N8N) monta o roteiro** usando o catálogo aprovado da plataforma. O roteiro é salvo com as preferências informadas e fica disponível em "Meus Roteiros" para consultar depois (inclusive offline)
 - **Meus Roteiros**: criação e gestão de itinerários personalizados **100% offline-first** — os roteiros vivem no IndexedDB do dispositivo, funcionam sem rede e sincronizam automaticamente quando a conexão volta
 - **Favoritos**: disponíveis offline
 - **Mensagens**: chat assimétrico com produtores (dúvidas/reservas); envios offline entram na fila e são entregues ao reconectar
 
 ### ☕ Produtor/Comerciante (`/portal`)
-- **Vitrine virtual**: criação rápida de anúncios (produtos, serviços, eventos) — novos anúncios e edições entram na fila de moderação do admin
+- **Vitrine virtual**: criação rápida de anúncios (produtos, serviços, eventos) com **upload de foto** (JPG/PNG/WebP até 5 MB, botão 📷 — servidas em `/uploads` e cacheadas offline pelo PWA) — novos anúncios e edições entram na fila de moderação do admin
 - **Mensagens**: caixa de entrada dedicada com turistas
 - **Meu Estabelecimento**: edição do perfil público (descrição, categoria, endereço, contato, horários)
 

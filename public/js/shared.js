@@ -65,6 +65,11 @@ const brandHTML = `
     </div>
   </div>`;
 
+// Capa do anúncio: foto enviada pelo produtor ou gradiente do design
+const thumbHTML = (l, cls = 'thumb') => l.image_path
+  ? `<div class="${cls} has-photo"><img src="${esc(l.image_path)}" alt="" loading="lazy"></div>`
+  : `<div class="${cls} img-${esc(l.image_kind || 'verde')}">${esc(l.glyph || '◉')}</div>`;
+
 const msgBubble = (body, mine, meta) => `
   <div class="msg ${mine ? 'mine' : ''}">
     <span class="msg-body">${esc(body)}</span>
