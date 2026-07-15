@@ -1,9 +1,31 @@
 // Portal do produtor/comerciante: vitrine de anúncios, perfil do
 // estabelecimento e visão geral. Toda rota exige papel 'producer'.
+import { randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync } from 'node:fs';
+import { unlink } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Router } from 'express';
+import multer from 'multer';
 import { query } from '../db.js';
 
 export const portal = Router();
+
+// ─── Upload de fotos dos anúncios ───────────────────────────────────────────
+export const UPLOADS_DIR = process.env.UPLOADS_DIR || join(process.cwd(), 'uploads');
+if (!existsSync(UPLOADS_DIR)) mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const IMAGE_TYPES = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: UPLOADS_DIR,
+    filename: (_req, file, cb) => cb(null, `${randomUUID()}${IMAGE_TYPES[file.mimetype]}`),
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (IMAGE_TYPES[file.mimetype]) cb(null, true);
+    else cb(new Error('Envie uma imagem JPG, PNG ou WebP'));
+  },
+});
 
 // Carrega o produtor vinculado à conta e o injeta na requisição
 portal.use(async (req, res, next) => {
@@ -67,7 +89,7 @@ const IMAGE_KINDS = ['cafe', 'arte', 'verde', 'sage'];
 
 portal.get('/listings', async (req, res) => {
   const { rows } = await query(
-    `SELECT id, type, title, subtitle, glyph, image_kind, status, listed_at, created_at
+    `SELECT id, type, title, subtitle, glyph, image_kind, image_path, status, listed_at, created_at
      FROM listings WHERE producer_id = $1 ORDER BY created_at DESC`,
     [req.producer.id]
   );
@@ -112,6 +134,30 @@ portal.put('/listings/:id', async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ error: 'Anúncio não encontrado' });
   res.json(rows[0]);
+});
+
+// Foto do anúncio (multipart, campo 'image'); substitui a anterior
+portal.post('/listings/:id/image', (req, res, next) => {
+  upload.single('image')(req, res, err => {
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+}, async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
+  const newPath = `/uploads/${req.file.filename}`;
+  const { rows: [old] } = await query(
+    'SELECT image_path FROM listings WHERE id = $1 AND producer_id = $2',
+    [req.params.id, req.producer.id]
+  );
+  if (!old) {
+    await unlink(join(UPLOADS_DIR, req.file.filename)).catch(() => {});
+    return res.status(404).json({ error: 'Anúncio não encontrado' });
+  }
+  await query('UPDATE listings SET image_path = $1 WHERE id = $2', [newPath, req.params.id]);
+  if (old.image_path?.startsWith('/uploads/')) {
+    await unlink(join(UPLOADS_DIR, old.image_path.slice('/uploads/'.length))).catch(() => {});
+  }
+  res.json({ id: Number(req.params.id), image_path: newPath });
 });
 
 portal.delete('/listings/:id', async (req, res) => {

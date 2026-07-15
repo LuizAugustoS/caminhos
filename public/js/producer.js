@@ -47,7 +47,7 @@ async function loadShowcase() {
 
     $('#my-listings').innerHTML = listings.map(l => `
       <div class="table-row listing-cols" data-id="${l.id}">
-        <div class="thumb img-${esc(l.image_kind)}">${esc(l.glyph)}</div>
+        ${thumbHTML(l)}
         <div class="cell-title">
           <div class="t">${esc(l.title)}</div>
           <div class="s">${esc(l.subtitle || '')}</div>
@@ -56,6 +56,7 @@ async function loadShowcase() {
         <span class="cell-date">${fmtDate(l.listed_at)}</span>
         <span class="status-pill status-${l.status}">${STATUS_LABEL[l.status]}</span>
         <div class="row-actions">
+          <button class="btn-view" data-action="photo" title="Foto do anúncio">📷</button>
           <button class="btn-view" data-action="edit" title="Editar">✎</button>
           <button class="btn-reject" data-action="delete" title="Excluir">✕</button>
         </div>
@@ -96,14 +97,47 @@ $('#listing-form').addEventListener('submit', async e => {
   } catch (err) { toast(err.message); }
 });
 
+// Upload da foto do anúncio (JPG/PNG/WebP até 5 MB)
+const photoInput = Object.assign(document.createElement('input'), {
+  type: 'file', accept: 'image/jpeg,image/png,image/webp', hidden: true,
+});
+document.body.appendChild(photoInput);
+let photoListingId = null;
+
+photoInput.addEventListener('change', async () => {
+  const file = photoInput.files[0];
+  photoInput.value = '';
+  if (!file || !photoListingId) return;
+  if (file.size > 5 * 1024 * 1024) return toast('Imagem muito grande — máximo 5 MB');
+  const form = new FormData();
+  form.append('image', file);
+  try {
+    const res = await fetch(`/api/portal/listings/${photoListingId}/image`, {
+      method: 'POST', body: form, credentials: 'same-origin',
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erro ${res.status}`);
+    toast('Foto do anúncio atualizada 📷');
+    loadShowcase();
+  } catch (err) { toast(err.message); }
+});
+
 $('#my-listings').addEventListener('click', async e => {
   const btn = e.target.closest('button[data-action]');
   if (!btn) return;
   const id = Number(btn.closest('.table-row').dataset.id);
-  if (btn.dataset.action === 'edit') {
+  if (btn.dataset.action === 'photo') {
+    photoListingId = id;
+    photoInput.click();
+  } else if (btn.dataset.action === 'edit') {
     openListingForm(myListings.find(l => l.id === id));
   } else if (btn.dataset.action === 'delete') {
-    if (!confirm('Excluir este anúncio?')) return;
+    const ok = await modalConfirm({
+      title: 'Excluir anúncio',
+      message: 'O anúncio sairá da vitrine e da plataforma. Essa ação não pode ser desfeita.',
+      confirmText: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api(`/portal/listings/${id}`, { method: 'DELETE' });
       toast('Anúncio excluído');
@@ -212,7 +246,7 @@ $('#profile-form').addEventListener('submit', async e => {
   $('#profile-name').textContent = me.name;
   $('#profile-initials').textContent = initialsOf(me.name);
   $('#profile').addEventListener('click', async () => {
-    if (!confirm('Sair da conta?')) return;
+    if (!await modalConfirm({ title: 'Sair da conta', confirmText: 'Sair' })) return;
     await api('/logout', { method: 'POST' }).catch(() => {});
     location.href = '/';
   });

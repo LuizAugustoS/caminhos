@@ -121,7 +121,7 @@ export const favorites = Router();
 
 favorites.get('/', async (req, res) => {
   const { rows } = await query(
-    `SELECT f.listing_id, l.title, l.subtitle, l.type, l.glyph, l.image_kind,
+    `SELECT f.listing_id, l.title, l.subtitle, l.type, l.glyph, l.image_kind, l.image_path,
             p.name AS producer_name, p.id AS producer_id
      FROM favorites f
      JOIN listings l ON l.id = f.listing_id

@@ -1,18 +1,47 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { login, logout, me, register, requireAuth, requireRole } from './auth.js';
+import { login, loginLimiter, logout, me, register, registerLimiter, requireAuth, requireRole } from './auth.js';
 import { dashboard } from './routes/dashboard.js';
 import { producers, listings } from './routes/moderation.js';
 import { misc } from './routes/misc.js';
 import { explore } from './routes/explore.js';
 import { trips, favorites } from './routes/trips.js';
 import { conversations } from './routes/chat.js';
-import { portal } from './routes/portal.js';
+import { portal, UPLOADS_DIR } from './routes/portal.js';
 import { pool } from './db.js';
 
 const app = express();
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+
+// Atrás de um proxy/CDN (deploy com HTTPS), respeita X-Forwarded-* para
+// req.ip (rate-limit) e req.secure (cookie Secure) funcionarem.
+app.set('trust proxy', 1);
+
+// ─── Cabeçalhos de segurança ────────────────────────────────────────────────
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  // style inline é usado pelo design (atributos style=) — fontes via Google Fonts
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com",
+  "img-src 'self' data: blob:",
+  "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com",
+  "manifest-src 'self'",
+  "frame-ancestors 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', CSP);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
 
 app.use(express.json());
 
@@ -26,8 +55,8 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
-app.post('/api/login', login);
-app.post('/api/register', register);
+app.post('/api/login', loginLimiter, login);
+app.post('/api/register', registerLimiter, register);
 app.post('/api/logout', logout);
 app.get('/api/me', requireAuth, me);
 
@@ -49,6 +78,9 @@ app.use('/api/dashboard', requireRole('admin'), dashboard);
 app.use('/api/producers', requireRole('admin'), producers);
 app.use('/api/listings', requireRole('admin'), listings);
 app.use('/api', requireRole('admin'), misc);
+
+// Fotos enviadas pelos produtores (imutáveis: nome de arquivo aleatório)
+app.use('/uploads', express.static(UPLOADS_DIR, { immutable: true, maxAge: '30d' }));
 
 // ─── PWA estático ───────────────────────────────────────────────────────────
 app.use(express.static(publicDir, {

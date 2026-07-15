@@ -50,7 +50,7 @@ listings.get('/', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 4, 100);
   const q = (req.query.q || '').trim();
   const { rows } = await query(
-    `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_label,
+    `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.image_label,
             l.status, l.listed_at,
             p.name AS producer_name, p.initials AS producer_initials, p.avatar_color AS producer_color
      FROM listings l

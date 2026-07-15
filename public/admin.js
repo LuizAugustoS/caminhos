@@ -23,6 +23,11 @@ const fmtTime = iso => {
 };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// Capa do anúncio: foto enviada pelo produtor ou gradiente do design
+const adminThumb = (l, style = '') => l.image_path
+  ? `<div class="thumb has-photo" style="${style}"><img src="${esc(l.image_path)}" alt="" loading="lazy"></div>`
+  : `<div class="thumb img-${esc(l.image_kind)}" style="${style}" title="${esc(l.image_label || '')}">${esc(l.glyph)}</div>`;
+
 const STATUS_LABEL = { pending: 'Pendente', in_review: 'Em análise', approved: 'Aprovado', rejected: 'Recusado' };
 
 function toast(msg) {
@@ -256,7 +261,7 @@ async function loadListings() {
     const pending = l.status === 'pending' || l.status === 'in_review';
     return `
     <div class="table-row" data-id="${l.id}">
-      <div class="thumb img-${esc(l.image_kind)}" title="${esc(l.image_label || '')}">${esc(l.glyph)}</div>
+      ${adminThumb(l)}
       <div class="cell-title">
         <div class="t">${esc(l.title)}</div>
         <div class="s">${esc(l.subtitle || '')}</div>
@@ -434,7 +439,7 @@ $('#producers-all').addEventListener('click', e => {
 function listingQueueRowHTML(l) {
   return `
     <div class="producer-row" data-id="${l.id}">
-      <div class="thumb img-${esc(l.image_kind)}" style="width:40px;height:40px;font-size:15px;">${esc(l.glyph)}</div>
+      ${adminThumb(l, 'width:40px;height:40px;font-size:15px;')}
       <div class="producer-info">
         <div class="name">${esc(l.title)}</div>
         <div class="kind">${TYPE_LABEL_ADMIN[l.type]} · ${esc(l.producer_name)}</div>
@@ -476,7 +481,7 @@ function listingTableRowHTML(l) {
   const pending = l.status === 'pending' || l.status === 'in_review';
   return `
     <div class="table-row" data-id="${l.id}">
-      <div class="thumb img-${esc(l.image_kind)}" title="${esc(l.image_label || '')}">${esc(l.glyph)}</div>
+      ${adminThumb(l)}
       <div class="cell-title">
         <div class="t">${esc(l.title)}</div>
         <div class="s">${esc(l.subtitle || '')}</div>

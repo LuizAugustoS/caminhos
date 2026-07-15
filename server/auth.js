@@ -5,6 +5,42 @@ import { pool, query } from './db.js';
 const SECRET = process.env.SESSION_SECRET || 'dev-secret-inseguro';
 const COOKIE = 'caparao_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12 horas
+const SECURE_FLAG = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+
+// ─── Rate limit em memória (login/registro) ─────────────────────────────────
+const attempts = new Map(); // chave → { count, resetAt }
+
+export function rateLimit(keyFn, max, windowMs, message) {
+  return (req, res, next) => {
+    const now = Date.now();
+    if (attempts.size > 10_000) {
+      for (const [k, v] of attempts) if (v.resetAt < now) attempts.delete(k);
+    }
+    const key = keyFn(req);
+    const entry = attempts.get(key);
+    if (!entry || entry.resetAt < now) {
+      attempts.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+    if (entry.count >= max) {
+      res.setHeader('Retry-After', Math.ceil((entry.resetAt - now) / 1000));
+      return res.status(429).json({ error: message });
+    }
+    entry.count++;
+    next();
+  };
+}
+
+export const loginLimiter = rateLimit(
+  req => `login:${req.ip}:${(req.body?.email || '').toLowerCase()}`,
+  10, 15 * 60 * 1000,
+  'Muitas tentativas de login — aguarde alguns minutos e tente novamente'
+);
+export const registerLimiter = rateLimit(
+  req => `register:${req.ip}`,
+  5, 60 * 60 * 1000,
+  'Muitos cadastros deste endereço — tente novamente mais tarde'
+);
 
 function sign(payload) {
   const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -53,11 +89,11 @@ export function hashPassword(password) {
 export function setSession(res, admin) {
   const token = sign({ id: admin.id, name: admin.name, role: admin.role, exp: Date.now() + SESSION_TTL_MS });
   res.setHeader('Set-Cookie',
-    `${COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${SESSION_TTL_MS / 1000}; SameSite=Lax`);
+    `${COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${SESSION_TTL_MS / 1000}; SameSite=Lax${SECURE_FLAG}`);
 }
 
 export function clearSession(res) {
-  res.setHeader('Set-Cookie', `${COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax`);
+  res.setHeader('Set-Cookie', `${COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${SECURE_FLAG}`);
 }
 
 export function requireAuth(req, res, next) {

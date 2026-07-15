@@ -6,7 +6,7 @@
  *  - Mutações offline NÃO passam por aqui: ficam na fila do IndexedDB (js/idb.js)
  *    e são reenviadas quando a conexão volta, com rotas idempotentes no servidor.
  */
-const VERSION = 'v3';
+const VERSION = 'v4';
 const SHELL_CACHE = `shell-${VERSION}`;
 const DATA_CACHE = `data-${VERSION}`;
 
@@ -18,6 +18,7 @@ const SHELL_ASSETS = [
   '/styles.css',
   '/admin.js',
   '/js/shared.js',
+  '/js/landing.js',
   '/js/idb.js',
   '/js/tourist.js',
   '/js/producer.js',
@@ -46,6 +47,20 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
+
+  // Fotos dos anúncios: cache-first (nome de arquivo é imutável)
+  if (url.origin === location.origin && url.pathname.startsWith('/uploads/')) {
+    event.respondWith(
+      caches.match(request).then(cached => cached || fetch(request).then(response => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(DATA_CACHE).then(cache => cache.put(request, copy));
+        }
+        return response;
+      }))
+    );
+    return;
+  }
 
   // API: network-first, cache como fallback offline
   if (url.origin === location.origin && url.pathname.startsWith('/api/')) {
