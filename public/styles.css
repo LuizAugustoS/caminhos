@@ -544,6 +544,21 @@ body.offline .offline-banner { display: block; }
 }
 .trip-prefs { display: block; margin-top: 4px; font-style: italic; }
 
+/* ─── Telas da sidebar do admin ─── */
+.tourists-cols { grid-template-columns: 1.4fr 1.6fr 1fr .9fr 130px; }
+.spot-row { display: flex; align-items: center; gap: 12px; padding: 9px 4px; }
+.spot-name { width: 170px; font-size: 13px; font-weight: 700; color: var(--ink); flex-shrink: 0; }
+.spot-bar { flex: 1; height: 12px; background: #EFE9DA; border-radius: 8px; overflow: hidden; }
+.spot-bar i { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, #8AA98F, #1C6B4A); }
+.spot-n { width: 56px; text-align: right; font-size: 12.5px; font-weight: 800; color: var(--forest); }
+.settings-list { display: flex; flex-direction: column; }
+.settings-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 11px 4px; border-bottom: 1px solid #F0E9D8; font-size: 13px;
+}
+.settings-item span:first-child { color: var(--muted-2); font-weight: 600; }
+.settings-item strong { color: var(--ink); font-weight: 700; text-align: right; }
+
 @media (max-width: 900px) {
   .chat-layout { grid-template-columns: 1fr; }
   .kpi-grid-3 { grid-template-columns: 1fr; }

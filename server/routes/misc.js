@@ -3,6 +3,23 @@ import { query } from '../db.js';
 
 export const misc = Router();
 
+// Lista de turistas cadastrados (tela "Turistas" do admin)
+misc.get('/tourists', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  const limit = Math.min(Number(req.query.limit) || 30, 100);
+  const { rows } = await query(
+    `SELECT id, name, email, city, created_at, user_id IS NOT NULL AS has_account
+     FROM tourists
+     WHERE ($1 = '' OR name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%'
+            OR city ILIKE '%' || $1 || '%')
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [q, limit]
+  );
+  const { rows: [{ total }] } = await query('SELECT count(*) AS total FROM tourists');
+  res.json({ tourists: rows, total: Number(total) });
+});
+
 misc.get('/chat', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 3, 50);
   const { rows } = await query(

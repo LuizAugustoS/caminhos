@@ -52,7 +52,10 @@ function showLogin() {
   location.href = '/'; // login centralizado na landing
 }
 
+let currentAdmin = null;
+
 function showApp(admin) {
+  currentAdmin = admin;
   $('#app-screen').classList.remove('hidden');
   $('#profile-name').textContent = admin.name;
   $('#profile-initials').textContent = admin.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -61,21 +64,48 @@ function showApp(admin) {
   loadAll();
 }
 
-// ─── Sidebar ─────────────────────────────────────────────────────────────────
+// ─── Sidebar e navegação entre telas ─────────────────────────────────────────
+let currentView = 'overview';
+let navBadges = { pending: 0, chat: 0 };
+
+const VIEW_LOADERS = {
+  overview: () => loadAll(),
+  tourists: () => loadTouristsView(),
+  producers: () => loadProducersView(),
+  registrations: () => loadRegistrationsView(),
+  listings: () => loadPubsView(),
+  events: () => loadEventsView(),
+  chat: () => loadInternalChat(),
+  analytics: () => loadAnalyticsView(),
+  settings: () => loadSettingsView(),
+};
+
+function switchView(name) {
+  if (!VIEW_LOADERS[name]) return;
+  currentView = name;
+  document.querySelectorAll('.admin-view').forEach(v =>
+    v.classList.toggle('hidden', v.id !== `view-${name}`));
+  document.querySelectorAll('#sidenav .nav-item').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === name));
+  VIEW_LOADERS[name]();
+}
+
 function renderNav(pendingCount, chatCount) {
+  if (pendingCount != null) navBadges.pending = pendingCount;
+  if (chatCount != null) navBadges.chat = chatCount;
   const items = [
-    ['◫', 'Visão Geral', true, null],
-    ['⛰', 'Turistas', false, null],
-    ['☕', 'Produtores/Comerciantes', false, null],
-    ['✎', 'Cadastros', false, pendingCount || null],
-    ['▤', 'Publicações', false, null],
-    ['✦', 'Eventos', false, null],
-    ['◍', 'Chat Interno', false, chatCount || null],
-    ['◔', 'Analytics', false, null],
-    ['⚙', 'Configurações', false, null],
+    ['◫', 'Visão Geral', 'overview', null],
+    ['⛰', 'Turistas', 'tourists', null],
+    ['☕', 'Produtores/Comerciantes', 'producers', null],
+    ['✎', 'Cadastros', 'registrations', navBadges.pending || null],
+    ['▤', 'Publicações', 'listings', null],
+    ['✦', 'Eventos', 'events', null],
+    ['◍', 'Chat Interno', 'chat', navBadges.chat || null],
+    ['◔', 'Analytics', 'analytics', null],
+    ['⚙', 'Configurações', 'settings', null],
   ];
-  $('#sidenav').innerHTML = items.map(([icon, label, active, badge]) => `
-    <button class="nav-item${active ? ' active' : ''}">
+  $('#sidenav').innerHTML = items.map(([icon, label, view, badge]) => `
+    <button class="nav-item${view === currentView ? ' active' : ''}" data-view="${view}">
       <span class="icon">${icon}</span>
       <span>${label}</span>
       ${badge ? `<span class="nav-badge">${badge}</span>` : ''}
@@ -85,6 +115,15 @@ function renderNav(pendingCount, chatCount) {
       <p id="pwa-sync-note">Itinerários offline atualizados.</p>
     </div>`;
 }
+
+$('#sidenav').addEventListener('click', e => {
+  const btn = e.target.closest('.nav-item');
+  if (btn) switchView(btn.dataset.view);
+});
+document.addEventListener('click', e => {
+  const goto = e.target.closest('[data-goto]');
+  if (goto) { e.preventDefault(); switchView(goto.dataset.goto); }
+});
 
 // ─── KPIs ────────────────────────────────────────────────────────────────────
 function sparklineSVG(series, color, id) {
@@ -292,12 +331,17 @@ async function review(kind, id, action) {
   try {
     await api(`/${kind}/${id}/status`, { method: 'POST', body: JSON.stringify({ status }) });
     toast(status === 'approved' ? 'Cadastro aprovado ✓' : 'Cadastro recusado');
-    if (kind === 'producers') {
-      const pendingCount = await loadProducers();
-      const chatBadge = document.querySelectorAll('#chat-list .chat-msg').length;
-      renderNav(pendingCount, chatBadge);
+    if (currentView === 'overview') {
+      if (kind === 'producers') {
+        const pendingCount = await loadProducers();
+        renderNav(pendingCount, null);
+      } else {
+        await loadListings();
+      }
     } else {
-      await loadListings();
+      // Atualiza a contagem de pendências do menu e recarrega a tela atual
+      api('/producers?limit=1').then(({ pendingCount }) => renderNav(pendingCount, null)).catch(() => {});
+      VIEW_LOADERS[currentView]();
     }
   } catch (err) {
     if (err.message !== 'unauthorized') toast(err.message);
@@ -323,6 +367,261 @@ $('#listing-tabs').addEventListener('click', e => {
   document.querySelectorAll('#listing-tabs .tab').forEach(t => t.classList.toggle('active', t === tab));
   loadListings();
 });
+
+// ═══ Telas da sidebar ══════════════════════════════════════════════════════
+
+const debounce = (fn, ms = 300) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+// ─── Turistas ────────────────────────────────────────────────────────────────
+async function loadTouristsView() {
+  const q = $('#tourists-q').value.trim();
+  const { tourists, total } = await api(`/tourists?q=${encodeURIComponent(q)}&limit=30`);
+  $('#tourists-sub').textContent = `${fmtInt(total)} turistas cadastrados · exibindo ${tourists.length}`;
+  $('#tourists-rows').innerHTML = tourists.map(t => `
+    <div class="table-row tourists-cols">
+      <div class="cell-title"><div class="t">${esc(t.name)}</div></div>
+      <span class="cell-date">${esc(t.email || '—')}</span>
+      <span class="cell-date">${esc(t.city || '—')}</span>
+      <span class="cell-date">${fmtDate(t.created_at)}</span>
+      <span class="status-pill ${t.has_account ? 'status-approved' : 'status-in_review'}">${t.has_account ? 'Conta no app' : 'Registro'}</span>
+    </div>`).join('') || '<p class="empty-note">Nenhum turista encontrado.</p>';
+}
+$('#tourists-q').addEventListener('input', debounce(loadTouristsView));
+
+// ─── Produtores/Comerciantes ─────────────────────────────────────────────────
+let producersFilter = '';
+
+function producerRowHTML(p) {
+  const pending = p.status === 'pending' || p.status === 'in_review';
+  return `
+    <div class="producer-row" data-id="${p.id}">
+      <div class="avatar lg" style="background:${esc(p.avatar_color)}">${esc(p.initials)}</div>
+      <div class="producer-info">
+        <div class="name">${esc(p.name)}</div>
+        <div class="kind">${esc(p.kind)}${p.city ? ' · ' + esc(p.city) : ''}</div>
+      </div>
+      <span class="status-pill status-${p.status}">${STATUS_LABEL[p.status]}</span>
+      <div class="row-actions">
+        ${pending
+          ? `<button class="btn-approve" title="Aprovar" data-action="approve">✓</button>
+             <button class="btn-reject" title="Recusar" data-action="reject">✕</button>`
+          : `<button class="btn-view" title="Ver perfil">→</button>`}
+      </div>
+    </div>`;
+}
+
+async function loadProducersView() {
+  const q = $('#producers-q').value.trim();
+  const statusParam = producersFilter ? `&status=${producersFilter}` : '';
+  const { producers } = await api(`/producers?limit=100&q=${encodeURIComponent(q)}${statusParam}`);
+  $('#producers-all').innerHTML = producers.map(producerRowHTML).join('')
+    || '<p class="empty-note">Nenhum produtor com esse filtro.</p>';
+}
+$('#producers-q').addEventListener('input', debounce(loadProducersView));
+$('#producers-filter').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  producersFilter = tab.dataset.status;
+  document.querySelectorAll('#producers-filter .tab').forEach(t => t.classList.toggle('active', t === tab));
+  loadProducersView();
+});
+$('#producers-all').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-action]');
+  if (btn) review('producers', btn.closest('[data-id]').dataset.id, btn.dataset.action);
+});
+
+// ─── Cadastros (fila de moderação) ───────────────────────────────────────────
+function listingQueueRowHTML(l) {
+  return `
+    <div class="producer-row" data-id="${l.id}">
+      <div class="thumb img-${esc(l.image_kind)}" style="width:40px;height:40px;font-size:15px;">${esc(l.glyph)}</div>
+      <div class="producer-info">
+        <div class="name">${esc(l.title)}</div>
+        <div class="kind">${TYPE_LABEL_ADMIN[l.type]} · ${esc(l.producer_name)}</div>
+      </div>
+      <span class="status-pill status-${l.status}">${STATUS_LABEL[l.status]}</span>
+      <div class="row-actions">
+        <button class="btn-approve" title="Aprovar" data-action="approve">✓</button>
+        <button class="btn-reject" title="Recusar" data-action="reject">✕</button>
+      </div>
+    </div>`;
+}
+const TYPE_LABEL_ADMIN = { product: 'Produto', service: 'Serviço', event: 'Evento' };
+
+async function loadRegistrationsView() {
+  const [{ producers }, { listings }] = await Promise.all([
+    api('/producers?limit=100'),
+    api('/listings?limit=100'),
+  ]);
+  const pendProducers = producers.filter(p => p.status === 'pending' || p.status === 'in_review');
+  const pendListings = listings.filter(l => l.status === 'pending' || l.status === 'in_review');
+  $('#reg-producers').innerHTML = pendProducers.map(producerRowHTML).join('')
+    || '<p class="empty-note">Nenhum produtor aguardando revisão 🎉</p>';
+  $('#reg-listings').innerHTML = pendListings.map(listingQueueRowHTML).join('')
+    || '<p class="empty-note">Nenhum anúncio aguardando revisão 🎉</p>';
+}
+$('#reg-producers').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-action]');
+  if (btn) review('producers', btn.closest('[data-id]').dataset.id, btn.dataset.action);
+});
+$('#reg-listings').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-action]');
+  if (btn) review('listings', btn.closest('[data-id]').dataset.id, btn.dataset.action);
+});
+
+// ─── Publicações e Eventos ───────────────────────────────────────────────────
+let pubsType = '', pubsStatus = '';
+
+function listingTableRowHTML(l) {
+  const pending = l.status === 'pending' || l.status === 'in_review';
+  return `
+    <div class="table-row" data-id="${l.id}">
+      <div class="thumb img-${esc(l.image_kind)}" title="${esc(l.image_label || '')}">${esc(l.glyph)}</div>
+      <div class="cell-title">
+        <div class="t">${esc(l.title)}</div>
+        <div class="s">${esc(l.subtitle || '')}</div>
+      </div>
+      <div class="cell-creator">
+        <div class="avatar sm" style="background:${esc(l.producer_color)}">${esc(l.producer_initials)}</div>
+        <span>${esc(l.producer_name)}</span>
+      </div>
+      <span class="cell-date">${fmtDate(l.listed_at)}</span>
+      <span class="status-pill status-${l.status}">${STATUS_LABEL[l.status]}</span>
+      <div class="row-actions">
+        ${pending
+          ? `<button class="btn-approve wide" data-action="approve">Aprovar</button>
+             <button class="btn-reject" title="Recusar" data-action="reject">✕</button>`
+          : `<button class="btn-view" title="Ver anúncio">→</button>`}
+      </div>
+    </div>`;
+}
+
+async function loadPubsView() {
+  const q = $('#pubs-q').value.trim();
+  const params = new URLSearchParams({ limit: 50, q });
+  if (pubsType) params.set('type', pubsType);
+  if (pubsStatus) params.set('status', pubsStatus);
+  const { listings } = await api(`/listings?${params}`);
+  $('#pubs-rows').innerHTML = listings.map(listingTableRowHTML).join('')
+    || '<p class="empty-note">Nenhuma publicação com esse filtro.</p>';
+}
+$('#pubs-q').addEventListener('input', debounce(loadPubsView));
+$('#pubs-type').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  pubsType = tab.dataset.type;
+  document.querySelectorAll('#pubs-type .tab').forEach(t => t.classList.toggle('active', t === tab));
+  loadPubsView();
+});
+$('#pubs-status').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  pubsStatus = tab.dataset.status;
+  document.querySelectorAll('#pubs-status .tab').forEach(t => t.classList.toggle('active', t === tab));
+  loadPubsView();
+});
+$('#pubs-rows').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-action]');
+  if (btn) review('listings', btn.closest('[data-id]').dataset.id, btn.dataset.action);
+});
+
+async function loadEventsView() {
+  const { listings } = await api('/listings?type=event&limit=50');
+  $('#events-rows').innerHTML = listings.map(listingTableRowHTML).join('')
+    || '<p class="empty-note">Nenhum evento cadastrado.</p>';
+}
+$('#events-rows').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-action]');
+  if (btn) review('listings', btn.closest('[data-id]').dataset.id, btn.dataset.action);
+});
+
+// ─── Chat Interno ────────────────────────────────────────────────────────────
+async function loadInternalChat() {
+  const { messages } = await api('/chat?limit=30');
+  const mine = m => currentAdmin && m.sender_name === currentAdmin.name;
+  $('#internal-msgs').innerHTML = messages.slice().reverse().map(m => `
+    <div class="msg ${mine(m) ? 'mine' : ''}">
+      <span class="msg-body">${mine(m) ? '' : `<strong>${esc(m.sender_name)}:</strong> `}${esc(m.body)}</span>
+      <small class="msg-meta">${fmtTime(m.created_at)}</small>
+    </div>`).join('') || '<p class="empty-note">Nenhuma mensagem ainda.</p>';
+  const box = $('#internal-msgs');
+  box.scrollTop = box.scrollHeight;
+  renderNav(null, messages.length);
+}
+$('#internal-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const body = $('#internal-input').value.trim();
+  if (!body) return;
+  $('#internal-input').value = '';
+  try {
+    await api('/chat', { method: 'POST', body: JSON.stringify({ body }) });
+    loadInternalChat();
+  } catch (err) { toast(err.message); }
+});
+
+// ─── Analytics ───────────────────────────────────────────────────────────────
+async function loadAnalyticsView() {
+  const dash = await api('/dashboard');
+  const k = dash.kpis, h = dash.heatmap;
+
+  const cards = [
+    ['Buscas na semana', fmtInt(h.weeklySearches), h.weeklyDeltaPct, '#1C6B4A', 'vs. semana anterior'],
+    ['Novos turistas (30d)', fmtInt(k.newTourists.value), k.newTourists.deltaPct, '#8AA98F', 'vs. período anterior'],
+    ['Volume no mês', fmtMoney(k.transactionVolume.valueCents), k.transactionVolume.deltaPct, '#4A3226', 'vs. mês anterior'],
+  ];
+  $('#analytics-kpis').innerHTML = cards.map(([label, value, delta, accent, caption]) => `
+    <div class="kpi-card" style="border-top-color:${accent}">
+      <div class="kpi-head"><span>${label}</span></div>
+      <div class="kpi-value-row"><span class="kpi-value">${value}</span>${deltaBadge(delta)}</div>
+      <span class="kpi-caption">${caption}</span>
+    </div>`).join('');
+
+  // Agrega as buscas do mapa de calor por destino
+  const bySpot = new Map();
+  for (const c of h.cells) {
+    if (c.spot) bySpot.set(c.spot, (bySpot.get(c.spot) || 0) + c.searches);
+  }
+  const top = [...bySpot.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const max = top[0]?.[1] || 1;
+  $('#analytics-spots').innerHTML = top.map(([spot, n]) => `
+    <div class="spot-row">
+      <span class="spot-name">${esc(spot)}</span>
+      <div class="spot-bar"><i style="width:${Math.round((n / max) * 100)}%"></i></div>
+      <span class="spot-n">${fmtInt(n)}</span>
+    </div>`).join('') || '<p class="empty-note">Sem buscas registradas nos últimos 7 dias.</p>';
+
+  $('#analytics-summary').innerHTML = `
+    <div class="heat-stats" style="flex-direction:column; gap:10px;">
+      <div class="heat-stat"><strong>${fmtInt(k.activeProducers.value)}</strong><small>produtores ativos · ${k.activeProducers.withListingsPct}% com anúncios</small></div>
+      <div class="heat-stat"><strong>${fmtInt(k.totalListings.value)}</strong><small>anúncios publicados</small></div>
+      <div class="heat-stat"><strong>${fmtInt(h.offlineItineraries)}</strong><small>itinerários prontos para uso offline</small></div>
+      <div class="heat-stat"><strong>${esc(h.top?.spot || '—')}</strong><small>destino em destaque da semana</small></div>
+    </div>`;
+}
+
+// ─── Configurações ───────────────────────────────────────────────────────────
+async function loadSettingsView() {
+  const [me, health] = await Promise.all([api('/me'), fetch('/api/health').then(r => r.json())]);
+  $('#settings-account').innerHTML = `
+    <div class="settings-list">
+      <div class="settings-item"><span>Nome</span><strong>${esc(me.name)}</strong></div>
+      <div class="settings-item"><span>Papel</span><strong>Administrador(a)</strong></div>
+      <div class="settings-item"><span>Sessão</span><strong>expira em até 12h</strong></div>
+    </div>
+    <button class="btn-secondary" id="settings-logout" style="margin-top:14px;">Sair da conta</button>`;
+  $('#settings-logout').addEventListener('click', async () => {
+    await api('/logout', { method: 'POST' }).catch(() => {});
+    showLogin();
+  });
+  $('#settings-platform').innerHTML = `
+    <div class="settings-list">
+      <div class="settings-item"><span>Banco de dados</span>
+        <span class="status-pill ${health.db === 'up' ? 'status-approved' : 'status-rejected'}">${health.db === 'up' ? 'Conectado' : 'Fora do ar'}</span></div>
+      <div class="settings-item"><span>Aplicação</span><strong>Caminhos do Caparaó v1.0</strong></div>
+      <div class="settings-item"><span>Gerador de roteiros (IA)</span><strong>configurável via AI_PROVIDER no .env</strong></div>
+      <div class="settings-item"><span>Contas demo</span><strong>redefinir com npm run db:seed</strong></div>
+    </div>`;
+}
 
 // ─── Logout ──────────────────────────────────────────────────────────────────
 $('#profile').addEventListener('click', async () => {
@@ -351,6 +650,13 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     $('#global-search').focus();
   }
+});
+
+// Busca global do topo: Enter pesquisa nas Publicações
+$('#global-search').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  $('#pubs-q').value = e.target.value.trim();
+  switchView('listings'); // o loader da tela já lê o termo preenchido acima
 });
 
 // ─── Estado online/offline ───────────────────────────────────────────────────
