@@ -861,6 +861,31 @@ $('#global-search').addEventListener('keydown', e => {
   switchView('listings'); // o loader da tela já lê o termo preenchido acima
 });
 
+// Sino de notificações: últimos alertas da operação
+$('.bell').addEventListener('click', async () => {
+  try {
+    const { alerts } = await api('/alerts?limit=10');
+    openAdminModal(`
+      <h3>Notificações</h3>
+      ${alerts.map(a => {
+        const color = SEVERITY_COLOR[a.severity] || SEVERITY_COLOR.info;
+        return `
+        <div class="alert-row" style="border-left-color:${color}">
+          <div class="dot" style="background:${color}"></div>
+          <div>
+            <strong>${esc(a.title)}</strong>
+            <small>${esc(a.meta)} · ${fmtDate(a.created_at)}</small>
+          </div>
+        </div>`;
+      }).join('') || '<p class="empty-note">Nenhuma notificação por enquanto.</p>'}
+      <div class="row-actions modal-actions">
+        <button class="btn-secondary" data-modal-cancel style="flex:1">Fechar</button>
+      </div>`);
+  } catch (err) {
+    if (!err.unauthorized) toast(err.message);
+  }
+});
+
 // ─── Estado online/offline ───────────────────────────────────────────────────
 function updateOnlineState() {
   document.body.classList.toggle('offline', !navigator.onLine);
