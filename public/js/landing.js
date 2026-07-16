@@ -21,9 +21,21 @@
     $('#field-establishment').classList.toggle('hidden', r.value !== 'producer' || !r.checked);
   }));
 
+  // Mostrar/ocultar senha
+  $('#pw-toggle').addEventListener('click', () => {
+    const input = $('#f-password');
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    $('#pw-toggle').textContent = show ? 'ocultar' : 'mostrar';
+    input.focus();
+  });
+
   $('#auth-form').addEventListener('submit', async e => {
     e.preventDefault();
     $('#auth-error').textContent = '';
+    const submit = $('#auth-submit');
+    submit.disabled = true;
+    submit.textContent = mode === 'login' ? 'Entrando…' : 'Criando conta…';
     try {
       let user;
       if (mode === 'login') {
@@ -45,6 +57,8 @@
       location.href = HOME_BY_ROLE[user.role] || '/';
     } catch (err) {
       $('#auth-error').textContent = err.unauthorized ? 'E-mail ou senha inválidos' : err.message;
+      submit.disabled = false;
+      submit.textContent = mode === 'login' ? 'Entrar' : 'Criar conta';
     }
   });
 })();

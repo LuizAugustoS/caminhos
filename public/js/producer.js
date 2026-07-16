@@ -148,11 +148,24 @@ async function loadConversations() {
   }
 }
 
+// Atualiza só as bolhas de mensagem (o campo de digitação fica intocado)
+async function refreshThreadMsgs(convId) {
+  const box = $('#thread-msgs');
+  if (!box || convId !== currentConvId) return;
+  const { messages } = await api(`/conversations/${convId}/messages`);
+  if (convId !== currentConvId) return;
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  box.innerHTML = messages.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('');
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+
 async function openThread(convId) {
   currentConvId = convId;
+  $('.chat-layout')?.classList.add('thread-open'); // celular: mostra a conversa
   try {
     const { messages } = await api(`/conversations/${convId}/messages`);
     $('#conv-thread').innerHTML = `
+      <button type="button" class="thread-back" id="thread-back">‹ Conversas</button>
       <div class="thread-msgs" id="thread-msgs">
         ${messages.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('')}
       </div>
@@ -162,6 +175,11 @@ async function openThread(convId) {
       </form>`;
     const box = $('#thread-msgs');
     box.scrollTop = box.scrollHeight;
+    $('#thread-back').addEventListener('click', () => {
+      currentConvId = null;
+      $('.chat-layout')?.classList.remove('thread-open');
+      loadConversations();
+    });
     $('#thread-form').addEventListener('submit', async e => {
       e.preventDefault();
       const body = $('#thread-input').value.trim();
@@ -181,6 +199,15 @@ $('#conv-list').addEventListener('click', e => {
   const row = e.target.closest('.conv-row');
   if (row) openThread(Number(row.dataset.id));
 });
+
+// Atualização periódica: novas mensagens e badge sem precisar recarregar
+setInterval(() => {
+  if (!navigator.onLine || !me) return;
+  loadConversations().catch(() => {});
+  if (currentConvId && !$('#view-chat').classList.contains('hidden')) {
+    refreshThreadMsgs(currentConvId).catch(() => {});
+  }
+}, 15000);
 
 // ─── Perfil do estabelecimento ───────────────────────────────────────────────
 function renderEstPhoto(path) {

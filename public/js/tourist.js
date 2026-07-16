@@ -31,8 +31,21 @@ function switchView(name) {
 $$('.vtab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
 
 // ─── Explorar ────────────────────────────────────────────────────────────────
+const SKELETON_CARD = `
+  <div class="sk-card">
+    <div class="sk-thumb"></div>
+    <div class="sk-line w60"></div>
+    <div class="sk-line"></div>
+    <div class="sk-line w40"></div>
+  </div>`;
+
+let exploreSeq = 0; // descarta respostas atrasadas de buscas anteriores
+
 async function loadExplore() {
+  const seq = ++exploreSeq;
   const q = $('#explore-q').value.trim();
+  // Enquanto busca, mostra o esqueleto — nada de tela vazia
+  $('#explore-grid').innerHTML = SKELETON_CARD.repeat(6);
   let listings = [], places = [], itineraries = [];
 
   if (navigator.onLine) {
@@ -68,6 +81,7 @@ async function loadExplore() {
 
   const favIds = new Set((await CaparaoDB.all('favorites')).map(f => f.listing_id));
 
+  if (seq !== exploreSeq) return; // outra busca já começou; não sobrescreve
   const cards = exploreKind === 'itineraries' ? itineraries.map(itineraryCard)
     : exploreKind === 'places' ? places.map(placeCard)
     : listings.map(l => listingCard(l, favIds));
@@ -561,8 +575,7 @@ async function loadConversations() {
     </div>`).join('') || '<p class="empty-note">Nenhuma conversa ainda.</p>';
 }
 
-async function openThread(convId) {
-  currentConvId = convId;
+async function fetchThreadMsgs(convId) {
   let msgs = [];
   if (navigator.onLine) {
     try {
@@ -572,8 +585,30 @@ async function openThread(convId) {
   } else {
     msgs = (await CaparaoDB.get('kv', `messages-${convId}`)) || [];
   }
+  return msgs;
+}
+
+// Atualiza só as bolhas de mensagem (o campo de digitação fica intocado)
+async function refreshThreadMsgs(convId) {
+  const box = $('#thread-msgs');
+  if (!box || convId !== currentConvId) return;
+  const msgs = await fetchThreadMsgs(convId);
+  const queued = (await CaparaoDB.get('kv', `queued-${convId}`)) || [];
+  if (convId !== currentConvId) return;
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  box.innerHTML =
+    msgs.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('') +
+    queued.map(q => msgBubble(q.body, true, 'aguardando envio')).join('');
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+
+async function openThread(convId) {
+  currentConvId = convId;
+  $('.chat-layout')?.classList.add('thread-open'); // celular: mostra a conversa
+  const msgs = await fetchThreadMsgs(convId);
   const queued = (await CaparaoDB.get('kv', `queued-${convId}`)) || [];
   $('#conv-thread').innerHTML = `
+    <button type="button" class="thread-back" id="thread-back">‹ Conversas</button>
     <div class="thread-msgs" id="thread-msgs">
       ${msgs.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('')}
       ${queued.map(q => msgBubble(q.body, true, 'aguardando envio')).join('')}
@@ -584,6 +619,11 @@ async function openThread(convId) {
     </form>`;
   const box = $('#thread-msgs');
   box.scrollTop = box.scrollHeight;
+  $('#thread-back').addEventListener('click', () => {
+    currentConvId = null;
+    $('.chat-layout')?.classList.remove('thread-open');
+    loadConversations();
+  });
   $('#thread-form').addEventListener('submit', async e => {
     e.preventDefault();
     const body = $('#thread-input').value.trim();
@@ -617,6 +657,15 @@ $('#conv-list').addEventListener('click', e => {
   const row = e.target.closest('.conv-row');
   if (row) openThread(Number(row.dataset.id));
 });
+
+// Atualização periódica: novas mensagens e badge sem precisar recarregar
+setInterval(() => {
+  if (!navigator.onLine || !me) return;
+  loadConversations().catch(() => {});
+  if (currentConvId && !$('#view-chat').classList.contains('hidden')) {
+    refreshThreadMsgs(currentConvId).catch(() => {});
+  }
+}, 15000);
 
 // ─── Boot ────────────────────────────────────────────────────────────────────
 (async () => {

@@ -660,13 +660,65 @@ body.offline .offline-banner { display: block; }
 }
 @media (max-width: 900px) {
   .backdrop { padding: 12px; }
-  .sidenav { display: none; }
-  .search { display: none; }
-  .body { min-height: 0; }
+  /* Admin: sidebar vira barra horizontal rolável no topo do conteúdo */
+  .body { flex-direction: column; min-height: 0; }
+  .sidenav {
+    width: 100%; flex-direction: row; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: 10px 12px; gap: 6px;
+  }
+  .nav-item { width: auto; flex-shrink: 0; padding: 9px 13px; white-space: nowrap; }
+  .pwa-card { display: none; }
+  /* Só a busca global do topo sai — as buscas das telas continuam */
+  .topbar .search { display: none; }
   .table-head, .table-row { grid-template-columns: 56px 1.6fr .8fr 150px; }
   .cell-creator, .table-head span:nth-child(3), .cell-date, .table-head span:nth-child(4) { display: none; }
 }
 @media (max-width: 640px) {
   .kpi-grid { grid-template-columns: 1fr; }
   .profile-info { display: none; }
+  /* Topbar compacta: cabe tudo sem estourar */
+  .topbar { padding: 10px 14px; gap: 10px; }
+  .brand { min-width: 0; gap: 8px; }
+  .brand-mark { width: 38px; height: 36px; }
+  .brand-title strong { font-size: 14px; white-space: nowrap; }
+  .brand-title small { display: none; }
+  .topbar-right { gap: 8px; }
+  .sync-pill span { display: none; }
+  .sync-pill { padding: 8px; }
+  .page-head h1 { font-size: 21px; }
+  .main { padding: 20px 16px 30px; }
 }
+
+/* ─── Chat no celular: lista primeiro, conversa ao tocar ─── */
+.thread-back { display: none; }
+@media (max-width: 900px) {
+  .thread-back {
+    display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+    background: none; border: none; cursor: pointer; padding: 0 0 10px;
+    color: var(--forest); font: 800 13px 'Manrope', sans-serif;
+  }
+  .chat-layout.thread-open .conv-list { display: none; }
+  .chat-layout:not(.thread-open) .conv-thread { display: none; }
+}
+
+/* ─── Skeleton de carregamento (Explorar) ─── */
+.sk-card { border-radius: 16px; background: #FFFFFF; border: 1px solid var(--card-border); overflow: hidden; padding-bottom: 14px; }
+.sk-thumb { height: 140px; }
+.sk-line { height: 12px; border-radius: 6px; margin: 12px 14px 0; }
+.sk-line.w60 { width: 60%; }
+.sk-line.w40 { width: 40%; }
+.sk-thumb, .sk-line {
+  background: linear-gradient(90deg, #EFE8D8 25%, #F8F3E7 50%, #EFE8D8 75%);
+  background-size: 200% 100%; animation: skShimmer 1.2s linear infinite;
+}
+@keyframes skShimmer { to { background-position: -200% 0; } }
+
+/* ─── Mostrar/ocultar senha no login ─── */
+.pw-wrap { position: relative; }
+.pw-wrap input { padding-right: 76px; }
+.pw-toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; padding: 6px 8px;
+  color: var(--muted-2); font: 700 12px 'Manrope', sans-serif;
+}
+.pw-toggle:hover { color: var(--forest); }

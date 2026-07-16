@@ -77,7 +77,10 @@
         </div>
         <div class="field">
           <label for="f-password">Senha</label>
-          <input id="f-password" type="password" autocomplete="current-password" required minlength="8">
+          <div class="pw-wrap">
+            <input id="f-password" type="password" autocomplete="current-password" required minlength="8">
+            <button type="button" class="pw-toggle" id="pw-toggle" aria-label="Mostrar senha">mostrar</button>
+          </div>
         </div>
         <p id="auth-error" class="login-error"></p>
         <button type="submit" class="btn-primary" id="auth-submit">Entrar</button>
