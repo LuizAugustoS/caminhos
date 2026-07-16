@@ -173,7 +173,3 @@ export function logout(_req, res) {
   clearSession(res);
   res.json({ ok: true });
 }
-
-export function me(req, res) {
-  res.json({ id: req.user.id, name: req.user.name, role: req.user.role });
-}

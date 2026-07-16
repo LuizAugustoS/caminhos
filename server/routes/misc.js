@@ -24,7 +24,7 @@ misc.get('/tourists', async (req, res) => {
 misc.get('/tourists/:id', async (req, res) => {
   const { rows } = await query(
     `SELECT t.id, t.name, t.email, t.city, t.created_at, t.user_id,
-            u.email AS account_email, u.created_at AS account_since,
+            u.email AS account_email, u.created_at AS account_since, u.avatar_path,
             (SELECT count(*) FROM trips tr WHERE tr.user_id = t.user_id) AS trips,
             (SELECT count(*) FROM trips tr WHERE tr.user_id = t.user_id AND tr.origin = 'ai') AS ai_trips,
             (SELECT count(*) FROM favorites f WHERE f.user_id = t.user_id) AS favorites,

@@ -26,7 +26,7 @@
         <div class="sync-pill" id="sync-pill" title="Estado da sincronização offline">
           <div class="dot"></div><span id="sync-label">Sincronizado</span>
         </div>
-        <div class="profile" id="profile" title="Sair">
+        <div class="profile" id="profile" title="Minha conta">
           <div class="profile-avatar" id="profile-initials">–</div>
           <div class="profile-info">
             <strong id="profile-name">–</strong>
@@ -37,10 +37,10 @@
     </header>
 
     <nav class="view-tabs">
-      <button class="vtab active" data-view="explore">⛰ Explorar</button>
-      <button class="vtab" data-view="trips">✎ Meus Roteiros</button>
-      <button class="vtab" data-view="favorites">♥ Favoritos</button>
-      <button class="vtab" data-view="chat">◍ Mensagens <span class="nav-badge hidden" id="chat-badge"></span></button>
+      <button class="vtab active" data-view="explore">Explorar</button>
+      <button class="vtab" data-view="trips">Meus Roteiros</button>
+      <button class="vtab" data-view="favorites">Favoritos</button>
+      <button class="vtab" data-view="chat">Mensagens <span class="nav-badge hidden" id="chat-badge"></span></button>
     </nav>
 
     <main class="main">
@@ -78,26 +78,26 @@
             <p>Salvos no seu dispositivo — funcionam sem internet e sincronizam sozinhos</p>
           </div>
           <div style="display:flex; gap:10px;">
-            <button class="btn-secondary" id="btn-ai-trip">✨ Montar roteiro pra mim</button>
+            <button class="btn-secondary" id="btn-ai-trip">Montar roteiro pra mim</button>
             <button class="btn-primary" id="btn-new-trip">+ Novo roteiro</button>
           </div>
         </div>
 
         <!-- ═══ Gerador de roteiro por IA ═══ -->
         <form class="panel ai-form hidden" id="ai-form">
-          <h2>✨ Conte seus gostos e a gente monta o roteiro</h2>
+          <h2>Conte seus gostos e a gente monta pra você</h2>
           <div class="field">
             <label>Do que você gosta?</label>
             <div class="chip-row" id="ai-interests">
-              <button type="button" class="chip" data-v="cafe">☕ Café</button>
-              <button type="button" class="chip" data-v="trilhas">⛰ Trilhas</button>
-              <button type="button" class="chip" data-v="cachoeiras">💧 Cachoeiras</button>
-              <button type="button" class="chip" data-v="gastronomia">🧀 Gastronomia</button>
-              <button type="button" class="chip" data-v="artesanato">🧺 Artesanato</button>
-              <button type="button" class="chip" data-v="eventos">✦ Eventos</button>
-              <button type="button" class="chip" data-v="hospedagem">🏡 Hospedagem</button>
-              <button type="button" class="chip" data-v="astronomia">🌌 Céu estrelado</button>
-              <button type="button" class="chip" data-v="cavalgada">🐎 Cavalgada</button>
+              <button type="button" class="chip" data-v="cafe">Café</button>
+              <button type="button" class="chip" data-v="trilhas">Trilhas</button>
+              <button type="button" class="chip" data-v="cachoeiras">Cachoeiras</button>
+              <button type="button" class="chip" data-v="gastronomia">Gastronomia</button>
+              <button type="button" class="chip" data-v="artesanato">Artesanato</button>
+              <button type="button" class="chip" data-v="eventos">Eventos</button>
+              <button type="button" class="chip" data-v="hospedagem">Hospedagem</button>
+              <button type="button" class="chip" data-v="astronomia">Céu estrelado</button>
+              <button type="button" class="chip" data-v="cavalgada">Cavalgada</button>
             </div>
           </div>
           <div class="form-grid">
@@ -124,7 +124,7 @@
             </div>
           </div>
           <div class="row-actions">
-            <button type="submit" class="btn-primary" id="ai-submit">✨ Montar meu roteiro</button>
+            <button type="submit" class="btn-primary" id="ai-submit">Montar meu roteiro</button>
             <button type="button" class="btn-secondary" id="ai-cancel">Cancelar</button>
           </div>
         </form>

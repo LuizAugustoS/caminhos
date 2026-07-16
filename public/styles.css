@@ -233,7 +233,23 @@ button { font-family: inherit; }
 .avatar {
   border-radius: 11px; flex-shrink: 0; color: #FFF9EC;
   display: flex; align-items: center; justify-content: center; font-weight: 800;
+  overflow: hidden;
 }
+/* Foto enviada pelo usuário ocupa todo o avatar (topbar e listas) */
+.profile-avatar { overflow: hidden; }
+.profile-avatar img, .avatar img {
+  width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block;
+}
+
+/* Foto do estabelecimento no perfil do produtor */
+.est-photo-row { display: flex; align-items: center; gap: 16px; }
+.est-photo {
+  width: 180px; height: 110px; border-radius: 12px; flex-shrink: 0;
+  background: #EFE8D8; border: 1px solid var(--card-border);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.est-photo img { width: 100%; height: 100%; object-fit: cover; }
+.field-hint { font-size: 12px; color: #A08D6F; margin: 8px 0 0; }
 .avatar.lg { width: 40px; height: 40px; font-size: 13px; }
 .avatar.sm { width: 26px; height: 26px; font-size: 10px; border-radius: 8px; }
 .avatar.md { width: 32px; height: 32px; font-size: 11px; border-radius: 9px; }

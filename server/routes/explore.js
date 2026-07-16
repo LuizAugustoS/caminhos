@@ -93,7 +93,7 @@ explore.get('/establishments', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 24, 60);
   const { rows } = await query(
     `SELECT e.id, e.name, e.description, e.category, e.city, e.address, e.phone, e.open_hours,
-            p.id AS producer_id, p.initials, p.avatar_color, p.kind
+            e.photo_path, p.id AS producer_id, p.initials, p.avatar_color, p.kind
      FROM establishments e
      JOIN producers p ON p.id = e.producer_id AND p.status = 'approved'
      WHERE ($1 = '' OR e.name ILIKE '%' || $1 || '%' OR e.category ILIKE '%' || $1 || '%'

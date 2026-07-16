@@ -96,7 +96,7 @@ const listingCard = (l, favIds) => `
 
 const placeCard = e => `
   <div class="ex-card" data-producer="${e.producer_id}">
-    <div class="ex-thumb img-verde">⌂</div>
+    <div class="ex-thumb has-photo"><img src="${esc(e.photo_path || '/img/covers/sage.png')}" alt="" loading="lazy"></div>
     <div class="ex-body">
       <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')}</span>
       <strong class="ex-title">${esc(e.name)}</strong>
@@ -113,12 +113,12 @@ const placeCard = e => `
 const itineraryCard = it => `
   <div class="ex-card" data-itinerary="${it.id}" data-title="${esc(it.title)}"
        data-region="${esc(it.region || '')}" data-duration="${esc(it.duration || '')}">
-    <div class="ex-thumb img-verde">⛰</div>
+    <div class="ex-thumb has-photo"><img src="/img/covers/verde.png" alt="" loading="lazy"></div>
     <div class="ex-body">
       <span class="ex-type">Roteiro publicado · ${esc(it.region || 'Caparaó')}</span>
       <strong class="ex-title">${esc(it.title)}</strong>
       <span class="ex-sub">Duração: ${esc(it.duration || 'livre')}</span>
-      ${it.offline_ready ? '<span class="ex-meta">📴 Pronto para uso offline</span>' : ''}
+      ${it.offline_ready ? '<span class="ex-meta">Disponível offline</span>' : ''}
     </div>
     <div class="ex-actions">
       <button class="btn-primary" data-action="use-itinerary">Usar como base</button>
@@ -153,9 +153,9 @@ async function openListingDetail(listingId) {
     : `<div class="detail-hero img-${esc(l.image_kind || 'verde')}">${esc(l.glyph || '◉')}</div>`;
   const partnerLines = [
     l.est_description || l.producer_kind,
-    l.address ? `📍 ${l.address}${l.city ? ` — ${l.city}` : ''}` : (l.city ? `📍 ${l.city}` : null),
-    l.open_hours ? `🕗 ${l.open_hours}` : null,
-    l.phone ? `📞 ${l.phone}` : null,
+    l.address ? `${l.address}${l.city ? ` — ${l.city}` : ''}` : (l.city ? l.city : null),
+    l.open_hours ? `Aberto: ${l.open_hours}` : null,
+    l.phone ? `Contato: ${l.phone}` : null,
   ].filter(Boolean);
 
   const { overlay, close } = openModal(`
@@ -314,7 +314,7 @@ async function renderTrips() {
   currentTripUid = null;
   $('#trips-list').innerHTML = trips.map(t => `
     <div class="panel trip-card" data-uid="${esc(t.client_uid)}">
-      <h2>${t.origin === 'ai' ? '<span class="ai-badge">✨ IA</span> ' : ''}${esc(t.title)}</h2>
+      <h2>${t.origin === 'ai' ? '<span class="ai-badge">sugestão</span> ' : ''}${esc(t.title)}</h2>
       <p class="trip-notes">${esc(t.notes || '')}</p>
       <span class="trip-meta">${(t.items || []).length} parada${(t.items || []).length === 1 ? '' : 's'}${t.origin === 'ai' ? ' · gerado a partir dos seus gostos' : ''}</span>
       <div class="row-actions">
@@ -341,7 +341,7 @@ async function renderTripDetail(uid) {
     <div class="panel">
       <div class="panel-head">
         <div>
-          <h2>${trip.origin === 'ai' ? '<span class="ai-badge">✨ IA</span> ' : ''}${esc(trip.title)}</h2>
+          <h2>${trip.origin === 'ai' ? '<span class="ai-badge">sugestão</span> ' : ''}${esc(trip.title)}</h2>
           <span class="sub">${esc(trip.notes || 'Sem observações')} · <a href="#" id="trip-edit">editar</a></span>
           ${prefsLine ? `<span class="sub trip-prefs">Preferências informadas — ${esc(prefsLine)}</span>` : ''}
         </div>
@@ -452,7 +452,7 @@ $('#ai-form').addEventListener('submit', async e => {
 
   const btn = $('#ai-submit');
   btn.disabled = true;
-  btn.textContent = '✨ Montando seu roteiro…';
+  btn.textContent = 'Montando seu roteiro…';
   try {
     const trip = await api('/trips/generate', {
       method: 'POST',
@@ -464,7 +464,7 @@ $('#ai-form').addEventListener('submit', async e => {
       }),
     });
     $('#ai-form').classList.add('hidden');
-    toast('Roteiro montado pra você ✨');
+    toast('Roteiro montado pra você');
     await pullTripsFromServer();
     await renderTrips();
     renderTripDetail(trip.client_uid);
@@ -472,7 +472,7 @@ $('#ai-form').addEventListener('submit', async e => {
     if (!err.unauthorized) toast(err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = '✨ Montar meu roteiro';
+    btn.textContent = 'Montar meu roteiro';
   }
 });
 
@@ -512,7 +512,7 @@ async function addToTrip(itemBase, label) {
           value: t.client_uid, label: t.title,
           sub: `${(t.items || []).length} parada${(t.items || []).length === 1 ? '' : 's'}`,
         })),
-        { value: NEW, label: '➕ Criar novo roteiro' },
+        { value: NEW, label: '+ Criar novo roteiro' },
       ],
     });
     if (!pick) return;
@@ -576,7 +576,7 @@ async function openThread(convId) {
   $('#conv-thread').innerHTML = `
     <div class="thread-msgs" id="thread-msgs">
       ${msgs.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('')}
-      ${queued.map(q => msgBubble(q.body, true, 'aguardando envio ⏳')).join('')}
+      ${queued.map(q => msgBubble(q.body, true, 'aguardando envio')).join('')}
     </div>
     <form class="thread-form" id="thread-form">
       <input id="thread-input" type="text" placeholder="Escreva sua mensagem…" autocomplete="off">
@@ -624,11 +624,27 @@ $('#conv-list').addEventListener('click', e => {
   if (!me) return;
   $('#brand-slot').outerHTML = brandHTML;
   $('#profile-name').textContent = me.name;
-  $('#profile-initials').textContent = initialsOf(me.name);
+  renderAvatar($('#profile-initials'), me);
   $('#profile').addEventListener('click', async () => {
-    if (!await modalConfirm({ title: 'Sair da conta', confirmText: 'Sair' })) return;
-    await api('/logout', { method: 'POST' }).catch(() => {});
-    location.href = '/';
+    const action = await modalPick({
+      title: 'Minha conta',
+      options: [
+        { value: 'photo', label: 'Trocar minha foto', sub: 'JPG, PNG ou WebP até 5 MB' },
+        { value: 'logout', label: 'Sair da conta' },
+      ],
+    });
+    if (action === 'photo') {
+      try {
+        const up = await pickAndUploadImage('/api/me/avatar');
+        if (!up) return;
+        me.avatar_path = up.avatar_path;
+        renderAvatar($('#profile-initials'), me);
+        toast('Foto de perfil atualizada');
+      } catch (err) { toast(err.message); }
+    } else if (action === 'logout') {
+      await api('/logout', { method: 'POST' }).catch(() => {});
+      location.href = '/';
+    }
   });
   await CaparaoDB.flush();
   loadExplore();
