@@ -6,7 +6,7 @@
  *  - Mutações offline NÃO passam por aqui: ficam na fila do IndexedDB (js/idb.js)
  *    e são reenviadas quando a conexão volta, com rotas idempotentes no servidor.
  */
-const VERSION = 'v5';
+const VERSION = 'v6';
 const SHELL_CACHE = `shell-${VERSION}`;
 const DATA_CACHE = `data-${VERSION}`;
 
@@ -107,21 +107,20 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // App shell: cache-first com revalidação em segundo plano.
+  // App shell: NETWORK-FIRST. HTML/CSS/JS não têm hash no nome, então
+  // cache-first deixaria o usuário sempre uma versão atrás. Online busca
+  // sempre a versão mais recente; offline cai no cache.
   // Navegações são cacheadas pela URL da página (/, /app, /portal, /admin).
   if (url.origin === location.origin) {
     const key = request.mode === 'navigate' ? url.pathname : request;
     event.respondWith(
-      caches.match(key).then(cached => {
-        const network = fetch(request).then(response => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(SHELL_CACHE).then(cache => cache.put(key, copy));
-          }
-          return response;
-        }).catch(() => cached || new Response('offline', { status: 503 }));
-        return cached || network;
-      })
+      fetch(request).then(response => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(SHELL_CACHE).then(cache => cache.put(key, copy));
+        }
+        return response;
+      }).catch(() => caches.match(key).then(cached => cached || new Response('offline', { status: 503 })))
     );
   }
 });
