@@ -12,6 +12,8 @@ function hashPassword(password) {
   const hash = scryptSync(password, salt, 64).toString('hex');
   return `scrypt$${salt}$${hash}`;
 }
+// remove acentos para gerar e-mails/identificadores em ASCII
+const asciify = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 
 await client.connect();
 await client.query('BEGIN');
@@ -37,21 +39,49 @@ const { rows: [producerUser] } = await client.query(
   ['Sebastião Moreira', 'produtor@demo.com', hashPassword(demoPassword)]
 );
 
-// ─── Turistas: ~1.248 nos últimos 30 dias + base anterior (para o delta) ──
-await client.query(`
-  INSERT INTO tourists (name, email, city, created_at)
-  SELECT 'Turista ' || g,
-         'turista' || g || '@example.com',
-         (ARRAY['Vitória','Belo Horizonte','Rio de Janeiro','São Paulo','Guarapari','Manhuaçu'])[1 + g % 6],
-         now() - (random() * interval '30 days')
-  FROM generate_series(1, 1248) g`);
-await client.query(`
-  INSERT INTO tourists (name, email, city, created_at)
-  SELECT 'Turista antigo ' || g,
-         'antigo' || g || '@example.com',
-         (ARRAY['Vitória','Belo Horizonte','Rio de Janeiro','São Paulo'])[1 + g % 4],
-         now() - interval '30 days' - (random() * interval '30 days')
-  FROM generate_series(1, 1056) g`);
+// ─── Pools de nomes (turistas e negócios da região) ───────────────────────
+const firstNames = ['Ana', 'Bruno', 'Carla', 'Daniel', 'Eduarda', 'Felipe', 'Gabriela', 'Henrique',
+  'Isabela', 'João', 'Larissa', 'Marcos', 'Natália', 'Otávio', 'Paula', 'Rafael', 'Sofia', 'Thiago',
+  'Vanessa', 'Vinícius', 'Beatriz', 'Caio', 'Débora', 'Fernando', 'Juliana', 'Leonardo', 'Mariana',
+  'Pedro', 'Renata', 'Lucas', 'Camila', 'Gustavo', 'Letícia', 'Rodrigo', 'Amanda', 'Diego', 'Priscila', 'André'];
+const surnames = ['Silva', 'Souza', 'Oliveira', 'Santos', 'Pereira', 'Costa', 'Almeida', 'Ferreira',
+  'Rodrigues', 'Gomes', 'Martins', 'Araújo', 'Barbosa', 'Ribeiro', 'Carvalho', 'Lima', 'Rocha',
+  'Nascimento', 'Cardoso', 'Teixeira', 'Moreira', 'Correia', 'Dias', 'Nunes', 'Mendes', 'Freitas',
+  'Andrade', 'Cavalcante', 'Monteiro', 'Reis'];
+const originCities = ['Vitória', 'Vila Velha', 'Serra', 'Cariacica', 'Guarapari', 'Belo Horizonte',
+  'Juiz de Fora', 'Manhuaçu', 'Rio de Janeiro', 'Niterói', 'São Paulo', 'Campinas', 'Muriaé',
+  'Cachoeiro de Itapemirim', 'Governador Valadares', 'Ipatinga'];
+
+// Gera turistas com nomes reais e e-mails coerentes, em duas janelas de tempo
+// (necessárias para o delta "novos turistas" do painel).
+function buildTourists(n, minDaysAgo, maxDaysAgo, offset) {
+  const names = [], emails = [], cities = [], created = [];
+  const seenEmail = new Set();
+  for (let i = 0; i < n; i++) {
+    const k = i + offset;
+    const f = firstNames[(k * 3 + 1) % firstNames.length];
+    const s = surnames[(k * 7 + 5) % surnames.length];
+    names.push(`${f} ${s}`);
+    let email = `${asciify(f)}.${asciify(s)}@email.com`;
+    if (seenEmail.has(email)) email = `${asciify(f)}.${asciify(s)}${k}@email.com`;
+    seenEmail.add(email);
+    emails.push(email);
+    cities.push(originCities[(k * 5) % originCities.length]);
+    const days = minDaysAgo + Math.random() * (maxDaysAgo - minDaysAgo);
+    created.push(new Date(Date.now() - days * 86400000));
+  }
+  return { names, emails, cities, created };
+}
+async function insertTourists({ names, emails, cities, created }) {
+  await client.query(
+    `INSERT INTO tourists (name, email, city, created_at)
+     SELECT * FROM unnest($1::text[], $2::text[], $3::text[], $4::timestamptz[])`,
+    [names, emails, cities, created.map(d => d.toISOString())]
+  );
+}
+// ~1.248 nos últimos 30 dias + ~1.056 na janela anterior (30–60 dias)
+await insertTourists(buildTourists(1248, 0, 30, 0));
+await insertTourists(buildTourists(1056, 30, 60, 5000));
 
 // ─── Produtores em destaque (fila de moderação do painel) ────────────────
 const featuredProducers = [
@@ -61,13 +91,13 @@ const featuredProducers = [
   ['Trilhas do Bandeira', 'Guias de trekking credenciados', 'TB', '#4A3226', 'approved', 'Alto Caparaó'],
   ['Queijaria Serra Alta', 'Queijos artesanais de altitude', 'QS', '#6B8F5E', 'in_review', 'Dores do Rio Preto'],
   ['Apiário Flor da Serra', 'Mel silvestre de altitude', 'AF', '#8AA98F', 'approved', 'Iúna'],
-  ['Rancho do Tião', 'Cavalgadas e passeios rurais', 'RT', '#7A4B2E', 'approved', 'Divino de S. Lourenço'],
+  ['Rancho do Tião', 'Cavalgadas e passeios rurais', 'RT', '#7A4B2E', 'approved', 'Divino de São Lourenço'],
   ['Prefeitura de Alto Caparaó', 'Eventos municipais', 'PA', '#1C6B4A', 'approved', 'Alto Caparaó'],
-  ['Assoc. de Artesãos', 'Feiras e exposições coletivas', 'AA', '#C0714F', 'approved', 'Ibitirama'],
+  ['Associação de Artesãos do Caparaó', 'Feiras e exposições coletivas', 'AA', '#C0714F', 'approved', 'Ibitirama'],
   ['Clube Astronômico Capixaba', 'Observação de estrelas', 'CA', '#8AA98F', 'approved', 'Alto Caparaó'],
   ['Café da Dona Lú', 'Cafeteria e doces da roça', 'CL', '#9A6224', 'pending', 'Manhuaçu'],
   ['Horta do Vale', 'Orgânicos e cestas semanais', 'HV', '#6B8F5E', 'pending', 'Iúna'],
-  ['Cachoeira Park', 'Balneário e camping', 'CP', '#4E8563', 'pending', 'Dores do Rio Preto'],
+  ['Cachoeira do Prata', 'Balneário e camping', 'CP', '#4E8563', 'pending', 'Dores do Rio Preto'],
   ['Doces da Serra', 'Doces artesanais de leite', 'DS', '#B4552F', 'pending', 'Espera Feliz'],
 ];
 for (const [name, kind, initials, color, status, city] of featuredProducers) {
@@ -77,17 +107,48 @@ for (const [name, kind, initials, color, status, city] of featuredProducers) {
     [name, kind, initials, color, status, city]
   );
 }
-// Base de produtores aprovados para totalizar 312 ativos
-await client.query(`
-  INSERT INTO producers (name, kind, initials, avatar_color, status, city, created_at)
-  SELECT 'Produtor Rural ' || g,
-         (ARRAY['Café de altitude','Hospedagem rural','Artesanato local','Agroindústria familiar','Guia de turismo'])[1 + g % 5],
-         'PR', '#5E7F66', 'approved',
-         (ARRAY['Alto Caparaó','Ibitirama','Iúna','Dores do Rio Preto','Espera Feliz','Manhuaçu'])[1 + g % 6],
-         now() - (random() * interval '360 days')
-  FROM generate_series(1, 302) g`);
 
-// Vincula as contas demo e cria estabelecimentos dos produtores em destaque
+// Base de produtores aprovados (nomes de negócios plausíveis) para os 312 ativos
+const bizPrefix = ['Sítio', 'Fazenda', 'Recanto', 'Chácara', 'Rancho', 'Cantinho', 'Pousada', 'Casa', 'Roça', 'Vale'];
+const bizName = ['Boa Vista', 'da Serra', 'do Café', 'Bela Vista', 'do Vale', 'das Palmeiras', 'Santa Rita',
+  'São José', 'do Ipê', 'da Montanha', 'Flor da Mata', 'do Riacho', 'Sol Nascente', 'da Colina', 'do Mirante',
+  'da Cachoeira', 'Santa Luzia', 'do Compadre', 'da Vovó Rosa', 'São Sebastião', 'do Juca', 'Verde Vale',
+  'da Pedra', 'dos Ventos', 'Nova Esperança', 'do Horizonte', 'Vista Alegre', 'da Neblina', 'do Cafezal',
+  'Terra Boa', 'do Bosque', 'das Andorinhas', 'Céu Aberto', 'da Figueira', 'do Contentamento'];
+const bizKind = ['Café especial de altitude', 'Queijos artesanais', 'Hospedagem rural', 'Artesanato regional',
+  'Mel e derivados', 'Cachaça artesanal', 'Doces caseiros', 'Guia de trilhas', 'Passeios a cavalo',
+  'Cestas orgânicas', 'Cafeteria de fazenda', 'Camping e balneário', 'Panificação artesanal', 'Laticínios da roça'];
+const bizColor = ['#1C6B4A', '#8AA98F', '#C0714F', '#4A3226', '#6B8F5E', '#9A6224', '#4E8563', '#7A4B2E'];
+const regionCities = ['Alto Caparaó', 'Caparaó', 'Ibitirama', 'Iúna', 'Dores do Rio Preto',
+  'Divino de São Lourenço', 'Espera Feliz', 'Manhuaçu', 'Alto Jequitibá', 'Ipê Amarelo'];
+{
+  // Produto cartesiano prefixo×nome (350 combinações), filtrando colisões
+  const featured = new Set(featuredProducers.map(p => p[0]));
+  const combos = [];
+  for (const nm of bizName) for (const p of bizPrefix) {
+    const name = `${p} ${nm}`;
+    if (!featured.has(name)) combos.push([p, nm, name]);
+  }
+  const names = [], kinds = [], initials = [], colors = [], cities = [], created = [];
+  combos.slice(0, 298).forEach(([p, nm, name], i) => {
+    names.push(name);
+    kinds.push(bizKind[(i * 5) % bizKind.length]);
+    const nmWord = nm.replace(/[^A-Za-zÀ-ÿ]/g, '') || 'C';
+    initials.push((p[0] + nmWord[0]).toUpperCase());
+    colors.push(bizColor[i % bizColor.length]);
+    cities.push(regionCities[(i * 2) % regionCities.length]);
+    created.push(new Date(Date.now() - Math.random() * 360 * 86400000).toISOString());
+  });
+  await client.query(
+    `INSERT INTO producers (name, kind, initials, avatar_color, status, city, created_at)
+     SELECT n, k, ini, c, 'approved', ci, cr
+     FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::timestamptz[])
+       AS t(n, k, ini, c, ci, cr)`,
+    [names, kinds, initials, colors, cities, created]
+  );
+}
+
+// Vincula as contas demo e cria o registro de turista demo
 await client.query(
   `UPDATE producers SET user_id = $1, status = 'approved' WHERE name = 'Sítio Boa Esperança'`,
   [producerUser.id]
@@ -97,14 +158,31 @@ await client.query(
    VALUES ('Ana Ribeiro', 'turista@demo.com', 'Vitória', $1, now())`,
   [touristUser.id]
 );
-await client.query(`
-  INSERT INTO establishments (producer_id, name, description, category, city, address, phone, open_hours)
-  SELECT id, name, kind || '. Recepção de visitantes com agendamento.',
-         (ARRAY['Café e agroturismo','Artesanato','Hospedagem','Guias e trilhas','Gastronomia'])[1 + id % 5],
-         coalesce(city, 'Alto Caparaó'),
-         'Zona rural, km ' || (2 + id % 30), '(28) 9 9' || lpad((100000 + id * 137)::text, 6, '0'),
-         'Sáb–Dom, 8h às 17h'
-  FROM producers WHERE id <= 14`);
+
+// ─── Estabelecimentos dos parceiros em destaque (perfis completos) ────────
+const establishments = [
+  ['Sítio Boa Esperança', 'Café especial cultivado a 1.400 m, colhido à mão e torrado na fazenda. Recebe visitas para tour de colheita e degustação, com agendamento.', 'Café e agroturismo', 'Alto Caparaó', 'Estrada da Cachoeira, km 6 — zona rural', '(32) 99145-2087', 'Ter a Dom, 8h às 17h'],
+  ['Dona Zélia Artesanatos', 'Peças de fibra de bananeira e palha trançada, com tingimento natural. Ateliê aberto a visitantes e oficinas sob encomenda.', 'Artesanato', 'Ibitirama', 'Rua das Flores, 128 — Centro', '(28) 99961-4410', 'Seg a Sex, 9h às 18h'],
+  ['Pousada Vale Verde', 'Hospedagem rural com sete chalés, café da manhã da roça e vista para a serra. Aceita pets e organiza passeios.', 'Hospedagem', 'Ibitirama', 'Córrego São João, s/n — Pedra Menina', '(28) 99872-3355', 'Recepção 24h'],
+  ['Trilhas do Bandeira', 'Guias credenciados para o Pico da Bandeira e travessias ES–MG. Saídas para nascer do sol e trekking de 3 dias.', 'Guias e trilhas', 'Alto Caparaó', 'Portaria do Parque, Alto Caparaó', '(32) 99230-7788', 'Todos os dias, 5h às 19h'],
+  ['Queijaria Serra Alta', 'Queijos de altitude com maturação natural em câmara própria. Visita à queijaria e prova guiada aos sábados.', 'Laticínios', 'Dores do Rio Preto', 'Rodovia ES-482, km 12', '(28) 99604-1129', 'Sáb e Dom, 9h às 16h'],
+  ['Apiário Flor da Serra', 'Mel silvestre de florada nativa, própolis e favos. Vende na fazenda e em feiras da região.', 'Apicultura', 'Iúna', 'Distrito de Laranja da Terra, s/n', '(28) 99518-6642', 'Seg a Sáb, 8h às 17h'],
+  ['Rancho do Tião', 'Cavalgadas guiadas ao Vale Encantado e passeios de meia jornada. Cavalos mansos, ideal para famílias.', 'Passeios a cavalo', 'Divino de São Lourenço', 'Sítio Pedra Roxa, zona rural', '(28) 99447-9015', 'Qua a Dom, 7h às 16h'],
+  ['Prefeitura de Alto Caparaó', 'Secretaria de Turismo — organiza o Festival do Café de Altitude e a agenda cultural do município.', 'Poder público', 'Alto Caparaó', 'Praça Ademar Pimenta de Souza, 10 — Centro', '(32) 3747-2510', 'Seg a Sex, 8h às 17h'],
+  ['Associação de Artesãos do Caparaó', 'Coletivo de 40 artesãos da serra. Realiza feiras mensais e exposições de peças em fibra, madeira e cerâmica.', 'Artesanato', 'Ibitirama', 'Casa de Cultura, Rua Principal, 55', '(28) 99730-2204', 'Sex a Dom, 9h às 18h'],
+  ['Clube Astronômico Capixaba', 'Noites de observação no Terreirão do Pico, com telescópios e monitoria. Céu Bortle 2, um dos mais escuros do Sudeste.', 'Astroturismo', 'Alto Caparaó', 'Terreirão, interior do Parque', '(27) 99181-5573', 'Conforme agenda lunar'],
+  ['Café da Dona Lú', 'Cafeteria de fazenda com pães, bolos e doces da roça. Serve o café da própria colheita.', 'Gastronomia', 'Manhuaçu', 'Av. Getúlio Vargas, 340 — Centro', '(33) 99856-1290', 'Ter a Dom, 7h às 19h'],
+  ['Horta do Vale', 'Produção orgânica certificada. Entrega cestas semanais em Iúna e cidades vizinhas.', 'Orgânicos', 'Iúna', 'Estrada do Vale, km 3', '(28) 99312-4478', 'Seg a Sáb, 7h às 16h'],
+  ['Cachoeira do Prata', 'Balneário natural com camping, quiosque e trilha curta até a queda. Estrutura para o dia inteiro.', 'Balneário', 'Dores do Rio Preto', 'Comunidade do Prata, zona rural', '(28) 99655-8830', 'Sáb, Dom e feriados, 8h às 18h'],
+  ['Doces da Serra', 'Doces de leite, geleias e compotas em tacho de cobre, com frutas da estação.', 'Doces caseiros', 'Espera Feliz', 'Rua São João Batista, 77 — Centro', '(32) 99274-6631', 'Seg a Sáb, 8h às 18h'],
+];
+for (const [name, description, category, city, address, phone, hours] of establishments) {
+  await client.query(
+    `INSERT INTO establishments (producer_id, name, description, category, city, address, phone, open_hours)
+     SELECT id, $1, $2, $3, $4, $5, $6, $7 FROM producers WHERE name = $1 LIMIT 1`,
+    [name, description, category, city, address, phone, hours]
+  );
+}
 
 // ─── Anúncios em destaque (listas do painel) ──────────────────────────────
 // [tipo, glyph, image_kind, image_label, título, subtítulo, produtor, data, status]
@@ -119,27 +197,35 @@ const featuredListings = [
   ['service', '⛰', 'verde', 'Foto: cavalgada', 'Cavalgada ao Vale Encantado', 'Percurso de 8km · meia jornada', 'Rancho do Tião', '2026-07-07', 'in_review'],
   ['event', '⛰', 'verde', 'Foto: trekking', 'Travessia do Caparaó — 3 dias', 'Trekking ES→MG · 25 vagas', 'Trilhas do Bandeira', '2026-07-18', 'pending'],
   ['event', '◉', 'cafe', 'Foto: festival', 'Festival do Café de Altitude', 'Praça central de Alto Caparaó', 'Prefeitura de Alto Caparaó', '2026-08-02', 'approved'],
-  ['event', '✤', 'arte', 'Foto: feira', 'Feira de Artesanato da Serra', 'Edição de inverno · 40 expositores', 'Assoc. de Artesãos', '2026-07-26', 'approved'],
+  ['event', '✤', 'arte', 'Foto: feira', 'Feira de Artesanato da Serra', 'Edição de inverno · 40 expositores', 'Associação de Artesãos do Caparaó', '2026-07-26', 'approved'],
   ['event', '⛰', 'sage', 'Foto: observação', 'Noite de Observação de Estrelas', 'Terreirão do Pico · céu Bortle 2', 'Clube Astronômico Capixaba', '2026-08-15', 'in_review'],
 ];
+// Capa ilustrada por conteúdo (imagens em /img/covers)
+const coverFor = title =>
+  /Café Arábica|Tour de Colheita|Festival do Café/.test(title) ? 'cafe'
+  : /Cesto|Feira de Artesanato/.test(title) ? 'arte'
+  : /Queijo/.test(title) ? 'queijo'
+  : /Mel/.test(title) ? 'mel'
+  : /Hospedagem|Cavalgada/.test(title) ? 'sage'
+  : 'verde';
 for (const [type, glyph, imageKind, imageLabel, title, subtitle, producerName, date, status] of featuredListings) {
   await client.query(
-    `INSERT INTO listings (producer_id, type, glyph, image_kind, image_label, title, subtitle, status, listed_at, created_at)
-     SELECT id, $2, $3, $4, $5, $6, $7, $8, $9, $9::date + time '10:00'
+    `INSERT INTO listings (producer_id, type, glyph, image_kind, image_label, image_path, title, subtitle, status, listed_at, created_at)
+     SELECT id, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10::date + time '10:00'
      FROM producers WHERE name = $1 LIMIT 1`,
-    [producerName, type, glyph, imageKind, imageLabel, title, subtitle, status, date]
+    [producerName, type, glyph, imageKind, imageLabel, `/img/covers/${coverFor(title)}.png`, title, subtitle, status, date]
   );
 }
-// Base de anúncios aprovados para totalizar ~2.037
+// Base de anúncios aprovados (invisível nas listas — só compõe o total do painel).
+// Marcados com image_label 'Foto do anúncio', que as telas filtram.
 await client.query(`
   INSERT INTO listings (producer_id, type, glyph, image_kind, image_label, title, subtitle, status, listed_at, created_at)
-  SELECT 15 + (g % 300),
+  SELECT 15 + (g % 298),
          (ARRAY['product','service','event'])[1 + g % 3]::listing_type,
          (ARRAY['◉','✤','⛰'])[1 + g % 3],
          (ARRAY['cafe','arte','verde','sage'])[1 + g % 4],
          'Foto do anúncio',
-         (ARRAY['Café da roça','Doce de leite artesanal','Trilha guiada','Hospedagem de montanha','Feira local','Passeio rural'])[1 + g % 6] || ' #' || g,
-         'Anúncio gerado para demonstração',
+         'anuncio-' || g, 'anuncio-' || g,
          'approved',
          (now() - (random() * interval '180 days'))::date,
          now() - (random() * interval '180 days')
@@ -161,47 +247,90 @@ await client.query(`
   FROM generate_series(1, 255) g`);
 
 // ─── Buscas: mapa de calor 12×6 (últimos 7 dias) + semana anterior ────────
-// Intensidades 0..5 por célula, espelhando o relevo da região.
 const heatMap = [
-  0,0,1,1,0,0,1,2,1,0,0,0,
-  0,1,2,3,2,1,2,3,2,1,0,0,
-  1,2,3,4,3,2,3,4,3,2,1,0,
-  1,2,4,5,4,3,4,5,4,2,1,1,
-  0,1,3,4,5,4,3,4,3,1,1,0,
-  0,0,1,2,3,2,2,2,1,0,0,0,
+  0, 0, 1, 1, 0, 0, 1, 2, 1, 0, 0, 0,
+  0, 1, 2, 3, 2, 1, 2, 3, 2, 1, 0, 0,
+  1, 2, 3, 4, 3, 2, 3, 4, 3, 2, 1, 0,
+  1, 2, 4, 5, 4, 3, 4, 5, 4, 2, 1, 1,
+  0, 1, 3, 4, 5, 4, 3, 4, 3, 1, 1, 0,
+  0, 0, 1, 2, 3, 2, 2, 2, 1, 0, 0, 0,
 ];
-const spots = ['Pico da Bandeira', 'Alto Caparaó', 'Ibitirama', 'Dores do Rio Preto', 'Divino de S. Lourenço', 'Iúna'];
+const spots = ['Pico da Bandeira', 'Alto Caparaó', 'Ibitirama', 'Dores do Rio Preto', 'Divino de São Lourenço', 'Iúna'];
 for (let i = 0; i < heatMap.length; i++) {
   const level = heatMap[i];
   if (level === 0) continue;
   const row = Math.floor(i / 12);
   const col = i % 12;
   const spot = spots[i % spots.length];
-  // Semana atual: ~38 buscas por nível; semana anterior: ~31 (≈ +22%)
   await client.query(
     `INSERT INTO search_events (spot, grid_row, grid_col, created_at)
-     SELECT $1, $2, $3, now() - (random() * interval '7 days')
-     FROM generate_series(1, $4)`,
+     SELECT $1, $2, $3, now() - (random() * interval '7 days') FROM generate_series(1, $4)`,
     [spot, row, col, level * 38]
   );
   await client.query(
     `INSERT INTO search_events (spot, grid_row, grid_col, created_at)
-     SELECT $1, $2, $3, now() - interval '7 days' - (random() * interval '7 days')
-     FROM generate_series(1, $4)`,
+     SELECT $1, $2, $3, now() - interval '7 days' - (random() * interval '7 days') FROM generate_series(1, $4)`,
     [spot, row, col, level * 31]
   );
 }
 
-// ─── Itinerários (37 prontos para uso offline no PWA) ─────────────────────
-await client.query(`
-  INSERT INTO itineraries (title, region, duration, offline_ready, updated_at)
-  SELECT 'Itinerário ' || g || ' — ' ||
-         (ARRAY['Pico da Bandeira','Vale Encantado','Rota do Café','Cachoeiras de Ibitirama','Serra do Caparaó'])[1 + g % 5],
-         (ARRAY['ES','MG','ES/MG'])[1 + g % 3],
-         (ARRAY['meio dia','1 dia','2 dias','3 dias'])[1 + g % 4],
-         g <= 37,
-         now() - interval '12 minutes'
-  FROM generate_series(1, 42) g`);
+// ─── Itinerários publicados (roteiros curados da equipe) ──────────────────
+const itineraries = [
+  ['Nascer do sol no Pico da Bandeira', 'ES/MG', '1 dia'],
+  ['Travessia Serra do Caparaó — ES a MG', 'ES/MG', '3 dias'],
+  ['Rota do Café de Altitude', 'MG', '1 dia'],
+  ['Circuito das Cachoeiras de Ibitirama', 'ES', '1 dia'],
+  ['Vale Encantado e Terreirão', 'MG', '2 dias'],
+  ['Pico da Bandeira pela vertente mineira', 'MG', '2 dias'],
+  ['Fim de semana em Divino de São Lourenço', 'ES', '2 dias'],
+  ['Trilha da Cachoeira Bonita', 'ES', 'meio dia'],
+  ['Observação de estrelas no Terreirão', 'MG', '1 dia'],
+  ['Cavalgada ao Vale Encantado', 'ES', 'meio dia'],
+  ['Volta das águas de Iúna', 'ES', '1 dia'],
+  ['Subida ao Pico com pernoite no Terreirão', 'MG', '2 dias'],
+  ['Café, queijo e serra em Dores do Rio Preto', 'ES', '1 dia'],
+  ['Roteiro do artesanato do Caparaó', 'ES', '1 dia'],
+  ['Caminho da Pedra Roxa', 'ES', 'meio dia'],
+  ['Circuito gastronômico de Alto Caparaó', 'MG', '1 dia'],
+  ['Trekking do Vale do Rio Preto', 'ES', '2 dias'],
+  ['Banho de cachoeira em Pedra Menina', 'ES', 'meio dia'],
+  ['Rota das pousadas rurais de Ibitirama', 'ES', '2 dias'],
+  ['Mirante da Serra ao entardecer', 'MG', 'meio dia'],
+  ['Colheita de café no Sítio Boa Esperança', 'MG', 'meio dia'],
+  ['Três dias de trilhas e roça no Caparaó', 'ES/MG', '3 dias'],
+  ['Festival do Café de Altitude', 'MG', '1 dia'],
+  ['Pico da Bandeira pela vertente capixaba', 'ES', '2 dias'],
+  ['Roteiro das cachaças artesanais da serra', 'MG', '1 dia'],
+  ['Passeio de bike pelo Vale do Rio Preto', 'ES', '1 dia'],
+  ['Noite astronômica + nascer do sol', 'MG', '2 dias'],
+  ['Feira e ateliês de artesanato', 'ES', 'meio dia'],
+  ['Caminho dos apiários de altitude', 'ES', '1 dia'],
+  ['Trilha leve da Cachoeira do Prata', 'ES', 'meio dia'],
+  ['Roteiro família: fazenda e balneário', 'ES', '1 dia'],
+  ['Serra do Caparaó em quatro cachoeiras', 'ES/MG', '2 dias'],
+  ['Do café à mesa: da colheita à degustação', 'MG', '1 dia'],
+  ['Acampamento no Terreirão', 'MG', '2 dias'],
+  ['Volta longa do Pico da Bandeira', 'ES/MG', '3 dias'],
+  ['Cavalgada e pôr do sol no Vale', 'ES', 'meio dia'],
+  ['Rota dos queijos de altitude', 'ES', '1 dia'],
+  ['Manhã de observação de aves', 'MG', 'meio dia'],
+  ['Circuito histórico de Alto Jequitibá', 'MG', '1 dia'],
+  ['Descida das cachoeiras de Divino', 'ES', '1 dia'],
+  ['Retiro de fim de semana na serra', 'ES/MG', '2 dias'],
+  ['Trilha noturna guiada ao mirante', 'MG', 'meio dia'],
+];
+{
+  const titles = [], regions = [], durations = [], offline = [];
+  itineraries.forEach(([title, region, duration], i) => {
+    titles.push(title); regions.push(region); durations.push(duration); offline.push(i < 37);
+  });
+  await client.query(
+    `INSERT INTO itineraries (title, region, duration, offline_ready, updated_at)
+     SELECT t, r, d, o, now() - interval '12 minutes'
+     FROM unnest($1::text[], $2::text[], $3::text[], $4::boolean[]) AS x(t, r, d, o)`,
+    [titles, regions, durations, offline]
+  );
+}
 
 // ─── Chat interno ──────────────────────────────────────────────────────────
 const chats = [

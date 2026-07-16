@@ -100,8 +100,8 @@ function renderNav(pendingCount, chatCount) {
   if (chatCount != null) navBadges.chat = chatCount;
   const items = [
     ['◫', 'Visão Geral', 'overview', null],
-    ['⛰', 'Turistas', 'tourists', null],
-    ['☕', 'Produtores/Comerciantes', 'producers', null],
+    ['◎', 'Turistas', 'tourists', null],
+    ['⌂', 'Produtores/Comerciantes', 'producers', null],
     ['✎', 'Cadastros', 'registrations', navBadges.pending || null],
     ['▤', 'Publicações', 'listings', null],
     ['✦', 'Eventos', 'events', null],
@@ -167,13 +167,13 @@ function renderKpis(k) {
   const producerBars = [38, 52, 44, 60, 55, 72, 66, 84]; // tendência ilustrativa
   const cards = [
     {
-      label: 'Novos Turistas', accent: '#1C6B4A', icon: '⛰', iconBg: '#E4F0E7',
+      label: 'Novos Turistas', accent: '#1C6B4A', icon: '◎', iconBg: '#E4F0E7',
       value: fmtInt(k.newTourists.value), delta: k.newTourists.deltaPct,
       caption: 'últimos 30 dias', hint: 'Turistas cadastrados no período',
       chart: sparklineSVG(k.newTourists.series, '#1C6B4A', 1),
     },
     {
-      label: 'Produtores Ativos', accent: '#8AA98F', icon: '☕', iconBg: '#EDF2EA',
+      label: 'Produtores Ativos', accent: '#8AA98F', icon: '⌂', iconBg: '#EDF2EA',
       value: fmtInt(k.activeProducers.value), delta: k.activeProducers.deltaPct,
       caption: `${k.activeProducers.withListingsPct}% com anúncios ativos`, hint: 'Produtores e comerciantes verificados',
       chart: barsHTML(producerBars, '#8AA98F'),
@@ -461,9 +461,9 @@ async function loadRegistrationsView() {
   const pendProducers = producers.filter(p => p.status === 'pending' || p.status === 'in_review');
   const pendListings = listings.filter(l => l.status === 'pending' || l.status === 'in_review');
   $('#reg-producers').innerHTML = pendProducers.map(producerRowHTML).join('')
-    || '<p class="empty-note">Nenhum produtor aguardando revisão 🎉</p>';
+    || '<p class="empty-note">Nenhum produtor aguardando revisão.</p>';
   $('#reg-listings').innerHTML = pendListings.map(listingQueueRowHTML).join('')
-    || '<p class="empty-note">Nenhum anúncio aguardando revisão 🎉</p>';
+    || '<p class="empty-note">Nenhum anúncio aguardando revisão.</p>';
 }
 $('#reg-producers').addEventListener('click', e => {
   const btn = e.target.closest('button[data-action]');
@@ -774,8 +774,8 @@ async function openListingDetailAdmin(id) {
             <div class="detail-partner-info">
               <strong>${esc(l.est_name || l.producer_name)}</strong>
               <small>${esc(l.producer_kind || '')} · cadastro ${STATUS_LABEL[l.producer_status]}</small>
-              ${l.address ? `<small>📍 ${esc(l.address)}${l.city ? ' — ' + esc(l.city) : ''}</small>` : ''}
-              ${l.phone ? `<small>📞 ${esc(l.phone)}</small>` : ''}
+              ${l.address ? `<small>${esc(l.address)}${l.city ? ' — ' + esc(l.city) : ''}</small>` : ''}
+              ${l.phone ? `<small>Contato: ${esc(l.phone)}</small>` : ''}
             </div>
           </div>
           ${detailActions('listings', l.id, l.status)}

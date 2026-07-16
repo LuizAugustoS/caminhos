@@ -56,7 +56,7 @@ async function loadShowcase() {
         <span class="cell-date">${fmtDate(l.listed_at)}</span>
         <span class="status-pill status-${l.status}">${STATUS_LABEL[l.status]}</span>
         <div class="row-actions">
-          <button class="btn-view" data-action="photo" title="Foto do anúncio">📷</button>
+          <button class="btn-view" data-action="photo" title="Foto do anúncio">⊡</button>
           <button class="btn-view" data-action="edit" title="Editar">✎</button>
           <button class="btn-reject" data-action="delete" title="Excluir">✕</button>
         </div>
@@ -116,7 +116,7 @@ photoInput.addEventListener('change', async () => {
       method: 'POST', body: form, credentials: 'same-origin',
     });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erro ${res.status}`);
-    toast('Foto do anúncio atualizada 📷');
+    toast('Foto do anúncio atualizada');
     loadShowcase();
   } catch (err) { toast(err.message); }
 });
