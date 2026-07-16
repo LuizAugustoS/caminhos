@@ -24,7 +24,7 @@
       <div id="brand-slot"></div>
       <div class="topbar-right">
         <span class="status-pill hidden" id="producer-status"></span>
-        <div class="profile" id="profile" title="Sair">
+        <div class="profile" id="profile" title="Minha conta">
           <div class="profile-avatar" id="profile-initials">–</div>
           <div class="profile-info">
             <strong id="profile-name">–</strong>
@@ -128,6 +128,16 @@
           </div>
         </div>
         <form class="panel listing-form" id="profile-form">
+          <div class="field">
+            <label>Foto do estabelecimento</label>
+            <div class="est-photo-row">
+              <div class="est-photo" id="est-photo"><span class="empty-note">Sem foto</span></div>
+              <div>
+                <button type="button" class="btn-secondary" id="est-photo-btn">Enviar foto</button>
+                <p class="field-hint">JPG, PNG ou WebP até 5 MB — aparece no Explorar dos turistas.</p>
+              </div>
+            </div>
+          </div>
           <div class="form-grid">
             <div class="field span-2">
               <label for="e-name">Nome do estabelecimento</label>

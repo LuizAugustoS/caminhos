@@ -1,14 +1,16 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { login, loginLimiter, logout, me, register, registerLimiter, requireAuth, requireRole } from './auth.js';
+import { login, loginLimiter, logout, register, registerLimiter, requireAuth, requireRole } from './auth.js';
+import { account } from './routes/account.js';
 import { dashboard } from './routes/dashboard.js';
 import { producers, listings } from './routes/moderation.js';
 import { misc } from './routes/misc.js';
 import { explore } from './routes/explore.js';
 import { trips, favorites } from './routes/trips.js';
 import { conversations } from './routes/chat.js';
-import { portal, UPLOADS_DIR } from './routes/portal.js';
+import { portal } from './routes/portal.js';
+import { UPLOADS_DIR } from './upload.js';
 import { pool } from './db.js';
 
 const app = express();
@@ -58,7 +60,7 @@ app.get('/api/health', async (_req, res) => {
 app.post('/api/login', loginLimiter, login);
 app.post('/api/register', registerLimiter, register);
 app.post('/api/logout', logout);
-app.get('/api/me', requireAuth, me);
+app.use('/api/me', requireAuth, account);
 
 // Público (vitrine para turistas, mesmo sem conta)
 app.use('/api/explore', explore);
@@ -79,7 +81,7 @@ app.use('/api/producers', requireRole('admin'), producers);
 app.use('/api/listings', requireRole('admin'), listings);
 app.use('/api', requireRole('admin'), misc);
 
-// Fotos enviadas pelos produtores (imutáveis: nome de arquivo aleatório)
+// Fotos enviadas pelos usuários (imutáveis: nome de arquivo aleatório)
 app.use('/uploads', express.static(UPLOADS_DIR, { immutable: true, maxAge: '30d' }));
 
 // ─── PWA estático ───────────────────────────────────────────────────────────

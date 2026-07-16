@@ -31,8 +31,9 @@ producers.get('/:id', async (req, res) => {
     `SELECT p.id, p.name, p.kind, p.initials, p.avatar_color, p.status, p.city,
             p.created_at, p.reviewed_at,
             e.name AS est_name, e.description AS est_description, e.category AS est_category,
-            e.address, e.phone, e.open_hours,
-            u.email AS account_email, u.name AS account_name, u.created_at AS account_since
+            e.address, e.phone, e.open_hours, e.photo_path,
+            u.email AS account_email, u.name AS account_name, u.created_at AS account_since,
+            u.avatar_path
      FROM producers p
      LEFT JOIN establishments e ON e.producer_id = p.id
      LEFT JOIN users u ON u.id = p.user_id

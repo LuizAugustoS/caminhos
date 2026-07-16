@@ -96,7 +96,7 @@ const listingCard = (l, favIds) => `
 
 const placeCard = e => `
   <div class="ex-card" data-producer="${e.producer_id}">
-    <div class="ex-thumb has-photo"><img src="/img/covers/sage.png" alt="" loading="lazy"></div>
+    <div class="ex-thumb has-photo"><img src="${esc(e.photo_path || '/img/covers/sage.png')}" alt="" loading="lazy"></div>
     <div class="ex-body">
       <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')}</span>
       <strong class="ex-title">${esc(e.name)}</strong>
@@ -624,11 +624,27 @@ $('#conv-list').addEventListener('click', e => {
   if (!me) return;
   $('#brand-slot').outerHTML = brandHTML;
   $('#profile-name').textContent = me.name;
-  $('#profile-initials').textContent = initialsOf(me.name);
+  renderAvatar($('#profile-initials'), me);
   $('#profile').addEventListener('click', async () => {
-    if (!await modalConfirm({ title: 'Sair da conta', confirmText: 'Sair' })) return;
-    await api('/logout', { method: 'POST' }).catch(() => {});
-    location.href = '/';
+    const action = await modalPick({
+      title: 'Minha conta',
+      options: [
+        { value: 'photo', label: 'Trocar minha foto', sub: 'JPG, PNG ou WebP até 5 MB' },
+        { value: 'logout', label: 'Sair da conta' },
+      ],
+    });
+    if (action === 'photo') {
+      try {
+        const up = await pickAndUploadImage('/api/me/avatar');
+        if (!up) return;
+        me.avatar_path = up.avatar_path;
+        renderAvatar($('#profile-initials'), me);
+        toast('Foto de perfil atualizada');
+      } catch (err) { toast(err.message); }
+    } else if (action === 'logout') {
+      await api('/logout', { method: 'POST' }).catch(() => {});
+      location.href = '/';
+    }
   });
   await CaparaoDB.flush();
   loadExplore();

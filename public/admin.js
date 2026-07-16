@@ -701,7 +701,8 @@ async function openProducerDetail(id) {
     const { producer: p, listings, conversations } = await api(`/producers/${id}`);
     const { overlay, close } = openAdminModal(`
       <div class="detail-head">
-        <div class="avatar lg" style="background:${esc(p.avatar_color)}">${esc(p.initials)}</div>
+        <div class="avatar lg" style="background:${esc(p.avatar_color)}">${p.avatar_path
+          ? `<img src="${esc(p.avatar_path)}" alt="">` : esc(p.initials)}</div>
         <div>
           <h3>${esc(p.name)}</h3>
           <span class="sub">${esc(p.kind)}</span>
@@ -710,6 +711,7 @@ async function openProducerDetail(id) {
       </div>
 
       <h4 class="detail-section">Estabelecimento</h4>
+      ${p.photo_path ? `<div class="detail-hero" style="margin-bottom:12px"><img src="${esc(p.photo_path)}" alt="Foto do estabelecimento"></div>` : ''}
       <div class="settings-list">
         ${infoLine('Descrição', p.est_description)}
         ${infoLine('Categoria', p.est_category)}
@@ -801,7 +803,9 @@ async function openTouristDetail(id) {
     const t = await api(`/tourists/${id}`);
     const { overlay } = openAdminModal(`
       <div class="detail-head">
-        <div class="avatar lg" style="background:#4A3226">${esc(t.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase())}</div>
+        <div class="avatar lg" style="background:#4A3226">${t.avatar_path
+          ? `<img src="${esc(t.avatar_path)}" alt="">`
+          : esc(t.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase())}</div>
         <div>
           <h3>${esc(t.name)}</h3>
           <span class="sub">${esc(t.city || 'cidade não informada')}</span>

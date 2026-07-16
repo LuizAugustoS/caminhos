@@ -70,6 +70,39 @@ const thumbHTML = (l, cls = 'thumb') => l.image_path
   ? `<div class="${cls} has-photo"><img src="${esc(l.image_path)}" alt="" loading="lazy"></div>`
   : `<div class="${cls} img-${esc(l.image_kind || 'verde')}">${esc(l.glyph || '◉')}</div>`;
 
+// Avatar: foto enviada pelo usuário ou iniciais sobre a cor do perfil
+function renderAvatar(el, { name, avatar_path }) {
+  if (!el) return;
+  if (avatar_path) el.innerHTML = `<img class="avatar-photo" src="${esc(avatar_path)}" alt="">`;
+  else el.textContent = initialsOf(name || '–');
+}
+
+// Abre o seletor de arquivo e envia a imagem (multipart, campo 'image').
+// Resolve com o JSON da resposta, ou null se o usuário cancelar.
+function pickAndUploadImage(url) {
+  return new Promise((resolve, reject) => {
+    const input = Object.assign(document.createElement('input'), {
+      type: 'file', accept: 'image/jpeg,image/png,image/webp', hidden: true,
+    });
+    document.body.appendChild(input);
+    input.addEventListener('cancel', () => { input.remove(); resolve(null); });
+    input.addEventListener('change', async () => {
+      const file = input.files[0];
+      input.remove();
+      if (!file) return resolve(null);
+      if (file.size > 5 * 1024 * 1024) return reject(new Error('Imagem muito grande — máximo 5 MB'));
+      const form = new FormData();
+      form.append('image', file);
+      try {
+        const res = await fetch(url, { method: 'POST', body: form, credentials: 'same-origin' });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erro ${res.status}`);
+        resolve(await res.json());
+      } catch (err) { reject(err); }
+    });
+    input.click();
+  });
+}
+
 const msgBubble = (body, mine, meta) => `
   <div class="msg ${mine ? 'mine' : ''}">
     <span class="msg-body">${esc(body)}</span>

@@ -97,37 +97,17 @@ $('#listing-form').addEventListener('submit', async e => {
   } catch (err) { toast(err.message); }
 });
 
-// Upload da foto do anúncio (JPG/PNG/WebP até 5 MB)
-const photoInput = Object.assign(document.createElement('input'), {
-  type: 'file', accept: 'image/jpeg,image/png,image/webp', hidden: true,
-});
-document.body.appendChild(photoInput);
-let photoListingId = null;
-
-photoInput.addEventListener('change', async () => {
-  const file = photoInput.files[0];
-  photoInput.value = '';
-  if (!file || !photoListingId) return;
-  if (file.size > 5 * 1024 * 1024) return toast('Imagem muito grande — máximo 5 MB');
-  const form = new FormData();
-  form.append('image', file);
-  try {
-    const res = await fetch(`/api/portal/listings/${photoListingId}/image`, {
-      method: 'POST', body: form, credentials: 'same-origin',
-    });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erro ${res.status}`);
-    toast('Foto do anúncio atualizada');
-    loadShowcase();
-  } catch (err) { toast(err.message); }
-});
-
 $('#my-listings').addEventListener('click', async e => {
   const btn = e.target.closest('button[data-action]');
   if (!btn) return;
   const id = Number(btn.closest('.table-row').dataset.id);
   if (btn.dataset.action === 'photo') {
-    photoListingId = id;
-    photoInput.click();
+    try {
+      const up = await pickAndUploadImage(`/api/portal/listings/${id}/image`);
+      if (!up) return;
+      toast('Foto do anúncio atualizada');
+      loadShowcase();
+    } catch (err) { toast(err.message); }
   } else if (btn.dataset.action === 'edit') {
     openListingForm(myListings.find(l => l.id === id));
   } else if (btn.dataset.action === 'delete') {
@@ -203,10 +183,26 @@ $('#conv-list').addEventListener('click', e => {
 });
 
 // ─── Perfil do estabelecimento ───────────────────────────────────────────────
+function renderEstPhoto(path) {
+  $('#est-photo').innerHTML = path
+    ? `<img src="${esc(path)}" alt="Foto do estabelecimento">`
+    : '<span class="empty-note">Sem foto</span>';
+}
+
+$('#est-photo-btn').addEventListener('click', async () => {
+  try {
+    const up = await pickAndUploadImage('/api/portal/establishment/photo');
+    if (!up) return;
+    renderEstPhoto(up.photo_path);
+    toast('Foto do estabelecimento atualizada');
+  } catch (err) { toast(err.message); }
+});
+
 async function loadProfile() {
   try {
     const est = await api('/portal/establishment');
     if (!est) return;
+    renderEstPhoto(est.photo_path);
     $('#e-name').value = est.name || '';
     $('#e-description').value = est.description || '';
     $('#e-category').value = est.category || '';
@@ -244,11 +240,27 @@ $('#profile-form').addEventListener('submit', async e => {
   if (!me) return;
   $('#brand-slot').outerHTML = brandHTML;
   $('#profile-name').textContent = me.name;
-  $('#profile-initials').textContent = initialsOf(me.name);
+  renderAvatar($('#profile-initials'), me);
   $('#profile').addEventListener('click', async () => {
-    if (!await modalConfirm({ title: 'Sair da conta', confirmText: 'Sair' })) return;
-    await api('/logout', { method: 'POST' }).catch(() => {});
-    location.href = '/';
+    const action = await modalPick({
+      title: 'Minha conta',
+      options: [
+        { value: 'photo', label: 'Trocar minha foto', sub: 'JPG, PNG ou WebP até 5 MB' },
+        { value: 'logout', label: 'Sair da conta' },
+      ],
+    });
+    if (action === 'photo') {
+      try {
+        const up = await pickAndUploadImage('/api/me/avatar');
+        if (!up) return;
+        me.avatar_path = up.avatar_path;
+        renderAvatar($('#profile-initials'), me);
+        toast('Foto de perfil atualizada');
+      } catch (err) { toast(err.message); }
+    } else if (action === 'logout') {
+      await api('/logout', { method: 'POST' }).catch(() => {});
+      location.href = '/';
+    }
   });
   loadShowcase();
 })();
