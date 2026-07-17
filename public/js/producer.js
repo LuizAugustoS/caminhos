@@ -200,14 +200,30 @@ $('#conv-list').addEventListener('click', e => {
   if (row) openThread(Number(row.dataset.id));
 });
 
-// Atualização periódica: novas mensagens e badge sem precisar recarregar
+// Tempo real: o servidor empurra novas mensagens via SSE
+function connectEvents() {
+  if (!('EventSource' in window)) return;
+  const es = new EventSource('/api/events');
+  es.addEventListener('chat', e => {
+    const { conversation_id, from } = JSON.parse(e.data);
+    loadConversations().catch(() => {});
+    const chatOpen = !$('#view-chat').classList.contains('hidden');
+    if (conversation_id === currentConvId && chatOpen) {
+      refreshThreadMsgs(currentConvId).catch(() => {});
+    } else if (from) {
+      toast(`Nova mensagem de ${from}`);
+    }
+  });
+}
+
+// Rede de segurança: sincronização periódica caso o stream caia
 setInterval(() => {
   if (!navigator.onLine || !me) return;
   loadConversations().catch(() => {});
   if (currentConvId && !$('#view-chat').classList.contains('hidden')) {
     refreshThreadMsgs(currentConvId).catch(() => {});
   }
-}, 15000);
+}, 60000);
 
 // ─── Perfil do estabelecimento ───────────────────────────────────────────────
 function renderEstPhoto(path) {
@@ -273,4 +289,5 @@ $('#profile-form').addEventListener('submit', async e => {
     renderAvatar($('#profile-initials'), m);
   }));
   loadShowcase();
+  connectEvents();
 })();

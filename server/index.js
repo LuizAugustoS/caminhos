@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { login, loginLimiter, logout, register, registerLimiter, requireAuth, requireRole } from './auth.js';
 import { account } from './routes/account.js';
+import { events } from './routes/events.js';
 import { dashboard } from './routes/dashboard.js';
 import { producers, listings } from './routes/moderation.js';
 import { misc } from './routes/misc.js';
@@ -61,6 +62,7 @@ app.post('/api/login', loginLimiter, login);
 app.post('/api/register', registerLimiter, register);
 app.post('/api/logout', logout);
 app.use('/api/me', requireAuth, account);
+app.use('/api/events', requireAuth, events);
 
 // Público (vitrine para turistas, mesmo sem conta)
 app.use('/api/explore', explore);
