@@ -138,7 +138,7 @@ function modalForm({ title, fields, confirmText = 'Salvar' }) {
             <label>${esc(f.label)}</label>
             ${f.type === 'textarea'
               ? `<textarea name="${f.name}" rows="3" placeholder="${esc(f.placeholder || '')}">${esc(f.value || '')}</textarea>`
-              : `<input name="${f.name}" type="text" value="${esc(f.value || '')}" placeholder="${esc(f.placeholder || '')}" ${f.required !== false ? 'required' : ''}>`}
+              : `<input name="${f.name}" type="${f.type || 'text'}" value="${esc(f.value || '')}" placeholder="${esc(f.placeholder || '')}" ${f.required !== false ? 'required' : ''} ${f.minlength ? `minlength="${f.minlength}"` : ''}>`}
           </div>`).join('')}
         <div class="row-actions modal-actions">
           <button type="submit" class="btn-primary">${esc(confirmText)}</button>
@@ -151,7 +151,10 @@ function modalForm({ title, fields, confirmText = 'Salvar' }) {
     form.addEventListener('submit', e => {
       e.preventDefault();
       const values = {};
-      for (const f of fields) values[f.name] = form.elements[f.name].value.trim();
+      for (const f of fields) {
+        const v = form.elements[f.name].value;
+        values[f.name] = f.type === 'password' ? v : v.trim(); // senha não sofre trim
+      }
       close();
       resolve(values);
     });
@@ -192,6 +195,63 @@ function modalPick({ title, options }) {
     overlay.querySelectorAll('.modal-option').forEach(btn =>
       btn.addEventListener('click', () => { close(); resolve(btn.dataset.value); }));
   });
+}
+
+// ─── Menu "Minha conta" (turista e produtor) ────────────────────────────────
+// Clique no perfil do topo: editar dados, trocar foto, alterar senha ou sair.
+// `refresh(me)` re-renderiza nome/avatar na barra superior.
+async function openAccountMenu(me, refresh) {
+  const action = await modalPick({
+    title: 'Minha conta',
+    options: [
+      { value: 'edit', label: 'Editar perfil', sub: 'nome e cidade' },
+      { value: 'photo', label: 'Trocar minha foto', sub: 'JPG, PNG ou WebP até 5 MB' },
+      { value: 'password', label: 'Alterar senha' },
+      { value: 'logout', label: 'Sair da conta' },
+    ],
+  });
+  if (action === 'edit') {
+    const values = await modalForm({
+      title: 'Editar perfil',
+      confirmText: 'Salvar',
+      fields: [
+        { name: 'name', label: 'Nome', value: me.name },
+        { name: 'city', label: 'Cidade', value: me.city || '', required: false, placeholder: 'Ex.: Alto Caparaó' },
+      ],
+    });
+    if (!values) return;
+    try {
+      const updated = await api('/me', { method: 'PUT', body: JSON.stringify(values) });
+      Object.assign(me, updated);
+      refresh?.(me);
+      toast('Perfil atualizado');
+    } catch (err) { toast(err.message); }
+  } else if (action === 'photo') {
+    try {
+      const up = await pickAndUploadImage('/api/me/avatar');
+      if (!up) return;
+      me.avatar_path = up.avatar_path;
+      refresh?.(me);
+      toast('Foto de perfil atualizada');
+    } catch (err) { toast(err.message); }
+  } else if (action === 'password') {
+    const values = await modalForm({
+      title: 'Alterar senha',
+      confirmText: 'Alterar',
+      fields: [
+        { name: 'current_password', label: 'Senha atual', type: 'password' },
+        { name: 'new_password', label: 'Nova senha (mínimo 8 caracteres)', type: 'password', minlength: 8 },
+      ],
+    });
+    if (!values) return;
+    try {
+      await api('/me/password', { method: 'PUT', body: JSON.stringify(values) });
+      toast('Senha alterada');
+    } catch (err) { toast(err.message); }
+  } else if (action === 'logout') {
+    await api('/logout', { method: 'POST' }).catch(() => {});
+    location.href = '/';
+  }
 }
 
 function updateOnlineState() {

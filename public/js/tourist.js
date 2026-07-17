@@ -674,27 +674,10 @@ setInterval(() => {
   $('#brand-slot').outerHTML = brandHTML;
   $('#profile-name').textContent = me.name;
   renderAvatar($('#profile-initials'), me);
-  $('#profile').addEventListener('click', async () => {
-    const action = await modalPick({
-      title: 'Minha conta',
-      options: [
-        { value: 'photo', label: 'Trocar minha foto', sub: 'JPG, PNG ou WebP até 5 MB' },
-        { value: 'logout', label: 'Sair da conta' },
-      ],
-    });
-    if (action === 'photo') {
-      try {
-        const up = await pickAndUploadImage('/api/me/avatar');
-        if (!up) return;
-        me.avatar_path = up.avatar_path;
-        renderAvatar($('#profile-initials'), me);
-        toast('Foto de perfil atualizada');
-      } catch (err) { toast(err.message); }
-    } else if (action === 'logout') {
-      await api('/logout', { method: 'POST' }).catch(() => {});
-      location.href = '/';
-    }
-  });
+  $('#profile').addEventListener('click', () => openAccountMenu(me, m => {
+    $('#profile-name').textContent = m.name;
+    renderAvatar($('#profile-initials'), m);
+  }));
   await CaparaoDB.flush();
   loadExplore();
   // Pré-aquece o cache offline dos roteiros e favoritos em segundo plano

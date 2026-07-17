@@ -59,11 +59,17 @@ function showLogin() {
 
 let currentAdmin = null;
 
+function renderAdminAvatar(admin) {
+  $('#profile-name').textContent = admin.name;
+  const el = $('#profile-initials');
+  if (admin.avatar_path) el.innerHTML = `<img class="avatar-photo" src="${esc(admin.avatar_path)}" alt="">`;
+  else el.textContent = admin.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
 function showApp(admin) {
   currentAdmin = admin;
   $('#app-screen').classList.remove('hidden');
-  $('#profile-name').textContent = admin.name;
-  $('#profile-initials').textContent = admin.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  renderAdminAvatar(admin);
   const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   $('#page-date').textContent = today[0].toUpperCase() + today.slice(1) + ' · Região do Caparaó, ES/MG';
   loadAll();
@@ -628,11 +634,114 @@ async function loadSettingsView() {
     </div>`;
 }
 
-// ─── Logout ──────────────────────────────────────────────────────────────────
-$('#profile').addEventListener('click', async () => {
-  if (!confirm('Sair do painel?')) return;
-  await api('/logout', { method: 'POST' }).catch(() => {});
-  showLogin();
+// ─── Minha conta: editar perfil, foto, senha, sair ───────────────────────────
+function adminForm({ title, fields, confirmText }) {
+  return new Promise(resolve => {
+    const { overlay, close } = openAdminModal(`
+      <h3>${esc(title)}</h3>
+      <form class="modal-form">
+        ${fields.map(f => `
+          <div class="field">
+            <label>${esc(f.label)}</label>
+            <input name="${f.name}" type="${f.type || 'text'}" value="${esc(f.value || '')}"
+                   placeholder="${esc(f.placeholder || '')}" ${f.required !== false ? 'required' : ''}
+                   ${f.minlength ? `minlength="${f.minlength}"` : ''}>
+          </div>`).join('')}
+        <div class="row-actions modal-actions">
+          <button type="submit" class="btn-primary">${esc(confirmText)}</button>
+          <button type="button" class="btn-secondary" data-modal-cancel>Cancelar</button>
+        </div>
+      </form>`);
+    const form = overlay.querySelector('form');
+    form.querySelector('input')?.focus();
+    let done = false;
+    overlay.addEventListener('click', e => {
+      if (!done && (e.target === overlay || e.target.closest('[data-modal-cancel]'))) resolve(null);
+    });
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const values = {};
+      for (const f of fields) {
+        const v = form.elements[f.name].value;
+        values[f.name] = f.type === 'password' ? v : v.trim();
+      }
+      done = true;
+      close();
+      resolve(values);
+    });
+  });
+}
+
+$('#profile').addEventListener('click', () => {
+  const { overlay, close } = openAdminModal(`
+    <h3>Minha conta</h3>
+    <div class="modal-options">
+      <button class="modal-option" data-act="edit"><strong>Editar perfil</strong><small>nome e cidade</small></button>
+      <button class="modal-option" data-act="photo"><strong>Trocar minha foto</strong><small>JPG, PNG ou WebP até 5 MB</small></button>
+      <button class="modal-option" data-act="password"><strong>Alterar senha</strong></button>
+      <button class="modal-option" data-act="logout"><strong>Sair da conta</strong></button>
+    </div>
+    <div class="row-actions modal-actions">
+      <button class="btn-secondary" data-modal-cancel style="flex:1">Fechar</button>
+    </div>`);
+  overlay.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {
+    close();
+    const act = btn.dataset.act;
+    if (act === 'edit') {
+      const values = await adminForm({
+        title: 'Editar perfil',
+        confirmText: 'Salvar',
+        fields: [
+          { name: 'name', label: 'Nome', value: currentAdmin.name },
+          { name: 'city', label: 'Cidade', value: currentAdmin.city || '', required: false },
+        ],
+      });
+      if (!values) return;
+      try {
+        currentAdmin = await api('/me', { method: 'PUT', body: JSON.stringify(values) });
+        renderAdminAvatar(currentAdmin);
+        toast('Perfil atualizado');
+      } catch (err) { toast(err.message); }
+    } else if (act === 'photo') {
+      const input = Object.assign(document.createElement('input'), {
+        type: 'file', accept: 'image/jpeg,image/png,image/webp', hidden: true,
+      });
+      document.body.appendChild(input);
+      input.addEventListener('change', async () => {
+        const file = input.files[0];
+        input.remove();
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) return toast('Imagem muito grande — máximo 5 MB');
+        const form = new FormData();
+        form.append('image', file);
+        try {
+          const res = await fetch('/api/me/avatar', { method: 'POST', body: form, credentials: 'same-origin' });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erro ${res.status}`);
+          currentAdmin.avatar_path = (await res.json()).avatar_path;
+          renderAdminAvatar(currentAdmin);
+          toast('Foto de perfil atualizada');
+        } catch (err) { toast(err.message); }
+      });
+      input.click();
+    } else if (act === 'password') {
+      const values = await adminForm({
+        title: 'Alterar senha',
+        confirmText: 'Alterar',
+        fields: [
+          { name: 'current_password', label: 'Senha atual', type: 'password' },
+          { name: 'new_password', label: 'Nova senha (mínimo 8 caracteres)', type: 'password', minlength: 8 },
+        ],
+      });
+      if (!values) return;
+      try {
+        await api('/me/password', { method: 'PUT', body: JSON.stringify(values) });
+        toast('Senha alterada');
+      } catch (err) { toast(err.message); }
+    } else if (act === 'logout') {
+      await api('/logout', { method: 'POST' }).catch(() => {});
+      showLogin();
+    }
+  }));
 });
 
 // Exportar relatório: baixa um resumo JSON do dashboard
