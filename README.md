@@ -94,6 +94,7 @@ Novas contas de turista e produtor podem ser criadas pela própria landing page 
 | Método | Rota | Acesso | Descrição |
 | --- | --- | --- | --- |
 | POST | `/api/register` · `/api/login` · `/api/logout` | público | Autenticação multi-perfil |
+| POST | `/api/password/forgot` · `/api/password/reset` | público | Recuperação de senha por e-mail (token de 1h, uso único) |
 | GET | `/api/plans` | público | Planos de produtor (limites e preço de referência) |
 | GET | `/api/explore/listings?type=&q=` | público | Anúncios aprovados (Premium em destaque) |
 | GET | `/api/explore/establishments?q=` | público | Estabelecimentos de parceiros |
@@ -122,7 +123,8 @@ O app é um único serviço Node + um PostgreSQL — roda em qualquer host (Rail
 
 1. **HTTPS obrigatório** — sem ele o PWA não é instalável fora do localhost (as plataformas acima já fornecem TLS)
 2. Variáveis: `DATABASE_URL` (Postgres gerenciado), `SESSION_SECRET` (valor longo e aleatório), `NODE_ENV=production` (ativa o cookie `Secure`), `PORT` (a plataforma define). Opcional: `AI_PROVIDER`/`ANTHROPIC_API_KEY` ou `N8N_WEBHOOK_URL`, `UPLOADS_DIR` (aponte para um volume persistente — em filesystem efêmero as fotos se perdem no redeploy)
-3. Build: `npm ci` · Release: `npm run db:migrate` · Start: `npm start` (rode o seed apenas uma vez, se quiser dados demo)
+3. **E-mails** (recuperação de senha, aprovação de produtor e avisos de reserva): configure `SMTP_HOST`, `SMTP_PORT` (padrão 587), `SMTP_USER`/`SMTP_PASS`, `SMTP_SECURE=true` para porta 465, `MAIL_FROM` (remetente) e `APP_URL` (URL pública usada nos links). Sem `SMTP_HOST`, os e-mails são apenas registrados no log — a plataforma segue funcionando
+4. Build: `npm ci` · Release: `npm run db:migrate` · Start: `npm start` (rode o seed apenas uma vez, se quiser dados demo)
 
 Proteções já embutidas: CSP e security headers, HSTS sob HTTPS, rate-limiting em login (10/15min por IP+e-mail) e cadastro (5/h por IP), cookie de sessão `HttpOnly`+`SameSite`+`Secure`, senhas com scrypt e uploads validados por tipo/tamanho.
 

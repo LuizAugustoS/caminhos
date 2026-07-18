@@ -18,6 +18,7 @@
     "@anthropic-ai/sdk": "^0.111.0",
     "express": "^5.1.0",
     "multer": "^2.2.0",
+    "nodemailer": "^9.0.3",
     "pg": "^8.13.1"
   },
   "license": "MIT"

@@ -827,3 +827,7 @@ body.offline .offline-banner { display: block; }
 .review-head small { font-size: 11px; color: #A08D6F; font-weight: 600; }
 .review-head .review-toggle { margin-left: auto; }
 .review-hidden { opacity: .55; border-style: dashed; }
+
+/* ─── Recuperação de senha ─── */
+.forgot-row { margin: -6px 0 10px; text-align: right; }
+.forgot-row a { font-size: 12px; font-weight: 700; }
