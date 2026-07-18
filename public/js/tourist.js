@@ -21,7 +21,7 @@ CaparaoDB.onPendingChange(n => {
 });
 
 // ─── Views ───────────────────────────────────────────────────────────────────
-const VIEWS = { explore: loadExplore, trips: renderTrips, favorites: renderFavorites, chat: loadConversations };
+const VIEWS = { explore: loadExplore, trips: renderTrips, bookings: renderBookings, favorites: renderFavorites, chat: loadConversations };
 
 function switchView(name) {
   $$('.vtab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
@@ -96,6 +96,10 @@ const listingCard = (l, favIds) => `
       <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')}</span>
       <strong class="ex-title">${esc(l.title)}</strong>
       <span class="ex-sub">${esc(l.subtitle || '')}</span>
+      <span class="ex-price">${esc(fmtPrice(l.price_cents, l.price_unit))}</span>
+      ${l.type === 'event' && l.event_date
+        ? `<span class="ex-meta">${esc(fmtEventDate(l.event_date))}${l.event_time ? ` · ${esc(l.event_time)}` : ''}${l.event_place ? ` · ${esc(l.event_place)}` : ''}</span>`
+        : ''}
       <div class="ex-producer">
         <div class="avatar sm" style="background:${esc(l.producer_color || '#1C6B4A')}">${esc(l.producer_initials || '')}</div>
         <span>${esc(l.producer_name)}</span>
@@ -172,6 +176,10 @@ async function openListingDetail(listingId) {
     l.phone ? `Contato: ${l.phone}` : null,
   ].filter(Boolean);
 
+  const eventLine = l.type === 'event' && l.event_date
+    ? `<p class="detail-event">${esc(fmtEventDate(l.event_date))}${l.event_time ? ` · ${esc(l.event_time)}` : ''}${l.event_place ? ` · ${esc(l.event_place)}` : ''}</p>`
+    : '';
+  const canBook = navigator.onLine;
   const { overlay, close } = openModal(`
     <div class="detail-modal-inner">
       ${hero}
@@ -179,6 +187,8 @@ async function openListingDetail(listingId) {
         <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')}</span>
         <h3>${esc(l.title)}</h3>
         ${l.subtitle ? `<p class="detail-sub">${esc(l.subtitle)}</p>` : ''}
+        <p class="ex-price detail-price">${esc(fmtPrice(l.price_cents, l.price_unit))}</p>
+        ${eventLine}
         <div class="detail-partner">
           <div class="avatar lg" style="background:${esc(l.producer_color || '#1C6B4A')}">${esc(l.producer_initials || '')}</div>
           <div class="detail-partner-info">
@@ -189,7 +199,8 @@ async function openListingDetail(listingId) {
         <div class="ex-actions">
           <button class="btn-fav ${isFav ? 'on' : ''}" data-detail="fav" title="Favoritar">♥</button>
           <button class="btn-secondary" data-detail="add-trip">+ Roteiro</button>
-          <button class="btn-primary" data-detail="chat">Conversar</button>
+          <button class="btn-secondary" data-detail="chat">Conversar</button>
+          ${canBook ? '<button class="btn-primary" data-detail="book">Reservar</button>' : ''}
         </div>
       </div>
     </div>`);
@@ -204,7 +215,74 @@ async function openListingDetail(listingId) {
     close();
     startConversation(l.producer_id);
   });
+  overlay.querySelector('[data-detail=book]')?.addEventListener('click', () => {
+    close();
+    openBookingForm(l);
+  });
 }
+
+// ─── Reservas ────────────────────────────────────────────────────────────────
+async function openBookingForm(l) {
+  const values = await modalForm({
+    title: `Reservar: ${l.title}`,
+    confirmText: 'Enviar pedido',
+    fields: [
+      { name: 'qty', label: 'Quantidade', type: 'number', value: '1' },
+      { name: 'requested_date', label: 'Data desejada (opcional)', type: 'date', required: false },
+      { name: 'note', label: 'Observação (opcional)', type: 'textarea', required: false,
+        placeholder: 'Ex.: chegamos na sexta à noite, tem opção vegetariana?' },
+    ],
+  });
+  if (!values) return;
+  try {
+    await api('/bookings', {
+      method: 'POST',
+      body: JSON.stringify({
+        listing_id: l.id,
+        qty: Number(values.qty) || 1,
+        requested_date: values.requested_date || null,
+        note: values.note || null,
+        client_uid: crypto.randomUUID?.() || String(Date.now()),
+      }),
+    });
+    toast('Pedido enviado ao produtor — acompanhe em Reservas');
+  } catch (err) { toast(err.message); }
+}
+
+async function renderBookings() {
+  let bookings = [];
+  try { ({ bookings } = await api('/bookings')); }
+  catch (err) {
+    if (err.unauthorized) return;
+    $('#bookings-list').innerHTML = '<p class="empty-note">Reservas indisponíveis offline — conecte-se para ver seus pedidos.</p>';
+    return;
+  }
+  $('#bookings-list').innerHTML = bookings.map(b => `
+    <div class="bk-row" data-id="${b.id}">
+      ${thumbHTML(b, 'bk-thumb')}
+      <div class="bk-info">
+        <strong>${b.qty} × ${esc(b.title)}</strong>
+        <small>${esc(b.producer_name)} · pedido em ${fmtDate(b.created_at)}${b.requested_date ? ` · para ${fmtDate(b.requested_date)}` : ''}</small>
+        ${b.note ? `<small>Obs.: ${esc(b.note)}</small>` : ''}
+        <small>${esc(fmtPrice(b.price_cents, b.price_unit))}${b.price_cents ? ` — total ${esc(fmtPrice(b.price_cents * b.qty))}` : ''}</small>
+      </div>
+      <span class="status-pill ${BOOKING_PILL[b.status]}">${esc(b.status_label)}</span>
+      ${b.status === 'pending' ? '<button class="btn-secondary" data-bk-cancel>Cancelar</button>' : ''}
+    </div>`).join('')
+    || '<p class="empty-note">Nenhuma reserva ainda — abra um anúncio no Explorar e toque em "Reservar".</p>';
+}
+
+$('#bookings-list').addEventListener('click', async e => {
+  const btn = e.target.closest('[data-bk-cancel]');
+  if (!btn) return;
+  const id = btn.closest('.bk-row').dataset.id;
+  if (!await modalConfirm({ title: 'Cancelar reserva', confirmText: 'Cancelar reserva', danger: true })) return;
+  try {
+    await api(`/bookings/${id}/cancel`, { method: 'POST' });
+    toast('Reserva cancelada');
+    renderBookings();
+  } catch (err) { toast(err.message); }
+});
 
 $('#explore-grid').addEventListener('click', async e => {
   const btn = e.target.closest('button[data-action]');
@@ -671,6 +749,11 @@ function connectEvents() {
     } else if (from) {
       toast(`Nova mensagem de ${from}`);
     }
+  });
+  es.addEventListener('booking', e => {
+    const { title, status_label } = JSON.parse(e.data);
+    if (status_label) toast(`Reserva ${status_label.toLowerCase()}: ${title}`);
+    if (!$('#view-bookings').classList.contains('hidden')) renderBookings();
   });
   // EventSource reconecta sozinho; nada a fazer no erro
 }

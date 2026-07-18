@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { login, loginLimiter, logout, register, registerLimiter, requireAuth, requireRole } from './auth.js';
 import { account } from './routes/account.js';
 import { events } from './routes/events.js';
+import { bookings } from './routes/bookings.js';
 import { dashboard } from './routes/dashboard.js';
 import { producers, listings } from './routes/moderation.js';
 import { misc } from './routes/misc.js';
@@ -70,6 +71,7 @@ app.use('/api/explore', explore);
 // Turista
 app.use('/api/trips', requireRole('tourist'), trips);
 app.use('/api/favorites', requireRole('tourist'), favorites);
+app.use('/api/bookings', requireRole('tourist'), bookings);
 
 // Turista + produtor (chat assimétrico)
 app.use('/api/conversations', requireRole('tourist', 'producer', 'admin'), conversations);

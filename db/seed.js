@@ -185,20 +185,21 @@ for (const [name, description, category, city, address, phone, hours] of establi
 }
 
 // ─── Anúncios em destaque (listas do painel) ──────────────────────────────
-// [tipo, glyph, image_kind, image_label, título, subtítulo, produtor, data, status]
+// [tipo, glyph, image_kind, image_label, título, subtítulo, produtor, data, status,
+//  preço em centavos (null = sob consulta), unidade, data/hora/local do evento]
 const featuredListings = [
-  ['product', '◉', 'cafe', 'Foto: café torrado', 'Café Arábica Torra Média — 500g', 'Microlote 1.400m · nota 88 SCA', 'Sítio Boa Esperança', '2026-07-11', 'pending'],
-  ['product', '✤', 'arte', 'Foto: artesanato', 'Cesto de Fibra de Bananeira', 'Peça única, tingimento natural', 'Dona Zélia Artesanatos', '2026-07-10', 'pending'],
-  ['product', '◉', 'cafe', 'Foto: queijo', 'Queijo Curado da Serra — 400g', 'Maturação 60 dias', 'Queijaria Serra Alta', '2026-07-09', 'approved'],
-  ['product', '✤', 'sage', 'Foto: mel', 'Mel Silvestre de Altitude — 300g', 'Florada nativa do Caparaó', 'Apiário Flor da Serra', '2026-07-08', 'approved'],
-  ['service', '⛰', 'verde', 'Foto: guia de trilha', 'Guia Nascer do Sol — Pico da Bandeira', 'Saída 2h · inclui transporte 4x4', 'Trilhas do Bandeira', '2026-07-11', 'pending'],
-  ['service', '◉', 'cafe', 'Foto: tour de café', 'Tour de Colheita e Torra de Café', 'Experiência de 4h com degustação', 'Sítio Boa Esperança', '2026-07-10', 'approved'],
-  ['service', '✤', 'sage', 'Foto: pousada', 'Hospedagem Rural — Vale Verde', 'Café da manhã da roça incluso', 'Pousada Vale Verde', '2026-07-09', 'approved'],
-  ['service', '⛰', 'verde', 'Foto: cavalgada', 'Cavalgada ao Vale Encantado', 'Percurso de 8km · meia jornada', 'Rancho do Tião', '2026-07-07', 'in_review'],
-  ['event', '⛰', 'verde', 'Foto: trekking', 'Travessia do Caparaó — 3 dias', 'Trekking ES→MG · 25 vagas', 'Trilhas do Bandeira', '2026-07-18', 'pending'],
-  ['event', '◉', 'cafe', 'Foto: festival', 'Festival do Café de Altitude', 'Praça central de Alto Caparaó', 'Prefeitura de Alto Caparaó', '2026-08-02', 'approved'],
-  ['event', '✤', 'arte', 'Foto: feira', 'Feira de Artesanato da Serra', 'Edição de inverno · 40 expositores', 'Associação de Artesãos do Caparaó', '2026-07-26', 'approved'],
-  ['event', '⛰', 'sage', 'Foto: observação', 'Noite de Observação de Estrelas', 'Terreirão do Pico · céu Bortle 2', 'Clube Astronômico Capixaba', '2026-08-15', 'in_review'],
+  ['product', '◉', 'cafe', 'Foto: café torrado', 'Café Arábica Torra Média — 500g', 'Microlote 1.400m · nota 88 SCA', 'Sítio Boa Esperança', '2026-07-11', 'pending', 4800, '500g', null, null, null],
+  ['product', '✤', 'arte', 'Foto: artesanato', 'Cesto de Fibra de Bananeira', 'Peça única, tingimento natural', 'Dona Zélia Artesanatos', '2026-07-10', 'pending', 12000, 'peça', null, null, null],
+  ['product', '◉', 'cafe', 'Foto: queijo', 'Queijo Curado da Serra — 400g', 'Maturação 60 dias', 'Queijaria Serra Alta', '2026-07-09', 'approved', 5600, '400g', null, null, null],
+  ['product', '✤', 'sage', 'Foto: mel', 'Mel Silvestre de Altitude — 300g', 'Florada nativa do Caparaó', 'Apiário Flor da Serra', '2026-07-08', 'approved', 3200, '300g', null, null, null],
+  ['service', '⛰', 'verde', 'Foto: guia de trilha', 'Guia Nascer do Sol — Pico da Bandeira', 'Saída 2h · inclui transporte 4x4', 'Trilhas do Bandeira', '2026-07-11', 'pending', 18000, 'por pessoa', null, null, null],
+  ['service', '◉', 'cafe', 'Foto: tour de café', 'Tour de Colheita e Torra de Café', 'Experiência de 4h com degustação', 'Sítio Boa Esperança', '2026-07-10', 'approved', 9500, 'por pessoa', null, null, null],
+  ['service', '✤', 'sage', 'Foto: pousada', 'Hospedagem Rural — Vale Verde', 'Café da manhã da roça incluso', 'Pousada Vale Verde', '2026-07-09', 'approved', 28000, 'diária p/ casal', null, null, null],
+  ['service', '⛰', 'verde', 'Foto: cavalgada', 'Cavalgada ao Vale Encantado', 'Percurso de 8km · meia jornada', 'Rancho do Tião', '2026-07-07', 'in_review', 12000, 'por pessoa', null, null, null],
+  ['event', '⛰', 'verde', 'Foto: trekking', 'Travessia do Caparaó — 3 dias', 'Trekking ES→MG · 25 vagas', 'Trilhas do Bandeira', '2026-07-18', 'pending', 68000, 'por pessoa', '2026-08-21', '5h — concentração', 'Portaria de Pedra Menina'],
+  ['event', '◉', 'cafe', 'Foto: festival', 'Festival do Café de Altitude', 'Praça central de Alto Caparaó', 'Prefeitura de Alto Caparaó', '2026-08-02', 'approved', null, 'entrada gratuita', '2026-08-08', '9h às 22h', 'Praça central de Alto Caparaó'],
+  ['event', '✤', 'arte', 'Foto: feira', 'Feira de Artesanato da Serra', 'Edição de inverno · 40 expositores', 'Associação de Artesãos do Caparaó', '2026-07-26', 'approved', null, 'entrada gratuita', '2026-08-01', '9h às 18h', 'Casa de Cultura de Ibitirama'],
+  ['event', '⛰', 'sage', 'Foto: observação', 'Noite de Observação de Estrelas', 'Terreirão do Pico · céu Bortle 2', 'Clube Astronômico Capixaba', '2026-08-15', 'in_review', 4000, 'por pessoa', '2026-08-22', '19h às 23h', 'Terreirão do Pico'],
 ];
 // Capa ilustrada por conteúdo (imagens em /img/covers)
 const coverFor = title =>
@@ -208,12 +209,15 @@ const coverFor = title =>
   : /Mel/.test(title) ? 'mel'
   : /Hospedagem|Cavalgada/.test(title) ? 'sage'
   : 'verde';
-for (const [type, glyph, imageKind, imageLabel, title, subtitle, producerName, date, status] of featuredListings) {
+for (const [type, glyph, imageKind, imageLabel, title, subtitle, producerName, date, status,
+            priceCents, priceUnit, eventDate, eventTime, eventPlace] of featuredListings) {
   await client.query(
-    `INSERT INTO listings (producer_id, type, glyph, image_kind, image_label, image_path, title, subtitle, status, listed_at, created_at)
-     SELECT id, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10::date + time '10:00'
+    `INSERT INTO listings (producer_id, type, glyph, image_kind, image_label, image_path, title, subtitle, status, listed_at, created_at,
+                           price_cents, price_unit, event_date, event_time, event_place)
+     SELECT id, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10::date + time '10:00', $11, $12, $13, $14, $15
      FROM producers WHERE name = $1 LIMIT 1`,
-    [producerName, type, glyph, imageKind, imageLabel, `/img/covers/${coverFor(title)}.png`, title, subtitle, status, date]
+    [producerName, type, glyph, imageKind, imageLabel, `/img/covers/${coverFor(title)}.png`, title, subtitle, status, date,
+     priceCents, priceUnit, eventDate, eventTime, eventPlace]
   );
 }
 // Base de anúncios aprovados (invisível nas listas — só compõe o total do painel).

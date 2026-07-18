@@ -39,6 +39,7 @@
     <nav class="view-tabs">
       <button class="vtab active" data-view="explore">Explorar</button>
       <button class="vtab" data-view="trips">Meus Roteiros</button>
+      <button class="vtab" data-view="bookings">Reservas</button>
       <button class="vtab" data-view="favorites">Favoritos</button>
       <button class="vtab" data-view="chat">Mensagens <span class="nav-badge hidden" id="chat-badge"></span></button>
     </nav>
@@ -131,6 +132,17 @@
 
         <div id="trips-list" class="trips-grid"></div>
         <div id="trip-detail" class="hidden"></div>
+      </section>
+
+      <!-- ═══ Reservas ═══ -->
+      <section id="view-bookings" class="view hidden">
+        <div class="page-head">
+          <div>
+            <h1>Minhas Reservas</h1>
+            <p>Pedidos enviados aos produtores — confirmação chega em tempo real</p>
+          </div>
+        </div>
+        <div id="bookings-list"></div>
       </section>
 
       <!-- ═══ Favoritos ═══ -->

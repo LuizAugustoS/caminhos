@@ -882,6 +882,12 @@ async function openListingDetailAdmin(id) {
           ${l.subtitle ? `<p class="detail-sub">${esc(l.subtitle)}</p>` : ''}
           <div class="settings-list">
             ${infoLine('Status', STATUS_LABEL[l.status])}
+            ${infoLine('Preço', l.price_cents
+              ? `R$ ${(l.price_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: l.price_cents % 100 ? 2 : 0 })}${l.price_unit ? ' · ' + l.price_unit : ''}`
+              : (l.price_unit || 'sob consulta'))}
+            ${l.type === 'event' ? infoLine('Data do evento', l.event_date
+              ? `${fmtDate(l.event_date)}${l.event_time ? ' · ' + l.event_time : ''}` : 'não informada') : ''}
+            ${l.type === 'event' && l.event_place ? infoLine('Local', l.event_place) : ''}
             ${infoLine('Publicado em', fmtDate(l.listed_at))}
             ${l.reviewed_at ? infoLine('Última revisão', fmtDate(l.reviewed_at)) : ''}
             ${l.image_path ? '' : infoLine('Foto', 'sem foto enviada — capa ilustrativa')}

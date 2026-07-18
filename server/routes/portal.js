@@ -3,6 +3,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { acceptImage, removeUpload } from '../upload.js';
+import { portalBookings } from './bookings.js';
 
 export const portal = Router();
 
@@ -18,6 +19,9 @@ portal.use(async (req, res, next) => {
   req.producer = rows[0];
   next();
 });
+
+// Reservas do produtor (usa req.producer carregado acima)
+portal.use('/bookings', portalBookings);
 
 portal.get('/overview', async (req, res) => {
   const { rows: [stats] } = await query(
@@ -68,7 +72,8 @@ const IMAGE_KINDS = ['cafe', 'arte', 'verde', 'sage'];
 
 portal.get('/listings', async (req, res) => {
   const { rows } = await query(
-    `SELECT id, type, title, subtitle, glyph, image_kind, image_path, status, listed_at, created_at
+    `SELECT id, type, title, subtitle, glyph, image_kind, image_path, status, listed_at, created_at,
+            price_cents, price_unit, event_date, event_time, event_place
      FROM listings WHERE producer_id = $1 ORDER BY created_at DESC`,
     [req.producer.id]
   );
@@ -76,10 +81,25 @@ portal.get('/listings', async (req, res) => {
 });
 
 function validListing(body) {
-  const { type, title } = body || {};
+  const { type, title, price_cents } = body || {};
   if (!LISTING_TYPES.includes(type)) return 'type deve ser product, service ou event';
   if (!title?.trim()) return 'Informe o título do anúncio';
+  if (price_cents != null && (!Number.isInteger(price_cents) || price_cents <= 0)) {
+    return 'Preço inválido';
+  }
   return null;
+}
+
+// Normaliza os campos opcionais de preço e evento
+function listingFields(body) {
+  const isEvent = body.type === 'event';
+  return [
+    body.price_cents ?? null,
+    (body.price_unit || '').trim() || null,
+    isEvent ? body.event_date || null : null,
+    isEvent ? (body.event_time || '').trim() || null : null,
+    isEvent ? (body.event_place || '').trim() || null : null,
+  ];
 }
 
 portal.post('/listings', async (req, res) => {
@@ -88,11 +108,13 @@ portal.post('/listings', async (req, res) => {
   const { type, title, subtitle, image_kind } = req.body;
   const glyph = { product: '◉', service: '✤', event: '⛰' }[type];
   const { rows } = await query(
-    `INSERT INTO listings (producer_id, type, title, subtitle, glyph, image_kind, image_label, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $3, 'pending')
-     RETURNING id, type, title, subtitle, glyph, image_kind, status, listed_at`,
+    `INSERT INTO listings (producer_id, type, title, subtitle, glyph, image_kind, image_label, status,
+                           price_cents, price_unit, event_date, event_time, event_place)
+     VALUES ($1, $2, $3, $4, $5, $6, $3, 'pending', $7, $8, $9, $10, $11)
+     RETURNING id, type, title, subtitle, glyph, image_kind, status, listed_at,
+               price_cents, price_unit, event_date, event_time, event_place`,
     [req.producer.id, type, title.trim(), subtitle || null, glyph,
-     IMAGE_KINDS.includes(image_kind) ? image_kind : 'verde']
+     IMAGE_KINDS.includes(image_kind) ? image_kind : 'verde', ...listingFields(req.body)]
   );
   res.status(201).json(rows[0]);
 });
@@ -104,12 +126,14 @@ portal.put('/listings/:id', async (req, res) => {
   const { type, title, subtitle, image_kind } = req.body;
   const { rows } = await query(
     `UPDATE listings
-     SET type = $1, title = $2, subtitle = $3, image_kind = $4, status = 'pending', reviewed_at = NULL
+     SET type = $1, title = $2, subtitle = $3, image_kind = $4, status = 'pending', reviewed_at = NULL,
+         price_cents = $7, price_unit = $8, event_date = $9, event_time = $10, event_place = $11
      WHERE id = $5 AND producer_id = $6
-     RETURNING id, type, title, subtitle, glyph, image_kind, status, listed_at`,
+     RETURNING id, type, title, subtitle, glyph, image_kind, status, listed_at,
+               price_cents, price_unit, event_date, event_time, event_place`,
     [type, title.trim(), subtitle || null,
      IMAGE_KINDS.includes(image_kind) ? image_kind : 'verde',
-     req.params.id, req.producer.id]
+     req.params.id, req.producer.id, ...listingFields(req.body)]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Anúncio não encontrado' });
   res.json(rows[0]);
