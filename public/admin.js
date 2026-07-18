@@ -856,6 +856,9 @@ async function openProducerDetail(id) {
         ${infoLine('Endereço', p.address ? `${p.address}${p.city ? ' — ' + p.city : ''}` : p.city)}
         ${infoLine('Telefone', p.phone)}
         ${infoLine('Visitação', p.open_hours)}
+        ${p.lat != null && p.lng != null ? `<div class="settings-item"><span>Localização</span>
+          <strong><a href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}"
+            target="_blank" rel="noopener">${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)} ➚</a></strong></div>` : ''}
       </div>
 
       <h4 class="detail-section">Conta e histórico</h4>

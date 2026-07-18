@@ -61,16 +61,24 @@ portal.get('/establishment', async (req, res) => {
 });
 
 portal.put('/establishment', async (req, res) => {
-  const { name, description, category, city, address, phone, open_hours } = req.body || {};
+  const { name, description, category, city, address, phone, open_hours, lat, lng } = req.body || {};
   if (!name?.trim()) return res.status(400).json({ error: 'Informe o nome do estabelecimento' });
+  // Coordenadas: opcionais, mas sempre o par completo e dentro dos limites
+  const hasLat = lat != null, hasLng = lng != null;
+  if (hasLat !== hasLng) return res.status(400).json({ error: 'Informe latitude e longitude juntas' });
+  if (hasLat && (typeof lat !== 'number' || typeof lng !== 'number'
+      || lat < -90 || lat > 90 || lng < -180 || lng > 180)) {
+    return res.status(400).json({ error: 'Coordenadas inválidas' });
+  }
   const { rows } = await query(
     `UPDATE establishments
      SET name = $1, description = $2, category = $3, city = $4,
-         address = $5, phone = $6, open_hours = $7, updated_at = now()
-     WHERE producer_id = $8
+         address = $5, phone = $6, open_hours = $7, lat = $8, lng = $9, updated_at = now()
+     WHERE producer_id = $10
      RETURNING *`,
     [name.trim(), description || null, category || null, city || null,
-     address || null, phone || null, open_hours || null, req.producer.id]
+     address || null, phone || null, open_hours || null,
+     hasLat ? lat : null, hasLng ? lng : null, req.producer.id]
   );
   await query('UPDATE producers SET name = $1, city = $2 WHERE id = $3', [name.trim(), city || null, req.producer.id]);
   res.json(rows[0]);

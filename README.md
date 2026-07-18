@@ -10,6 +10,7 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 - **Explorar**: busca de produtos, serviços, eventos, estabelecimentos e **roteiros publicados** pela equipe (com "usar como base", que copia para os seus roteiros — funciona offline). Cada busca real alimenta o mapa de calor do admin
 - **✨ Montar roteiro pra mim**: o turista informa seus gostos (café, trilhas, cachoeiras…), o tempo disponível, o ritmo e o que quer viver — e uma **IA (ou fluxo N8N) monta o roteiro** usando o catálogo aprovado da plataforma. O roteiro é salvo com as preferências informadas e fica disponível em "Meus Roteiros" para consultar depois (inclusive offline)
 - **Meus Roteiros**: criação e gestão de itinerários personalizados **100% offline-first** — os roteiros vivem no IndexedDB do dispositivo, funcionam sem rede e sincronizam automaticamente quando a conexão volta
+- **Mapa da região**: aba "Mapa" no Explorar com os estabelecimentos parceiros no OpenStreetMap (Leaflet servido localmente, sem chave de API) e botão **"como chegar"** nos cards, no detalhe do anúncio e nos popups do mapa
 - **Favoritos**: disponíveis offline
 - **Mensagens**: chat assimétrico com produtores (dúvidas/reservas); envios offline entram na fila e são entregues ao reconectar
 - **Avaliações**: após uma reserva concluída, o turista avalia com 1–5 estrelas e comentário (editável); a média aparece nos cards do Explorar, no detalhe do anúncio e nos estabelecimentos
@@ -18,7 +19,7 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 - **Planos de cadastro** (a cobrança acontece fora da plataforma — sem pagamento no app): **Gratuito** (até 3 anúncios, 1 foto por anúncio), **Profissional** (até 10 anúncios, 5 fotos, selo) e **Premium** (anúncios ilimitados, 10 fotos, selo ★ e destaque no topo do Explorar). O produtor escolhe o plano no cadastro; o admin pode trocar o plano de qualquer parceiro pelo painel
 - **Vitrine virtual**: criação rápida de anúncios (produtos, serviços, eventos) com **galeria de fotos** (várias por anúncio conforme o plano, JPG/PNG/WebP até 5 MB — a primeira é a capa; servidas em `/uploads` e cacheadas offline pelo PWA) — novos anúncios e edições entram na fila de moderação do admin
 - **Mensagens**: caixa de entrada dedicada com turistas
-- **Meu Estabelecimento**: edição do perfil público (descrição, categoria, endereço, contato, horários)
+- **Meu Estabelecimento**: edição do perfil público (descrição, categoria, endereço, contato, horários) e **localização no mapa** — toque para marcar o ponto ou use a própria localização; o marcador aparece no mapa do Explorar
 
 ### 🛠 Administrador (`/admin`)
 - Painel completo conforme o protótipo: 4 cartões de KPI com gráficos, gestão/moderação de produtores e conteúdo, mapa de calor de buscas 12×6 com indicador de itinerários offline, listas de conteúdo com abas, chat interno e alertas

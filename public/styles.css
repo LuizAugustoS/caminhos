@@ -831,3 +831,17 @@ body.offline .offline-banner { display: block; }
 /* ─── Recuperação de senha ─── */
 .forgot-row { margin: -6px 0 10px; text-align: right; }
 .forgot-row a { font-size: 12px; font-weight: 700; }
+
+/* ─── Mapa (Leaflet) ─── */
+.explore-map {
+  height: 480px; border-radius: 16px; overflow: hidden;
+  border: 1px solid var(--card-border); background: #EFE9DA;
+}
+.explore-map .map-offline { padding: 40px 20px; text-align: center; }
+.est-map {
+  height: 280px; border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--card-border); background: #EFE9DA;
+}
+.leaflet-popup-content { font: 500 13px 'Manrope', sans-serif; }
+.leaflet-popup-content strong { font-weight: 800; }
+.directions-link { display: inline-block; font-size: 12px; font-weight: 800; margin-top: 2px; }

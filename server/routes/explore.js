@@ -82,7 +82,7 @@ explore.get('/listings/:id', async (req, res) => {
             p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
             p.avatar_color AS producer_color, p.kind AS producer_kind, p.plan,
             e.name AS est_name, e.description AS est_description, e.category AS est_category,
-            e.city, e.address, e.phone, e.open_hours
+            e.city, e.address, e.phone, e.open_hours, e.lat, e.lng
      FROM listings l
      JOIN producers p ON p.id = l.producer_id AND p.status = 'approved'
      LEFT JOIN establishments e ON e.producer_id = p.id
@@ -115,7 +115,7 @@ explore.get('/establishments', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 24, 60);
   const { rows } = await query(
     `SELECT e.id, e.name, e.description, e.category, e.city, e.address, e.phone, e.open_hours,
-            e.photo_path, p.id AS producer_id, p.initials, p.avatar_color, p.kind, p.plan,
+            e.photo_path, e.lat, e.lng, p.id AS producer_id, p.initials, p.avatar_color, p.kind, p.plan,
             r.rating_avg, r.rating_count
      FROM establishments e
      JOIN producers p ON p.id = e.producer_id AND p.status = 'approved'

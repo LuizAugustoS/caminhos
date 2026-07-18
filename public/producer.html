@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -200,6 +201,15 @@
               <label for="e-hours">Horário de visitação</label>
               <input id="e-hours" type="text" placeholder="Ex.: Sáb–Dom, 8h às 17h">
             </div>
+            <div class="field span-2">
+              <label>Localização no mapa</label>
+              <p class="field-hint">Toque no mapa para marcar seu estabelecimento — turistas verão o ponto no Explorar e o botão "como chegar".</p>
+              <div class="est-map" id="est-map"></div>
+              <div class="row-actions" style="margin-top:8px">
+                <button type="button" class="btn-secondary" id="est-geolocate">Usar minha localização</button>
+                <button type="button" class="btn-secondary" id="est-clear-pin">Remover marcador</button>
+              </div>
+            </div>
           </div>
           <div class="row-actions">
             <button type="submit" class="btn-primary">Salvar perfil</button>
@@ -212,6 +222,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/js/shared.js"></script>
 <script src="/js/producer.js"></script>
 </body>

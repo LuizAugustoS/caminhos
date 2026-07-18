@@ -32,7 +32,8 @@ const CSP = [
   // style inline é usado pelo design (atributos style=) — fontes via Google Fonts
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src https://fonts.gstatic.com",
-  "img-src 'self' data: blob:",
+  // Tiles do OpenStreetMap para o mapa do Explorar (Leaflet servido localmente)
+  "img-src 'self' data: blob: https://*.tile.openstreetmap.org",
   "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com",
   "manifest-src 'self'",
   "frame-ancestors 'self'",
@@ -45,7 +46,8 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // geolocation=self: o produtor pode usar a própria localização no mapa do perfil
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
   if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
 });
