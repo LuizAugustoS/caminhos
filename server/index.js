@@ -14,6 +14,7 @@ import { conversations } from './routes/chat.js';
 import { portal } from './routes/portal.js';
 import { UPLOADS_DIR } from './upload.js';
 import { pool } from './db.js';
+import { PLANS } from './plans.js';
 
 const app = express();
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -58,6 +59,9 @@ app.get('/api/health', async (_req, res) => {
     res.status(503).json({ ok: false, db: 'down' });
   }
 });
+
+// Planos de produtor (público: a landing mostra antes do cadastro)
+app.get('/api/plans', (_req, res) => res.json({ plans: Object.values(PLANS) }));
 
 app.post('/api/login', loginLimiter, login);
 app.post('/api/register', registerLimiter, register);

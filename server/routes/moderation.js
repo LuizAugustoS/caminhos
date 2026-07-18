@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
+import { PLAN_KEYS } from '../plans.js';
 
 export const producers = Router();
 export const listings = Router();
@@ -11,7 +12,7 @@ producers.get('/', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 5, 100);
   const q = (req.query.q || '').trim();
   const { rows } = await query(
-    `SELECT id, name, kind, initials, avatar_color, status, city, created_at
+    `SELECT id, name, kind, initials, avatar_color, status, city, plan, created_at
      FROM producers
      WHERE ($1::text IS NULL OR status = $1::approval_status)
        AND ($3 = '' OR name ILIKE '%' || $3 || '%' OR kind ILIKE '%' || $3 || '%'
@@ -28,7 +29,7 @@ producers.get('/', async (req, res) => {
 // tudo que o admin precisa para decidir uma aprovação.
 producers.get('/:id', async (req, res) => {
   const { rows } = await query(
-    `SELECT p.id, p.name, p.kind, p.initials, p.avatar_color, p.status, p.city,
+    `SELECT p.id, p.name, p.kind, p.initials, p.avatar_color, p.status, p.city, p.plan,
             p.created_at, p.reviewed_at,
             e.name AS est_name, e.description AS est_description, e.category AS est_category,
             e.address, e.phone, e.open_hours, e.photo_path,
@@ -71,6 +72,18 @@ producers.post('/:id/status', async (req, res) => {
   res.json(rows[0]);
 });
 
+// Troca de plano pelo admin (a cobrança acontece fora da plataforma)
+producers.post('/:id/plan', async (req, res) => {
+  const { plan } = req.body || {};
+  if (!PLAN_KEYS.includes(plan)) return res.status(400).json({ error: 'Plano inválido' });
+  const { rows } = await query(
+    `UPDATE producers SET plan = $1 WHERE id = $2 RETURNING id, name, plan`,
+    [plan, req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Produtor não encontrado' });
+  res.json(rows[0]);
+});
+
 // ─── Anúncios (produtos / serviços / eventos) ───────────────────────────────
 listings.get('/', async (req, res) => {
   const { type, status } = req.query;
@@ -107,6 +120,7 @@ listings.get('/:id', async (req, res) => {
             l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place,
             p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
             p.avatar_color AS producer_color, p.kind AS producer_kind, p.status AS producer_status,
+            p.plan,
             e.name AS est_name, e.category AS est_category, coalesce(e.city, p.city) AS city,
             e.address, e.phone, e.open_hours
      FROM listings l
@@ -116,7 +130,11 @@ listings.get('/:id', async (req, res) => {
     [req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Anúncio não encontrado' });
-  res.json(rows[0]);
+  const { rows: images } = await query(
+    'SELECT path FROM listing_images WHERE listing_id = $1 ORDER BY position, id',
+    [req.params.id]
+  );
+  res.json({ ...rows[0], images: images.map(i => i.path) });
 });
 
 listings.post('/:id/status', async (req, res) => {

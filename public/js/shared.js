@@ -18,6 +18,12 @@ const BOOKING_PILL = {
   completed: 'status-approved', cancelled: 'status-rejected',
 };
 
+// Planos de produtor: selo visível apenas nos planos pagos
+const PLAN_LABEL = { gratuito: 'Gratuito', profissional: 'Profissional', premium: 'Premium' };
+const planBadge = plan => plan && plan !== 'gratuito'
+  ? `<span class="plan-badge plan-${esc(plan)}">${plan === 'premium' ? '★ ' : ''}${PLAN_LABEL[plan] || ''}</span>`
+  : '';
+
 // Preço em centavos → "R$ 48 · 500g"; null → "sob consulta"
 function fmtPrice(cents, unit) {
   if (cents == null) return unit || 'sob consulta';

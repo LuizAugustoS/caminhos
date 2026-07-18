@@ -14,7 +14,8 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 - **Mensagens**: chat assimétrico com produtores (dúvidas/reservas); envios offline entram na fila e são entregues ao reconectar
 
 ### ☕ Produtor/Comerciante (`/portal`)
-- **Vitrine virtual**: criação rápida de anúncios (produtos, serviços, eventos) com **upload de foto** (JPG/PNG/WebP até 5 MB, botão 📷 — servidas em `/uploads` e cacheadas offline pelo PWA) — novos anúncios e edições entram na fila de moderação do admin
+- **Planos de cadastro** (a cobrança acontece fora da plataforma — sem pagamento no app): **Gratuito** (até 3 anúncios, 1 foto por anúncio), **Profissional** (até 10 anúncios, 5 fotos, selo) e **Premium** (anúncios ilimitados, 10 fotos, selo ★ e destaque no topo do Explorar). O produtor escolhe o plano no cadastro; o admin pode trocar o plano de qualquer parceiro pelo painel
+- **Vitrine virtual**: criação rápida de anúncios (produtos, serviços, eventos) com **galeria de fotos** (várias por anúncio conforme o plano, JPG/PNG/WebP até 5 MB — a primeira é a capa; servidas em `/uploads` e cacheadas offline pelo PWA) — novos anúncios e edições entram na fila de moderação do admin
 - **Mensagens**: caixa de entrada dedicada com turistas
 - **Meu Estabelecimento**: edição do perfil público (descrição, categoria, endereço, contato, horários)
 
@@ -91,7 +92,8 @@ Novas contas de turista e produtor podem ser criadas pela própria landing page 
 | Método | Rota | Acesso | Descrição |
 | --- | --- | --- | --- |
 | POST | `/api/register` · `/api/login` · `/api/logout` | público | Autenticação multi-perfil |
-| GET | `/api/explore/listings?type=&q=` | público | Anúncios aprovados |
+| GET | `/api/plans` | público | Planos de produtor (limites e preço de referência) |
+| GET | `/api/explore/listings?type=&q=` | público | Anúncios aprovados (Premium em destaque) |
 | GET | `/api/explore/establishments?q=` | público | Estabelecimentos de parceiros |
 | GET | `/api/explore/itineraries` | público | Itinerários publicados (flag offline) |
 | GET/PUT/DELETE | `/api/trips[/:clientUid]` | turista | Roteiros — upsert completo idempotente |

@@ -1,6 +1,7 @@
 // Autenticação por sessão via cookie HMAC-assinado (sem dependências extras).
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { pool, query } from './db.js';
+import { PLAN_KEYS } from './plans.js';
 
 const SECRET = process.env.SESSION_SECRET || 'dev-secret-inseguro';
 const COOKIE = 'caparao_session';
@@ -125,12 +126,15 @@ const initialsOf = name => name.split(/\s+/).map(w => w[0]).join('').slice(0, 2)
 
 // Cadastro de turista ou produtor. Produtores entram na fila de moderação do admin.
 export async function register(req, res) {
-  const { name, email, password, role, city, establishment } = req.body || {};
+  const { name, email, password, role, city, establishment, plan } = req.body || {};
   if (!name?.trim() || !email?.trim() || !password || password.length < 8) {
     return res.status(400).json({ error: 'Informe nome, e-mail e senha (mínimo 8 caracteres)' });
   }
   if (!['tourist', 'producer'].includes(role)) {
     return res.status(400).json({ error: "Perfil deve ser 'tourist' ou 'producer'" });
+  }
+  if (role === 'producer' && plan != null && !PLAN_KEYS.includes(plan)) {
+    return res.status(400).json({ error: 'Plano inválido' });
   }
   const client = await pool.connect();
   try {
@@ -148,9 +152,10 @@ export async function register(req, res) {
     } else {
       const estName = establishment?.trim() || `${user.name} — Estabelecimento`;
       const { rows: [producer] } = await client.query(
-        `INSERT INTO producers (name, kind, initials, status, city, user_id)
-         VALUES ($1, $2, $3, 'pending', $4, $5) RETURNING id`,
-        [estName, 'Novo parceiro · aguardando revisão', initialsOf(estName), city || null, user.id]
+        `INSERT INTO producers (name, kind, initials, status, city, user_id, plan)
+         VALUES ($1, $2, $3, 'pending', $4, $5, $6) RETURNING id`,
+        [estName, 'Novo parceiro · aguardando revisão', initialsOf(estName), city || null, user.id,
+         plan || 'gratuito']
       );
       await client.query(
         `INSERT INTO establishments (producer_id, name, city) VALUES ($1, $2, $3)`,
