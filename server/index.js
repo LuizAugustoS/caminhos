@@ -16,6 +16,7 @@ import { portal } from './routes/portal.js';
 import { reviews, adminReviews } from './routes/reviews.js';
 import { password } from './routes/password.js';
 import { push } from './routes/push.js';
+import { emailVerify } from './routes/verify.js';
 import { UPLOADS_DIR } from './upload.js';
 import { pool } from './db.js';
 import { PLANS } from './plans.js';
@@ -72,6 +73,7 @@ app.get('/api/plans', (_req, res) => res.json({ plans: Object.values(PLANS) }));
 app.post('/api/login', loginLimiter, login);
 app.post('/api/register', registerLimiter, register);
 app.use('/api/password', password);
+app.use('/api/email', emailVerify);
 app.post('/api/logout', logout);
 app.use('/api/me', requireAuth, account);
 app.use('/api/events', requireAuth, events);
@@ -109,6 +111,8 @@ app.use(express.static(publicDir, {
     if (path.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-cache');
   },
 }));
+app.get('/termos', (_req, res) => res.sendFile(join(publicDir, 'termos.html')));
+app.get('/privacidade', (_req, res) => res.sendFile(join(publicDir, 'privacidade.html')));
 app.get('/admin', (_req, res) => res.sendFile(join(publicDir, 'admin.html')));
 app.get('/app', (_req, res) => res.sendFile(join(publicDir, 'tourist.html')));
 app.get('/portal', (_req, res) => res.sendFile(join(publicDir, 'producer.html')));

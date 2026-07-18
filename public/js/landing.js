@@ -20,6 +20,16 @@
     history.replaceState(null, '', '/'); // remove o token da URL
   }
 
+  // Link de confirmação de e-mail (/verificar?token=…)
+  const verifyToken = new URLSearchParams(location.search).get('token');
+  if (verifyToken && location.pathname === '/verificar') {
+    try {
+      await api('/email/verify', { method: 'POST', body: JSON.stringify({ token: verifyToken }) });
+      toast('E-mail confirmado — obrigado!');
+    } catch (err) { toast(err.message); }
+    history.replaceState(null, '', '/');
+  }
+
   // Sessão ativa → vai direto para a área do perfil
   try {
     const me = await api('/me');

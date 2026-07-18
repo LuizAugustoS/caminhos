@@ -472,6 +472,9 @@ await client.query(
   [conv.id, touristUser.id, producerUser.id]
 );
 
+// Contas demo já nascem com o e-mail confirmado
+await client.query('UPDATE users SET email_verified_at = now()');
+
 await client.query('COMMIT');
 
 const counts = await client.query(`

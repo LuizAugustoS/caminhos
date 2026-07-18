@@ -78,6 +78,9 @@ async function requireSession(role) {
   try {
     const me = await api('/me');
     if (role && me.role !== role) { location.href = HOME_BY_ROLE[me.role] || '/'; return null; }
+    // Banner suave enquanto o e-mail não foi confirmado
+    document.addEventListener('DOMContentLoaded', () => showVerifyBanner(me));
+    if (document.readyState !== 'loading') showVerifyBanner(me);
     return me;
   } catch {
     location.href = '/';
@@ -233,6 +236,29 @@ function modalPick({ title, options }) {
   });
 }
 
+// ─── Banner "confirme seu e-mail" (turista e produtor) ──────────────────────
+function showVerifyBanner(me) {
+  if (me.email_verified || me.role === 'admin' || $('#verify-banner')) return;
+  const main = $('.main');
+  if (!main) return;
+  const bar = document.createElement('div');
+  bar.id = 'verify-banner';
+  bar.className = 'verify-banner';
+  bar.innerHTML = `
+    <span>Confirme seu e-mail (<strong>${esc(me.email)}</strong>) para proteger sua conta.</span>
+    <button type="button" class="btn-secondary" id="verify-resend">Reenviar link</button>
+    <button type="button" class="verify-dismiss" title="Fechar">✕</button>`;
+  main.prepend(bar);
+  bar.querySelector('#verify-resend').addEventListener('click', async () => {
+    try {
+      const r = await api('/email/resend', { method: 'POST' });
+      toast(r.verified ? 'Seu e-mail já está confirmado' : 'Link reenviado — confira sua caixa de entrada');
+      if (r.verified) bar.remove();
+    } catch (err) { toast(err.message); }
+  });
+  bar.querySelector('.verify-dismiss').addEventListener('click', () => bar.remove());
+}
+
 // ─── Web Push (avisos de mensagens e reservas com o app fechado) ────────────
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
@@ -287,6 +313,7 @@ async function openAccountMenu(me, refresh) {
         sub: 'mensagens e reservas avisam mesmo com o app fechado',
       }] : []),
       { value: 'logout', label: 'Sair da conta' },
+      { value: 'delete', label: 'Excluir minha conta', sub: 'remove seus dados da plataforma (LGPD)' },
     ],
   });
   if (action === 'edit') {
@@ -340,6 +367,20 @@ async function openAccountMenu(me, refresh) {
   } else if (action === 'logout') {
     await api('/logout', { method: 'POST' }).catch(() => {});
     location.href = '/';
+  } else if (action === 'delete') {
+    const warning = me.role === 'producer'
+      ? 'Sua conta, o estabelecimento, os anúncios, as fotos, as reservas e as conversas serão apagados de forma definitiva.'
+      : 'Sua conta, os roteiros, os favoritos, as reservas e as conversas serão apagados de forma definitiva.';
+    const values = await modalForm({
+      title: 'Excluir minha conta',
+      confirmText: 'Excluir definitivamente',
+      fields: [{ name: 'password', label: `${warning} Digite sua senha para confirmar:`, type: 'password' }],
+    });
+    if (!values) return;
+    try {
+      await api('/me', { method: 'DELETE', body: JSON.stringify({ password: values.password }) });
+      location.href = '/';
+    } catch (err) { toast(err.message); }
   }
 }
 
