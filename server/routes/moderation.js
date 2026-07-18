@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { PLAN_KEYS } from '../plans.js';
 import { sendMail } from '../mailer.js';
+import { audit } from '../audit.js';
 
 export const producers = Router();
 export const listings = Router();
@@ -16,11 +17,12 @@ producers.get('/', async (req, res) => {
     `SELECT id, name, kind, initials, avatar_color, status, city, plan, created_at
      FROM producers
      WHERE ($1::text IS NULL OR status = $1::approval_status)
+       AND ($4::text IS NULL OR plan = $4::producer_plan)
        AND ($3 = '' OR name ILIKE '%' || $3 || '%' OR kind ILIKE '%' || $3 || '%'
             OR city ILIKE '%' || $3 || '%')
      ORDER BY (status IN ('pending', 'in_review')) DESC, created_at DESC
      LIMIT $2`,
-    [req.query.status || null, limit, q]
+    [req.query.status || null, limit, q, PLAN_KEYS.includes(req.query.plan) ? req.query.plan : null]
   );
   const pending = await query(`SELECT count(*) AS n FROM producers WHERE status IN ('pending', 'in_review')`);
   res.json({ producers: rows, pendingCount: Number(pending.rows[0].n) });
@@ -76,6 +78,7 @@ producers.post('/:id/status', async (req, res) => {
     [status, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Produtor não encontrado' });
+  audit(req, `producer.${status}`, rows[0].name);
 
   // Avisa o parceiro por e-mail (quando há conta vinculada)
   if (rows[0].user_id) {
@@ -102,6 +105,7 @@ producers.post('/:id/plan', async (req, res) => {
     [plan, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Produtor não encontrado' });
+  audit(req, 'plan.changed', `${rows[0].name} → ${plan}`);
   res.json(rows[0]);
 });
 
@@ -177,5 +181,6 @@ listings.post('/:id/status', async (req, res) => {
     [status, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Anúncio não encontrado' });
+  audit(req, `listing.${status}`, rows[0].title);
   res.json(rows[0]);
 });

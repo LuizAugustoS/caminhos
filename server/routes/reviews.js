@@ -3,6 +3,7 @@
 // O admin modera ocultando/exibindo (a avaliação some das médias públicas).
 import { Router } from 'express';
 import { query } from '../db.js';
+import { audit } from '../audit.js';
 
 export const reviews = Router();       // /api/reviews (turista)
 export const adminReviews = Router();  // /api/admin/reviews (admin)
@@ -40,5 +41,6 @@ adminReviews.post('/:id/visibility', async (req, res) => {
     [hidden, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Avaliação não encontrada' });
+  audit(req, hidden ? 'review.hidden' : 'review.shown', `avaliação #${rows[0].id}`);
   res.json(rows[0]);
 });

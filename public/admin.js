@@ -442,13 +442,24 @@ function producerRowHTML(p) {
     </div>`;
 }
 
+let producersPlanFilter = '';
+
 async function loadProducersView() {
   const q = $('#producers-q').value.trim();
   const statusParam = producersFilter ? `&status=${producersFilter}` : '';
-  const { producers } = await api(`/producers?limit=100&q=${encodeURIComponent(q)}${statusParam}`);
+  const planParam = producersPlanFilter ? `&plan=${producersPlanFilter}` : '';
+  const { producers } = await api(`/producers?limit=100&q=${encodeURIComponent(q)}${statusParam}${planParam}`);
   $('#producers-all').innerHTML = producers.map(producerRowHTML).join('')
     || '<p class="empty-note">Nenhum produtor com esse filtro.</p>';
 }
+
+$('#producers-plan-filter').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  producersPlanFilter = tab.dataset.plan;
+  document.querySelectorAll('#producers-plan-filter .tab').forEach(t => t.classList.toggle('active', t === tab));
+  loadProducersView();
+});
 $('#producers-q').addEventListener('input', debounce(loadProducersView));
 $('#producers-filter').addEventListener('click', e => {
   const tab = e.target.closest('.tab');
@@ -653,7 +664,48 @@ async function loadSettingsView() {
       <div class="settings-item"><span>Gerador de roteiros (IA)</span><strong>configurável via AI_PROVIDER no .env</strong></div>
       <div class="settings-item"><span>Contas demo</span><strong>redefinir com npm run db:seed</strong></div>
     </div>`;
+
+  // Equipe (múltiplos admins) e auditoria das ações
+  const [{ admins }, { entries }] = await Promise.all([api('/admins'), api('/audit')]);
+  $('#settings-admins').innerHTML = `
+    <div class="settings-list">
+      ${admins.map(a => `
+        <div class="settings-item"><span>${esc(a.name)}</span>
+          <strong>${esc(a.email)}${a.id === me.id ? ' (você)' : ''}</strong></div>`).join('')}
+    </div>`;
+  const AUDIT_LABEL = {
+    'producer.approved': 'aprovou o produtor', 'producer.rejected': 'recusou o produtor',
+    'listing.approved': 'aprovou o anúncio', 'listing.rejected': 'recusou o anúncio',
+    'plan.changed': 'alterou o plano de', 'review.hidden': 'ocultou a', 'review.shown': 'reexibiu a',
+    'admin.created': 'criou o admin', 'export.csv': 'exportou',
+  };
+  $('#settings-audit').innerHTML = entries.length ? `
+    <div class="settings-list">
+      ${entries.map(en => `
+        <div class="settings-item">
+          <span>${esc(en.admin_name)} ${AUDIT_LABEL[en.action] || en.action} <strong>${esc(en.target)}</strong></span>
+          <small>${fmtDate(en.created_at)}</small>
+        </div>`).join('')}
+    </div>` : '<p class="empty-note">Nenhuma ação registrada ainda.</p>';
 }
+
+$('#btn-new-admin').addEventListener('click', async () => {
+  const values = await adminForm({
+    title: 'Novo administrador',
+    confirmText: 'Criar admin',
+    fields: [
+      { name: 'name', label: 'Nome' },
+      { name: 'email', label: 'E-mail', type: 'email' },
+      { name: 'password', label: 'Senha (mínimo 8 caracteres)', type: 'password', minlength: 8 },
+    ],
+  });
+  if (!values) return;
+  try {
+    await api('/admins', { method: 'POST', body: JSON.stringify(values) });
+    toast(`Admin ${values.name} criado`);
+    loadSettingsView();
+  } catch (err) { toast(err.message); }
+});
 
 // ─── Minha conta: editar perfil, foto, senha, sair ───────────────────────────
 function adminForm({ title, fields, confirmText }) {
