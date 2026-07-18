@@ -7,7 +7,7 @@ let editingId = null;
 let currentConvId = null;
 
 // ─── Views ───────────────────────────────────────────────────────────────────
-const VIEWS = { showcase: loadShowcase, chat: loadConversations, profile: loadProfile };
+const VIEWS = { showcase: loadShowcase, bookings: loadBookings, chat: loadConversations, profile: loadProfile };
 
 function switchView(name) {
   $$('.vtab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
@@ -66,6 +66,13 @@ async function loadShowcase() {
   }
 }
 
+// Campos de evento só aparecem quando o tipo é "Evento"
+function syncEventFields() {
+  const isEvent = $('#l-type').value === 'event';
+  $$('[data-event-field]').forEach(f => f.classList.toggle('hidden', !isEvent));
+}
+$('#l-type').addEventListener('change', syncEventFields);
+
 function openListingForm(listing) {
   editingId = listing?.id ?? null;
   $('#listing-form-title').textContent = editingId ? 'Editar anúncio' : 'Novo anúncio';
@@ -73,6 +80,12 @@ function openListingForm(listing) {
   $('#l-image').value = listing?.image_kind || 'cafe';
   $('#l-title').value = listing?.title || '';
   $('#l-subtitle').value = listing?.subtitle || '';
+  $('#l-price').value = listing?.price_cents ? (listing.price_cents / 100).toFixed(2) : '';
+  $('#l-price-unit').value = listing?.price_unit || '';
+  $('#l-event-date').value = listing?.event_date ? listing.event_date.slice(0, 10) : '';
+  $('#l-event-time').value = listing?.event_time || '';
+  $('#l-event-place').value = listing?.event_place || '';
+  syncEventFields();
   $('#listing-form').classList.remove('hidden');
   $('#l-title').focus();
 }
@@ -82,11 +95,17 @@ $('#listing-cancel').addEventListener('click', () => $('#listing-form').classLis
 
 $('#listing-form').addEventListener('submit', async e => {
   e.preventDefault();
+  const price = parseFloat(String($('#l-price').value).replace(',', '.'));
   const body = JSON.stringify({
     type: $('#l-type').value,
     image_kind: $('#l-image').value,
     title: $('#l-title').value,
     subtitle: $('#l-subtitle').value || null,
+    price_cents: Number.isFinite(price) && price > 0 ? Math.round(price * 100) : null,
+    price_unit: $('#l-price-unit').value || null,
+    event_date: $('#l-event-date').value || null,
+    event_time: $('#l-event-time').value || null,
+    event_place: $('#l-event-place').value || null,
   });
   try {
     if (editingId) await api(`/portal/listings/${editingId}`, { method: 'PUT', body });
@@ -124,6 +143,53 @@ $('#my-listings').addEventListener('click', async e => {
       loadShowcase();
     } catch (err) { toast(err.message); }
   }
+});
+
+// ─── Reservas ────────────────────────────────────────────────────────────────
+function setBkBadge(pending) {
+  const badge = $('#bk-badge');
+  badge.classList.toggle('hidden', !pending);
+  badge.textContent = pending || '';
+}
+
+async function loadBookings() {
+  try {
+    const { bookings, pending } = await api('/portal/bookings');
+    setBkBadge(pending);
+    $('#producer-bookings').innerHTML = bookings.map(b => `
+      <div class="bk-row" data-id="${b.id}">
+        <div class="bk-info">
+          <strong>${b.qty} × ${esc(b.title)}</strong>
+          <small>${esc(b.tourist_name)} · pedido em ${fmtDate(b.created_at)}${b.requested_date ? ` · para ${fmtDate(b.requested_date)}` : ''}</small>
+          ${b.note ? `<small>Obs.: ${esc(b.note)}</small>` : ''}
+          <small>${esc(fmtPrice(b.price_cents, b.price_unit))}${b.price_cents ? ` — total ${esc(fmtPrice(b.price_cents * b.qty))}` : ''}</small>
+        </div>
+        <span class="status-pill ${BOOKING_PILL[b.status]}">${esc(b.status_label)}</span>
+        <div class="row-actions">
+          ${b.status === 'pending' ? `
+            <button class="btn-approve" data-bk="confirmed">Confirmar</button>
+            <button class="btn-reject" data-bk="declined" title="Recusar">✕</button>` : ''}
+          ${b.status === 'confirmed' ? '<button class="btn-primary" data-bk="completed">Concluir venda</button>' : ''}
+        </div>
+      </div>`).join('')
+      || '<p class="empty-note">Nenhuma reserva ainda — os pedidos dos turistas aparecem aqui.</p>';
+  } catch (err) {
+    if (!err.unauthorized) toast(err.message);
+  }
+}
+
+$('#producer-bookings').addEventListener('click', async e => {
+  const btn = e.target.closest('[data-bk]');
+  if (!btn) return;
+  const id = btn.closest('.bk-row').dataset.id;
+  const status = btn.dataset.bk;
+  if (status === 'declined' &&
+      !await modalConfirm({ title: 'Recusar reserva', confirmText: 'Recusar', danger: true })) return;
+  try {
+    await api(`/portal/bookings/${id}/status`, { method: 'POST', body: JSON.stringify({ status }) });
+    toast({ confirmed: 'Reserva confirmada', declined: 'Reserva recusada', completed: 'Venda registrada' }[status]);
+    loadBookings();
+  } catch (err) { toast(err.message); }
 });
 
 // ─── Mensagens ───────────────────────────────────────────────────────────────
@@ -200,14 +266,36 @@ $('#conv-list').addEventListener('click', e => {
   if (row) openThread(Number(row.dataset.id));
 });
 
-// Atualização periódica: novas mensagens e badge sem precisar recarregar
+// Tempo real: o servidor empurra novas mensagens via SSE
+function connectEvents() {
+  if (!('EventSource' in window)) return;
+  const es = new EventSource('/api/events');
+  es.addEventListener('chat', e => {
+    const { conversation_id, from } = JSON.parse(e.data);
+    loadConversations().catch(() => {});
+    const chatOpen = !$('#view-chat').classList.contains('hidden');
+    if (conversation_id === currentConvId && chatOpen) {
+      refreshThreadMsgs(currentConvId).catch(() => {});
+    } else if (from) {
+      toast(`Nova mensagem de ${from}`);
+    }
+  });
+  es.addEventListener('booking', e => {
+    const { from, title } = JSON.parse(e.data);
+    if (from) toast(`Novo pedido de reserva de ${from}: ${title}`);
+    if (!$('#view-bookings').classList.contains('hidden')) loadBookings();
+    else api('/portal/bookings').then(({ pending }) => setBkBadge(pending)).catch(() => {});
+  });
+}
+
+// Rede de segurança: sincronização periódica caso o stream caia
 setInterval(() => {
   if (!navigator.onLine || !me) return;
   loadConversations().catch(() => {});
   if (currentConvId && !$('#view-chat').classList.contains('hidden')) {
     refreshThreadMsgs(currentConvId).catch(() => {});
   }
-}, 15000);
+}, 60000);
 
 // ─── Perfil do estabelecimento ───────────────────────────────────────────────
 function renderEstPhoto(path) {
@@ -273,4 +361,7 @@ $('#profile-form').addEventListener('submit', async e => {
     renderAvatar($('#profile-initials'), m);
   }));
   loadShowcase();
+  connectEvents();
+  // Badge de reservas pendentes já na entrada
+  api('/portal/bookings').then(({ pending }) => setBkBadge(pending)).catch(() => {});
 })();

@@ -6,7 +6,7 @@
  *  - Mutações offline NÃO passam por aqui: ficam na fila do IndexedDB (js/idb.js)
  *    e são reenviadas quando a conexão volta, com rotas idempotentes no servidor.
  */
-const VERSION = 'v9';
+const VERSION = 'v11';
 const SHELL_CACHE = `shell-${VERSION}`;
 const DATA_CACHE = `data-${VERSION}`;
 
@@ -64,7 +64,7 @@ self.addEventListener('fetch', event => {
 
   // API: network-first, cache como fallback offline
   if (url.origin === location.origin && url.pathname.startsWith('/api/')) {
-    if (url.pathname === '/api/health') return; // sempre rede
+    if (url.pathname === '/api/health' || url.pathname === '/api/events') return; // sempre rede (SSE nunca é cacheado)
     event.respondWith(
       fetch(request)
         .then(response => {

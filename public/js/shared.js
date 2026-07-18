@@ -12,6 +12,28 @@ const fmtTime = iso => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digi
 
 const STATUS_LABEL = { pending: 'Pendente', in_review: 'Em análise', approved: 'Aprovado', rejected: 'Recusado' };
 const TYPE_LABEL = { product: 'Produto', service: 'Serviço', event: 'Evento' };
+// Reservas: classe visual reaproveita as pills de status existentes
+const BOOKING_PILL = {
+  pending: 'status-in_review', confirmed: 'status-approved', declined: 'status-rejected',
+  completed: 'status-approved', cancelled: 'status-rejected',
+};
+
+// Preço em centavos → "R$ 48 · 500g"; null → "sob consulta"
+function fmtPrice(cents, unit) {
+  if (cents == null) return unit || 'sob consulta';
+  const v = (cents / 100).toLocaleString('pt-BR', {
+    minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2,
+  });
+  return `R$ ${v}${unit ? ` · ${unit}` : ''}`;
+}
+
+// Data de evento (YYYY-MM-DD ou ISO) → "sáb, 8 de ago"
+function fmtEventDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('pt-BR', {
+    weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC',
+  });
+}
 const HOME_BY_ROLE = { admin: '/admin', tourist: '/app', producer: '/portal' };
 
 function toast(msg) {

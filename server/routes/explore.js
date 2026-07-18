@@ -52,6 +52,7 @@ explore.get('/listings', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 24, 60);
   const { rows } = await query(
     `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.listed_at,
+            l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place,
             p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
             p.avatar_color AS producer_color, coalesce(e.city, p.city) AS city
      FROM listings l
@@ -74,6 +75,7 @@ explore.get('/listings', async (req, res) => {
 explore.get('/listings/:id', async (req, res) => {
   const { rows } = await query(
     `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.listed_at,
+            l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place,
             p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
             p.avatar_color AS producer_color, p.kind AS producer_kind,
             e.name AS est_name, e.description AS est_description, e.category AS est_category,

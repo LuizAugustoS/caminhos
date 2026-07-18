@@ -104,6 +104,7 @@ listings.get('/:id', async (req, res) => {
   const { rows } = await query(
     `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path,
             l.image_label, l.status, l.listed_at, l.created_at, l.reviewed_at,
+            l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place,
             p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
             p.avatar_color AS producer_color, p.kind AS producer_kind, p.status AS producer_status,
             e.name AS est_name, e.category AS est_category, coalesce(e.city, p.city) AS city,

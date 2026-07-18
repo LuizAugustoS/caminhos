@@ -63,11 +63,30 @@ misc.post('/chat', async (req, res) => {
 misc.get('/alerts', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 3, 50);
   const { rows } = await query(
-    `SELECT id, title, meta, severity, created_at
-     FROM alerts ORDER BY created_at DESC LIMIT $1`,
+    `SELECT id, title, meta, severity, read_at, created_at
+     FROM alerts ORDER BY (read_at IS NULL) DESC, created_at DESC LIMIT $1`,
     [limit]
   );
-  res.json({ alerts: rows });
+  const { rows: [{ unread }] } = await query(
+    'SELECT count(*) AS unread FROM alerts WHERE read_at IS NULL');
+  res.json({ alerts: rows, unread: Number(unread) });
+});
+
+misc.post('/alerts/:id/read', async (req, res) => {
+  const { rowCount } = await query(
+    'UPDATE alerts SET read_at = now() WHERE id = $1 AND read_at IS NULL', [req.params.id]);
+  res.json({ ok: true, updated: rowCount });
+});
+
+misc.post('/alerts/read-all', async (_req, res) => {
+  const { rowCount } = await query('UPDATE alerts SET read_at = now() WHERE read_at IS NULL');
+  res.json({ ok: true, updated: rowCount });
+});
+
+misc.delete('/alerts/:id', async (req, res) => {
+  const { rowCount } = await query('DELETE FROM alerts WHERE id = $1', [req.params.id]);
+  if (!rowCount) return res.status(404).json({ error: 'Notificação não encontrada' });
+  res.json({ ok: true });
 });
 
 misc.get('/itineraries', async (_req, res) => {

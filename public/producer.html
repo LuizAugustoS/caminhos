@@ -36,6 +36,7 @@
 
     <nav class="view-tabs">
       <button class="vtab active" data-view="showcase">Minha Vitrine</button>
+      <button class="vtab" data-view="bookings">Reservas <span class="nav-badge hidden" id="bk-badge"></span></button>
       <button class="vtab" data-view="chat">Mensagens <span class="nav-badge hidden" id="chat-badge"></span></button>
       <button class="vtab" data-view="profile">Meu Estabelecimento</button>
     </nav>
@@ -94,6 +95,26 @@
               <label for="l-subtitle">Descrição curta</label>
               <input id="l-subtitle" type="text" placeholder="Ex.: Microlote 1.400m · nota 88 SCA">
             </div>
+            <div class="field">
+              <label for="l-price">Preço em R$ (vazio = sob consulta)</label>
+              <input id="l-price" type="number" min="0.01" step="0.01" placeholder="Ex.: 48,00">
+            </div>
+            <div class="field">
+              <label for="l-price-unit">Unidade de venda</label>
+              <input id="l-price-unit" type="text" placeholder="Ex.: 500g, por pessoa, diária">
+            </div>
+            <div class="field hidden" data-event-field>
+              <label for="l-event-date">Data do evento</label>
+              <input id="l-event-date" type="date">
+            </div>
+            <div class="field hidden" data-event-field>
+              <label for="l-event-time">Horário</label>
+              <input id="l-event-time" type="text" placeholder="Ex.: 9h às 18h">
+            </div>
+            <div class="field span-2 hidden" data-event-field>
+              <label for="l-event-place">Local do evento</label>
+              <input id="l-event-place" type="text" placeholder="Ex.: Praça central de Alto Caparaó">
+            </div>
           </div>
           <p class="login-hint" style="text-align:left">Todo anúncio novo ou editado passa pela moderação da equipe antes de aparecer para os turistas.</p>
           <div class="row-actions">
@@ -101,6 +122,17 @@
             <button type="button" class="btn-secondary" id="listing-cancel">Cancelar</button>
           </div>
         </form>
+      </section>
+
+      <!-- ═══ Reservas ═══ -->
+      <section id="view-bookings" class="view hidden">
+        <div class="page-head">
+          <div>
+            <h1>Reservas</h1>
+            <p>Pedidos dos turistas — confirme, recuse ou conclua a venda</p>
+          </div>
+        </div>
+        <div id="producer-bookings"></div>
       </section>
 
       <!-- ═══ Mensagens ═══ -->

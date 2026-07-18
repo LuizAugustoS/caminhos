@@ -291,8 +291,15 @@ async function loadListings() {
 // ─── Chat & alertas ──────────────────────────────────────────────────────────
 const SEVERITY_COLOR = { success: '#1C6B4A', warning: '#C0714F', info: '#8AA98F' };
 
+function setBellCount(unread) {
+  const el = $('#bell-count');
+  el.classList.toggle('hidden', !unread);
+  el.textContent = unread > 99 ? '99+' : unread || '';
+}
+
 async function loadChatAndAlerts() {
-  const [{ messages }, { alerts }] = await Promise.all([api('/chat'), api('/alerts')]);
+  const [{ messages }, { alerts, unread }] = await Promise.all([api('/chat'), api('/alerts')]);
+  setBellCount(unread);
   $('#chat-list').innerHTML = messages.map(m => `
     <div class="chat-msg">
       <div class="avatar md" style="background:${esc(m.avatar_color)}">${esc(m.sender_initials)}</div>
@@ -304,7 +311,7 @@ async function loadChatAndAlerts() {
   $('#alert-list').innerHTML = alerts.map(a => {
     const color = SEVERITY_COLOR[a.severity] || SEVERITY_COLOR.info;
     return `
-    <div class="alert-row" style="border-left-color:${color}">
+    <div class="alert-row ${a.read_at ? 'read' : ''}" style="border-left-color:${color}">
       <div class="dot" style="background:${color}"></div>
       <div>
         <strong>${esc(a.title)}</strong>
@@ -875,6 +882,12 @@ async function openListingDetailAdmin(id) {
           ${l.subtitle ? `<p class="detail-sub">${esc(l.subtitle)}</p>` : ''}
           <div class="settings-list">
             ${infoLine('Status', STATUS_LABEL[l.status])}
+            ${infoLine('Preço', l.price_cents
+              ? `R$ ${(l.price_cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: l.price_cents % 100 ? 2 : 0 })}${l.price_unit ? ' · ' + l.price_unit : ''}`
+              : (l.price_unit || 'sob consulta'))}
+            ${l.type === 'event' ? infoLine('Data do evento', l.event_date
+              ? `${fmtDate(l.event_date)}${l.event_time ? ' · ' + l.event_time : ''}` : 'não informada') : ''}
+            ${l.type === 'event' && l.event_place ? infoLine('Local', l.event_place) : ''}
             ${infoLine('Publicado em', fmtDate(l.listed_at))}
             ${l.reviewed_at ? infoLine('Última revisão', fmtDate(l.reviewed_at)) : ''}
             ${l.image_path ? '' : infoLine('Foto', 'sem foto enviada — capa ilustrativa')}
@@ -970,29 +983,53 @@ $('#global-search').addEventListener('keydown', e => {
   switchView('listings'); // o loader da tela já lê o termo preenchido acima
 });
 
-// Sino de notificações: últimos alertas da operação
+// Sino de notificações: ler (uma ou todas) e excluir
+const alertRowHTML = a => {
+  const color = SEVERITY_COLOR[a.severity] || SEVERITY_COLOR.info;
+  return `
+    <div class="alert-row ${a.read_at ? 'read' : ''}" data-alert="${a.id}" style="border-left-color:${color}; margin-bottom:8px">
+      <div class="dot" style="background:${color}"></div>
+      <div style="min-width:0">
+        <strong>${esc(a.title)}</strong>
+        <small>${esc(a.meta)} · ${fmtDate(a.created_at)}</small>
+      </div>
+      <div class="alert-actions">
+        ${a.read_at ? '' : '<button data-alert-read title="Marcar como lida">Lida</button>'}
+        <button class="alert-del" data-alert-del title="Excluir">✕</button>
+      </div>
+    </div>`;
+};
+
 $('.bell').addEventListener('click', async () => {
-  try {
-    const { alerts } = await api('/alerts?limit=10');
-    openAdminModal(`
-      <h3>Notificações</h3>
-      ${alerts.map(a => {
-        const color = SEVERITY_COLOR[a.severity] || SEVERITY_COLOR.info;
-        return `
-        <div class="alert-row" style="border-left-color:${color}">
-          <div class="dot" style="background:${color}"></div>
-          <div>
-            <strong>${esc(a.title)}</strong>
-            <small>${esc(a.meta)} · ${fmtDate(a.created_at)}</small>
-          </div>
-        </div>`;
-      }).join('') || '<p class="empty-note">Nenhuma notificação por enquanto.</p>'}
+  const { overlay, close } = openAdminModal('<h3>Notificações</h3><div id="alert-modal-list"></div>');
+
+  async function render() {
+    let alerts = [], unread = 0;
+    try { ({ alerts, unread } = await api('/alerts?limit=20')); }
+    catch (err) { if (!err.unauthorized) toast(err.message); }
+    setBellCount(unread);
+    $('#alert-modal-list', overlay).innerHTML = `
+      ${alerts.map(alertRowHTML).join('') || '<p class="empty-note">Nenhuma notificação por enquanto.</p>'}
       <div class="row-actions modal-actions">
+        ${unread ? '<button class="btn-secondary" data-alert-read-all style="flex:1">Marcar todas como lidas</button>' : ''}
         <button class="btn-secondary" data-modal-cancel style="flex:1">Fechar</button>
-      </div>`);
-  } catch (err) {
-    if (!err.unauthorized) toast(err.message);
+      </div>`;
   }
+
+  overlay.addEventListener('click', async e => {
+    const row = e.target.closest('[data-alert]');
+    if (e.target.closest('[data-alert-read]') && row) {
+      await api(`/alerts/${row.dataset.alert}/read`, { method: 'POST' }).catch(err => toast(err.message));
+      render();
+    } else if (e.target.closest('[data-alert-del]') && row) {
+      await api(`/alerts/${row.dataset.alert}`, { method: 'DELETE' }).catch(err => toast(err.message));
+      render();
+    } else if (e.target.closest('[data-alert-read-all]')) {
+      await api('/alerts/read-all', { method: 'POST' }).catch(err => toast(err.message));
+      render();
+    }
+  });
+  render();
 });
 
 // ─── Estado online/offline ───────────────────────────────────────────────────
