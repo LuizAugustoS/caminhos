@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { notify } from './events.js';
+import { pushToUser } from '../push.js';
 
 export const conversations = Router();
 
@@ -99,8 +100,16 @@ conversations.post('/:id/messages', async (req, res) => {
      RETURNING id, sender_id, client_uid, body, created_at`,
     [conv.id, req.user.id, clientUid, body]
   );
-  // Empurra em tempo real para o outro lado da conversa
+  // Empurra em tempo real (SSE) e notifica o aparelho (Web Push, app fechado)
   const recipient = req.user.id === conv.tourist_id ? conv.producer_user_id : conv.tourist_id;
-  if (recipient) notify(recipient, 'chat', { conversation_id: conv.id, from: req.user.name });
+  if (recipient) {
+    notify(recipient, 'chat', { conversation_id: conv.id, from: req.user.name });
+    pushToUser(recipient, {
+      title: `Nova mensagem de ${req.user.name}`,
+      body: body.slice(0, 120),
+      tag: `chat-${conv.id}`,
+      url: recipient === conv.tourist_id ? '/app' : '/portal',
+    });
+  }
   res.status(201).json(rows[0]);
 });

@@ -233,16 +233,59 @@ function modalPick({ title, options }) {
   });
 }
 
+// ─── Web Push (avisos de mensagens e reservas com o app fechado) ────────────
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+function urlB64ToU8(s) {
+  const pad = '='.repeat((4 - (s.length % 4)) % 4);
+  const raw = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+
+async function pushSubscription() {
+  if (!pushSupported()) return null;
+  const reg = await navigator.serviceWorker.ready;
+  return reg.pushManager.getSubscription();
+}
+
+async function enablePush() {
+  if (!pushSupported()) throw new Error('Este navegador não suporta notificações');
+  const cfg = await api('/push/config');
+  if (!cfg.enabled) throw new Error('Notificações não estão configuradas no servidor');
+  if (await Notification.requestPermission() !== 'granted') {
+    throw new Error('Permissão de notificação negada no navegador');
+  }
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlB64ToU8(cfg.publicKey),
+  });
+  await api('/push/subscribe', { method: 'POST', body: JSON.stringify(sub.toJSON()) });
+}
+
+async function disablePush() {
+  const sub = await pushSubscription();
+  if (!sub) return;
+  await api('/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {});
+  await sub.unsubscribe();
+}
+
 // ─── Menu "Minha conta" (turista e produtor) ────────────────────────────────
 // Clique no perfil do topo: editar dados, trocar foto, alterar senha ou sair.
 // `refresh(me)` re-renderiza nome/avatar na barra superior.
 async function openAccountMenu(me, refresh) {
+  const pushSub = pushSupported() ? await pushSubscription().catch(() => null) : null;
   const action = await modalPick({
     title: 'Minha conta',
     options: [
       { value: 'edit', label: 'Editar perfil', sub: 'nome e cidade' },
       { value: 'photo', label: 'Trocar minha foto', sub: 'JPG, PNG ou WebP até 5 MB' },
       { value: 'password', label: 'Alterar senha' },
+      ...(pushSupported() ? [{
+        value: 'push',
+        label: pushSub ? 'Desativar notificações' : 'Ativar notificações',
+        sub: 'mensagens e reservas avisam mesmo com o app fechado',
+      }] : []),
       { value: 'logout', label: 'Sair da conta' },
     ],
   });
@@ -283,6 +326,16 @@ async function openAccountMenu(me, refresh) {
     try {
       await api('/me/password', { method: 'PUT', body: JSON.stringify(values) });
       toast('Senha alterada');
+    } catch (err) { toast(err.message); }
+  } else if (action === 'push') {
+    try {
+      if (pushSub) {
+        await disablePush();
+        toast('Notificações desativadas neste aparelho');
+      } else {
+        await enablePush();
+        toast('Notificações ativadas — você será avisado de mensagens e reservas');
+      }
     } catch (err) { toast(err.message); }
   } else if (action === 'logout') {
     await api('/logout', { method: 'POST' }).catch(() => {});

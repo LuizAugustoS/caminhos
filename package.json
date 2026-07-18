@@ -9,7 +9,8 @@
     "dev": "node --watch server/index.js",
     "db:migrate": "node db/migrate.js",
     "db:seed": "node db/seed.js",
-    "db:setup": "npm run db:migrate && npm run db:seed"
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "push:keys": "web-push generate-vapid-keys"
   },
   "engines": {
     "node": ">=20"
@@ -20,7 +21,8 @@
     "leaflet": "^1.9.4",
     "multer": "^2.2.0",
     "nodemailer": "^9.0.3",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "web-push": "^3.6.7"
   },
   "license": "MIT"
 }

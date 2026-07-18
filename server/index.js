@@ -1,3 +1,4 @@
+import './env.js'; // primeiro: os módulos abaixo leem process.env no load
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -14,6 +15,7 @@ import { conversations } from './routes/chat.js';
 import { portal } from './routes/portal.js';
 import { reviews, adminReviews } from './routes/reviews.js';
 import { password } from './routes/password.js';
+import { push } from './routes/push.js';
 import { UPLOADS_DIR } from './upload.js';
 import { pool } from './db.js';
 import { PLANS } from './plans.js';
@@ -73,6 +75,7 @@ app.use('/api/password', password);
 app.post('/api/logout', logout);
 app.use('/api/me', requireAuth, account);
 app.use('/api/events', requireAuth, events);
+app.use('/api/push', requireAuth, push);
 
 // Público (vitrine para turistas, mesmo sem conta)
 app.use('/api/explore', explore);

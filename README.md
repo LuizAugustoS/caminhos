@@ -14,6 +14,7 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 - **Favoritos**: disponíveis offline
 - **Mensagens**: chat assimétrico com produtores (dúvidas/reservas); envios offline entram na fila e são entregues ao reconectar
 - **Avaliações**: após uma reserva concluída, o turista avalia com 1–5 estrelas e comentário (editável); a média aparece nos cards do Explorar, no detalhe do anúncio e nos estabelecimentos
+- **Notificações push**: mensagens e respostas de reserva avisam no aparelho mesmo com o app fechado (ativação em "Minha conta"; requer chaves VAPID no servidor)
 
 ### ☕ Produtor/Comerciante (`/portal`)
 - **Planos de cadastro** (a cobrança acontece fora da plataforma — sem pagamento no app): **Gratuito** (até 3 anúncios, 1 foto por anúncio), **Profissional** (até 10 anúncios, 5 fotos, selo) e **Premium** (anúncios ilimitados, 10 fotos, selo ★ e destaque no topo do Explorar). O produtor escolhe o plano no cadastro; o admin pode trocar o plano de qualquer parceiro pelo painel
@@ -125,7 +126,8 @@ O app é um único serviço Node + um PostgreSQL — roda em qualquer host (Rail
 1. **HTTPS obrigatório** — sem ele o PWA não é instalável fora do localhost (as plataformas acima já fornecem TLS)
 2. Variáveis: `DATABASE_URL` (Postgres gerenciado), `SESSION_SECRET` (valor longo e aleatório), `NODE_ENV=production` (ativa o cookie `Secure`), `PORT` (a plataforma define). Opcional: `AI_PROVIDER`/`ANTHROPIC_API_KEY` ou `N8N_WEBHOOK_URL`, `UPLOADS_DIR` (aponte para um volume persistente — em filesystem efêmero as fotos se perdem no redeploy)
 3. **E-mails** (recuperação de senha, aprovação de produtor e avisos de reserva): configure `SMTP_HOST`, `SMTP_PORT` (padrão 587), `SMTP_USER`/`SMTP_PASS`, `SMTP_SECURE=true` para porta 465, `MAIL_FROM` (remetente) e `APP_URL` (URL pública usada nos links). Sem `SMTP_HOST`, os e-mails são apenas registrados no log — a plataforma segue funcionando
-4. Build: `npm ci` · Release: `npm run db:migrate` · Start: `npm start` (rode o seed apenas uma vez, se quiser dados demo)
+4. **Notificações push** (mensagens e reservas com o app fechado): gere as chaves VAPID com `npm run push:keys` e configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` (mailto: de contato). Sem as chaves o recurso fica desligado e a opção some do menu. O usuário ativa em **Minha conta → Ativar notificações**
+5. Build: `npm ci` · Release: `npm run db:migrate` · Start: `npm start` (rode o seed apenas uma vez, se quiser dados demo)
 
 Proteções já embutidas: CSP e security headers, HSTS sob HTTPS, rate-limiting em login (10/15min por IP+e-mail) e cadastro (5/h por IP), cookie de sessão `HttpOnly`+`SameSite`+`Secure`, senhas com scrypt e uploads validados por tipo/tamanho.
 

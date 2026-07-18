@@ -1,5 +1,6 @@
 // Popula o banco com dados de demonstração coerentes com o painel.
 // Idempotente: limpa as tabelas de domínio e recria tudo.
+import '../server/env.js';
 import { randomBytes, scryptSync } from 'node:crypto';
 import pg from 'pg';
 
