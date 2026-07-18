@@ -41,9 +41,17 @@ const SKELETON_CARD = `
 
 let exploreSeq = 0; // descarta respostas atrasadas de buscas anteriores
 
+// Link de rota até o estabelecimento (abre o app de mapas do dispositivo)
+const mapsLink = (lat, lng) =>
+  `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
 async function loadExplore() {
   const seq = ++exploreSeq;
   const q = $('#explore-q').value.trim();
+  const isMap = exploreKind === 'map';
+  $('#explore-grid').classList.toggle('hidden', isMap);
+  $('#explore-map').classList.toggle('hidden', !isMap);
+  if (isMap) return renderMap(q);
   // Enquanto busca, mostra o esqueleto — nada de tela vazia
   $('#explore-grid').innerHTML = SKELETON_CARD.repeat(6);
   let listings = [], places = [], itineraries = [];
@@ -122,6 +130,8 @@ const placeCard = e => `
       ${e.rating_count ? `<span class="ex-rating">${starsHTML(e.rating_avg, e.rating_count)}</span>` : ''}
       <span class="ex-sub">${esc(e.description || e.kind || '')}</span>
       <span class="ex-meta">${esc(e.address || '')}${e.open_hours ? ' · ' + esc(e.open_hours) : ''}${e.phone ? ' · ' + esc(e.phone) : ''}</span>
+      ${e.lat != null && e.lng != null
+        ? `<a class="ex-meta directions-link" href="${mapsLink(e.lat, e.lng)}" target="_blank" rel="noopener">Como chegar ➚</a>` : ''}
     </div>
     <div class="ex-actions">
       <button class="btn-secondary" data-action="add-place">+ Roteiro</button>
@@ -144,6 +154,38 @@ const itineraryCard = it => `
       <button class="btn-primary" data-action="use-itinerary">Usar como base</button>
     </div>
   </div>`;
+
+// ─── Mapa da região (Leaflet + OpenStreetMap) ───────────────────────────────
+let map = null;
+let mapMarkers = [];
+
+async function renderMap(q) {
+  if (!navigator.onLine) {
+    $('#explore-map').innerHTML = '<p class="empty-note map-offline">O mapa precisa de conexão — os tiles vêm do OpenStreetMap.</p>';
+    map = null;
+    return;
+  }
+  if (!map) {
+    $('#explore-map').innerHTML = '';
+    map = L.map('explore-map').setView([-20.47, -41.79], 11); // região do Caparaó
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+  }
+  map.invalidateSize(); // o contêiner pode ter acabado de sair de display:none
+  let places = [];
+  try { ({ establishments: places } = await api(`/explore/establishments?q=${encodeURIComponent(q)}&limit=60`)); }
+  catch { return; }
+  mapMarkers.forEach(m => m.remove());
+  mapMarkers = places.filter(e => e.lat != null && e.lng != null).map(e =>
+    L.marker([e.lat, e.lng]).addTo(map).bindPopup(`
+      <strong>${esc(e.name)}</strong><br>
+      <small>${esc(e.category || '')}${e.city ? ` · ${esc(e.city)}` : ''}</small><br>
+      ${e.open_hours ? `<small>${esc(e.open_hours)}</small><br>` : ''}
+      <a href="${mapsLink(e.lat, e.lng)}" target="_blank" rel="noopener">Como chegar ➚</a>`));
+  if (mapMarkers.length) map.fitBounds(L.featureGroup(mapMarkers).getBounds().pad(0.2));
+}
 
 $('#explore-q').addEventListener('input', () => { clearTimeout(window._qT); window._qT = setTimeout(loadExplore, 300); });
 $('#explore-chips').addEventListener('click', e => {
@@ -201,6 +243,8 @@ async function openListingDetail(listingId) {
           <div class="detail-partner-info">
             <strong>${esc(l.est_name || l.producer_name)} ${planBadge(l.plan)}</strong>
             ${partnerLines.map(line => `<small>${esc(line)}</small>`).join('')}
+            ${l.lat != null && l.lng != null
+              ? `<a class="directions-link" href="${mapsLink(l.lat, l.lng)}" target="_blank" rel="noopener">Como chegar ➚</a>` : ''}
           </div>
         </div>
         <div class="ex-actions">

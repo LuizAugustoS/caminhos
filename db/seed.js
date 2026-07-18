@@ -194,6 +194,27 @@ for (const [name, description, category, city, address, phone, hours] of establi
   );
 }
 
+// Coordenadas aproximadas na região do Caparaó (mapa do Explorar / como chegar)
+const estCoords = [
+  ['Sítio Boa Esperança', -20.4530, -41.8420],
+  ['Dona Zélia Artesanatos', -20.5401, -41.6663],
+  ['Pousada Vale Verde', -20.5946, -41.7592],
+  ['Trilhas do Bandeira', -20.4855, -41.8390],
+  ['Queijaria Serra Alta', -20.6903, -41.8360],
+  ['Apiário Flor da Serra', -20.3460, -41.5350],
+  ['Rancho do Tião', -20.6270, -41.6920],
+  ['Prefeitura de Alto Caparaó', -20.4325, -41.8683],
+  ['Associação de Artesãos do Caparaó', -20.5390, -41.6650],
+  ['Clube Astronômico Capixaba', -20.4680, -41.8050],
+  ['Café da Dona Lú', -20.2582, -42.0336],
+  ['Horta do Vale', -20.3600, -41.5500],
+  ['Cachoeira do Prata', -20.7050, -41.7830],
+  ['Doces da Serra', -20.6500, -41.9080],
+];
+for (const [name, lat, lng] of estCoords) {
+  await client.query('UPDATE establishments SET lat = $2, lng = $3 WHERE name = $1', [name, lat, lng]);
+}
+
 // ─── Anúncios em destaque (listas do painel) ──────────────────────────────
 // [tipo, glyph, image_kind, image_label, título, subtítulo, produtor, data, status,
 //  preço em centavos (null = sob consulta), unidade, data/hora/local do evento]

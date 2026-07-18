@@ -362,6 +362,53 @@ $('#est-photo-btn').addEventListener('click', async () => {
   } catch (err) { toast(err.message); }
 });
 
+// ─── Localização no mapa (Leaflet; clique marca o ponto) ────────────────────
+let estMap = null;
+let estMarker = null;
+let estCoords = null; // { lat, lng } ou null
+
+function setEstPin(lat, lng) {
+  estCoords = { lat, lng };
+  if (estMarker) estMarker.setLatLng([lat, lng]);
+  else estMarker = L.marker([lat, lng], { draggable: true }).addTo(estMap)
+    .on('dragend', () => { const p = estMarker.getLatLng(); estCoords = { lat: p.lat, lng: p.lng }; });
+}
+
+function initEstMap(est) {
+  if (!navigator.onLine) return; // sem rede não há tiles — o restante do perfil funciona
+  if (!estMap) {
+    estMap = L.map('est-map').setView([-20.47, -41.79], 11); // região do Caparaó
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(estMap);
+    estMap.on('click', e => setEstPin(e.latlng.lat, e.latlng.lng));
+  }
+  estMap.invalidateSize();
+  if (est.lat != null && est.lng != null) {
+    setEstPin(est.lat, est.lng);
+    estMap.setView([est.lat, est.lng], 14);
+  }
+}
+
+$('#est-geolocate').addEventListener('click', () => {
+  if (!navigator.geolocation) return toast('Geolocalização indisponível neste dispositivo');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      if (!estMap) return;
+      setEstPin(pos.coords.latitude, pos.coords.longitude);
+      estMap.setView([pos.coords.latitude, pos.coords.longitude], 15);
+    },
+    () => toast('Não foi possível obter sua localização — toque no mapa para marcar'),
+  );
+});
+
+$('#est-clear-pin').addEventListener('click', () => {
+  estCoords = null;
+  estMarker?.remove();
+  estMarker = null;
+});
+
 async function loadProfile() {
   try {
     const est = await api('/portal/establishment');
@@ -374,6 +421,7 @@ async function loadProfile() {
     $('#e-address').value = est.address || '';
     $('#e-phone').value = est.phone || '';
     $('#e-hours').value = est.open_hours || '';
+    initEstMap(est);
   } catch (err) {
     if (!err.unauthorized) toast(err.message);
   }
@@ -392,6 +440,8 @@ $('#profile-form').addEventListener('submit', async e => {
         address: $('#e-address').value || null,
         phone: $('#e-phone').value || null,
         open_hours: $('#e-hours').value || null,
+        lat: estCoords?.lat ?? null,
+        lng: estCoords?.lng ?? null,
       }),
     });
     toast('Perfil atualizado');

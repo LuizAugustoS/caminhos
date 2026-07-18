@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -65,10 +66,12 @@
             <button class="tab" data-kind="service">Serviços</button>
             <button class="tab" data-kind="event">Eventos</button>
             <button class="tab" data-kind="places">Estabelecimentos</button>
+            <button class="tab" data-kind="map">Mapa</button>
             <button class="tab" data-kind="itineraries">Roteiros prontos</button>
           </div>
         </div>
         <div class="card-grid" id="explore-grid"></div>
+        <div class="explore-map hidden" id="explore-map"></div>
       </section>
 
       <!-- ═══ Meus Roteiros ═══ -->
@@ -177,6 +180,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/js/shared.js"></script>
 <script src="/js/idb.js"></script>
 <script src="/js/tourist.js"></script>
