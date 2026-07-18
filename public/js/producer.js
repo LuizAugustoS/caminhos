@@ -29,6 +29,11 @@ async function loadShowcase() {
     st.classList.remove('hidden');
     $('#showcase-sub').textContent = `${overview.producer.name} · anúncios de produtos, serviços e eventos`;
 
+    const plan = overview.plan;
+    const pp = $('#producer-plan');
+    pp.className = `plan-badge plan-${plan.key}`;
+    pp.textContent = `${plan.key === 'premium' ? '★ ' : ''}Plano ${plan.label} · ${plan.active_listings}${plan.max_listings != null ? `/${plan.max_listings}` : ''} anúncio${plan.active_listings === 1 && plan.max_listings == null ? '' : 's'}`;
+
     const badge = $('#chat-badge');
     badge.classList.toggle('hidden', !overview.unreadMessages);
     badge.textContent = overview.unreadMessages || '';
@@ -56,7 +61,7 @@ async function loadShowcase() {
         <span class="cell-date">${fmtDate(l.listed_at)}</span>
         <span class="status-pill status-${l.status}">${STATUS_LABEL[l.status]}</span>
         <div class="row-actions">
-          <button class="btn-view" data-action="photo" title="Foto do anúncio">⊡</button>
+          <button class="btn-view" data-action="photo" title="Fotos do anúncio">⊡</button>
           <button class="btn-view" data-action="edit" title="Editar">✎</button>
           <button class="btn-reject" data-action="delete" title="Excluir">✕</button>
         </div>
@@ -121,12 +126,7 @@ $('#my-listings').addEventListener('click', async e => {
   if (!btn) return;
   const id = Number(btn.closest('.table-row').dataset.id);
   if (btn.dataset.action === 'photo') {
-    try {
-      const up = await pickAndUploadImage(`/api/portal/listings/${id}/image`);
-      if (!up) return;
-      toast('Foto do anúncio atualizada');
-      loadShowcase();
-    } catch (err) { toast(err.message); }
+    openGalleryManager(id);
   } else if (btn.dataset.action === 'edit') {
     openListingForm(myListings.find(l => l.id === id));
   } else if (btn.dataset.action === 'delete') {
@@ -144,6 +144,51 @@ $('#my-listings').addEventListener('click', async e => {
     } catch (err) { toast(err.message); }
   }
 });
+
+// ─── Galeria de fotos do anúncio ─────────────────────────────────────────────
+// A primeira foto é a capa exibida nos cards; o limite de fotos vem do plano.
+async function openGalleryManager(id) {
+  let images, max_photos;
+  try { ({ images, max_photos } = await api(`/portal/listings/${id}/images`)); }
+  catch (err) { return toast(err.message); }
+  const canAdd = max_photos == null || images.length < max_photos;
+  const { overlay, close } = openModal(`
+    <h3>Fotos do anúncio</h3>
+    <p class="modal-msg">A primeira foto é a capa do anúncio.${max_photos != null
+      ? ` Seu plano permite até ${max_photos} foto${max_photos > 1 ? 's' : ''} por anúncio.` : ''}</p>
+    <div class="gallery-grid">
+      ${images.map((img, i) => `
+        <div class="gallery-item" data-img="${img.id}">
+          <img src="${esc(img.path)}" alt="">
+          ${i === 0 ? '<span class="gallery-cover">capa</span>' : ''}
+          <button type="button" class="gallery-del" title="Remover foto">✕</button>
+        </div>`).join('') || '<p class="empty-note">Nenhuma foto ainda — a capa ilustrativa é usada no lugar.</p>'}
+    </div>
+    <div class="row-actions modal-actions">
+      ${canAdd ? '<button type="button" class="btn-primary" data-gal-add>+ Adicionar foto</button>' : ''}
+      <button type="button" class="btn-secondary" data-modal-cancel>Fechar</button>
+    </div>`);
+  overlay.querySelector('[data-gal-add]')?.addEventListener('click', async () => {
+    close();
+    try {
+      const up = await pickAndUploadImage(`/api/portal/listings/${id}/images`);
+      if (up) { toast('Foto adicionada'); loadShowcase(); }
+    } catch (err) { toast(err.message); }
+    openGalleryManager(id);
+  });
+  overlay.querySelectorAll('.gallery-del').forEach(btn => btn.addEventListener('click', async e => {
+    const imgId = e.currentTarget.closest('.gallery-item').dataset.img;
+    close();
+    if (await modalConfirm({ title: 'Remover foto', confirmText: 'Remover', danger: true })) {
+      try {
+        await api(`/portal/listings/${id}/images/${imgId}`, { method: 'DELETE' });
+        toast('Foto removida');
+        loadShowcase();
+      } catch (err) { toast(err.message); }
+    }
+    openGalleryManager(id);
+  }));
+}
 
 // ─── Reservas ────────────────────────────────────────────────────────────────
 function setBkBadge(pending) {

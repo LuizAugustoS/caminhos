@@ -148,6 +148,16 @@ const regionCities = ['Alto Caparaó', 'Caparaó', 'Ibitirama', 'Iúna', 'Dores 
   );
 }
 
+// Planos de parceiro: alguns nomes conhecidos em planos pagos (o restante fica no Gratuito)
+await client.query(
+  `UPDATE producers SET plan = 'premium'
+   WHERE name IN ('Sítio Boa Esperança', 'Pousada Vale Verde', 'Trilhas do Bandeira')`
+);
+await client.query(
+  `UPDATE producers SET plan = 'profissional'
+   WHERE name IN ('Apiário Flor da Serra', 'Rancho do Tião', 'Dona Zélia Artesanatos')`
+);
+
 // Vincula as contas demo e cria o registro de turista demo
 await client.query(
   `UPDATE producers SET user_id = $1, status = 'approved' WHERE name = 'Sítio Boa Esperança'`,

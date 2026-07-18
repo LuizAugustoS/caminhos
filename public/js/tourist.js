@@ -90,10 +90,10 @@ async function loadExplore() {
 }
 
 const listingCard = (l, favIds) => `
-  <div class="ex-card" data-id="${l.id}" data-producer="${l.producer_id}">
+  <div class="ex-card ${l.plan === 'premium' ? 'plan-featured' : ''}" data-id="${l.id}" data-producer="${l.producer_id}">
     ${thumbHTML(l, 'ex-thumb')}
     <div class="ex-body">
-      <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')}</span>
+      <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')} ${planBadge(l.plan)}</span>
       <strong class="ex-title">${esc(l.title)}</strong>
       <span class="ex-sub">${esc(l.subtitle || '')}</span>
       <span class="ex-price">${esc(fmtPrice(l.price_cents, l.price_unit))}</span>
@@ -113,10 +113,10 @@ const listingCard = (l, favIds) => `
   </div>`;
 
 const placeCard = e => `
-  <div class="ex-card" data-producer="${e.producer_id}">
+  <div class="ex-card ${e.plan === 'premium' ? 'plan-featured' : ''}" data-producer="${e.producer_id}">
     <div class="ex-thumb has-photo"><img src="${esc(e.photo_path || '/img/covers/sage.png')}" alt="" loading="lazy"></div>
     <div class="ex-body">
-      <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')}</span>
+      <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')} ${planBadge(e.plan)}</span>
       <strong class="ex-title">${esc(e.name)}</strong>
       <span class="ex-sub">${esc(e.description || e.kind || '')}</span>
       <span class="ex-meta">${esc(e.address || '')}${e.open_hours ? ' · ' + esc(e.open_hours) : ''}${e.phone ? ' · ' + esc(e.phone) : ''}</span>
@@ -166,8 +166,12 @@ async function openListingDetail(listingId) {
           address: est?.address, phone: est?.phone, open_hours: est?.open_hours, city: cached.city || est?.city };
   }
   const isFav = !!(await CaparaoDB.get('favorites', l.id));
-  const hero = l.image_path
-    ? `<div class="detail-hero"><img src="${esc(l.image_path)}" alt=""></div>`
+  // Galeria: várias fotos quando disponíveis (offline cai para a capa em cache)
+  const gallery = l.images?.length ? l.images : (l.image_path ? [l.image_path] : []);
+  const hero = gallery.length
+    ? `<div class="detail-hero"><img id="detail-hero-img" src="${esc(gallery[0])}" alt=""></div>
+       ${gallery.length > 1 ? `<div class="gallery-strip">${gallery.map((p, i) =>
+         `<img src="${esc(p)}" data-gi="${i}" class="${i === 0 ? 'on' : ''}" alt="" loading="lazy">`).join('')}</div>` : ''}`
     : `<div class="detail-hero img-${esc(l.image_kind || 'verde')}">${esc(l.glyph || '◉')}</div>`;
   const partnerLines = [
     l.est_description || l.producer_kind,
@@ -192,7 +196,7 @@ async function openListingDetail(listingId) {
         <div class="detail-partner">
           <div class="avatar lg" style="background:${esc(l.producer_color || '#1C6B4A')}">${esc(l.producer_initials || '')}</div>
           <div class="detail-partner-info">
-            <strong>${esc(l.est_name || l.producer_name)}</strong>
+            <strong>${esc(l.est_name || l.producer_name)} ${planBadge(l.plan)}</strong>
             ${partnerLines.map(line => `<small>${esc(line)}</small>`).join('')}
           </div>
         </div>
@@ -205,6 +209,11 @@ async function openListingDetail(listingId) {
       </div>
     </div>`);
   overlay.querySelector('.modal').classList.add('detail-modal');
+  // Troca a foto principal ao tocar em uma miniatura da galeria
+  overlay.querySelectorAll('.gallery-strip img').forEach(t => t.addEventListener('click', () => {
+    overlay.querySelector('#detail-hero-img').src = gallery[Number(t.dataset.gi)];
+    overlay.querySelectorAll('.gallery-strip img').forEach(x => x.classList.toggle('on', x === t));
+  }));
   overlay.querySelector('[data-detail=fav]').addEventListener('click', e =>
     toggleFavorite(l.id, e.currentTarget).then(loadExplore));
   overlay.querySelector('[data-detail=add-trip]').addEventListener('click', () => {

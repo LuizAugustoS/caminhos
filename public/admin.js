@@ -30,6 +30,12 @@ const adminThumb = (l, style = '') => l.image_path
 
 const STATUS_LABEL = { pending: 'Pendente', in_review: 'Em análise', approved: 'Aprovado', rejected: 'Recusado' };
 
+// Planos de produtor (cobrança fora da plataforma; admin atribui/troca)
+const PLAN_LABEL = { gratuito: 'Gratuito', profissional: 'Profissional', premium: 'Premium' };
+const planBadge = plan => plan && plan !== 'gratuito'
+  ? `<span class="plan-badge plan-${esc(plan)}">${plan === 'premium' ? '★ ' : ''}${PLAN_LABEL[plan] || ''}</span>`
+  : '';
+
 function toast(msg) {
   const el = $('#toast');
   el.textContent = msg;
@@ -222,7 +228,7 @@ async function loadProducers() {
     <div class="producer-row" data-id="${p.id}">
       <div class="avatar lg" style="background:${esc(p.avatar_color)}">${esc(p.initials)}</div>
       <div class="producer-info">
-        <div class="name">${esc(p.name)}</div>
+        <div class="name">${esc(p.name)} ${planBadge(p.plan)}</div>
         <div class="kind">${esc(p.kind)}</div>
       </div>
       <span class="status-pill status-${p.status}">${STATUS_LABEL[p.status]}</span>
@@ -415,7 +421,7 @@ function producerRowHTML(p) {
     <div class="producer-row" data-id="${p.id}">
       <div class="avatar lg" style="background:${esc(p.avatar_color)}">${esc(p.initials)}</div>
       <div class="producer-info">
-        <div class="name">${esc(p.name)}</div>
+        <div class="name">${esc(p.name)} ${planBadge(p.plan)}</div>
         <div class="kind">${esc(p.kind)}${p.city ? ' · ' + esc(p.city) : ''}</div>
       </div>
       <span class="status-pill status-${p.status}">${STATUS_LABEL[p.status]}</span>
@@ -820,11 +826,19 @@ async function openProducerDetail(id) {
         <div class="avatar lg" style="background:${esc(p.avatar_color)}">${p.avatar_path
           ? `<img src="${esc(p.avatar_path)}" alt="">` : esc(p.initials)}</div>
         <div>
-          <h3>${esc(p.name)}</h3>
+          <h3>${esc(p.name)} ${planBadge(p.plan)}</h3>
           <span class="sub">${esc(p.kind)}</span>
         </div>
         <span class="status-pill status-${p.status}" style="margin-left:auto">${STATUS_LABEL[p.status]}</span>
       </div>
+
+      <h4 class="detail-section">Plano de parceiro</h4>
+      <div class="plan-switch">
+        ${Object.entries(PLAN_LABEL).map(([key, label]) => `
+          <button class="btn-secondary plan-switch-btn ${key === p.plan ? 'on' : ''}" data-plan="${key}">
+            ${key === 'premium' ? '★ ' : ''}${label}</button>`).join('')}
+      </div>
+      <p class="empty-note" style="margin:4px 0 0">A cobrança do plano é combinada com o parceiro fora da plataforma.</p>
 
       <h4 class="detail-section">Estabelecimento</h4>
       ${p.photo_path ? `<div class="detail-hero" style="margin-bottom:12px"><img src="${esc(p.photo_path)}" alt="Foto do estabelecimento"></div>` : ''}
@@ -859,6 +873,16 @@ async function openProducerDetail(id) {
         <button class="btn-secondary" data-modal-cancel style="flex:1">Fechar</button>
       </div>`);
     bindDetailReview(overlay, close, 'producers', p.id);
+    overlay.querySelectorAll('[data-plan]').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        if (btn.dataset.plan === p.plan) return;
+        try {
+          await api(`/producers/${p.id}/plan`, { method: 'POST', body: JSON.stringify({ plan: btn.dataset.plan }) });
+          toast(`Plano de ${p.name} alterado para ${PLAN_LABEL[btn.dataset.plan]}`);
+          close();
+          VIEW_LOADERS[currentView]();
+        } catch (err) { toast(err.message); }
+      }));
     overlay.querySelectorAll('[data-listing]').forEach(row =>
       row.addEventListener('click', () => { close(); openListingDetailAdmin(Number(row.dataset.listing)); }));
   } catch (err) {
@@ -870,8 +894,11 @@ async function openProducerDetail(id) {
 async function openListingDetailAdmin(id) {
   try {
     const l = await api(`/listings/${id}`);
-    const hero = l.image_path
-      ? `<div class="detail-hero"><img src="${esc(l.image_path)}" alt=""></div>`
+    const gallery = l.images?.length ? l.images : (l.image_path ? [l.image_path] : []);
+    const hero = gallery.length
+      ? `<div class="detail-hero"><img id="detail-hero-img" src="${esc(gallery[0])}" alt=""></div>
+         ${gallery.length > 1 ? `<div class="gallery-strip">${gallery.map((p, i) =>
+           `<img src="${esc(p)}" data-gi="${i}" class="${i === 0 ? 'on' : ''}" alt="" loading="lazy">`).join('')}</div>` : ''}`
       : `<div class="detail-hero img-${esc(l.image_kind || 'verde')}">${esc(l.glyph || '◉')}</div>`;
     const { overlay, close } = openAdminModal(`
       <div class="detail-modal-inner">
@@ -896,7 +923,7 @@ async function openListingDetailAdmin(id) {
           <div class="detail-partner" data-producer="${l.producer_id}" style="cursor:pointer" title="Ver perfil completo">
             <div class="avatar lg" style="background:${esc(l.producer_color)}">${esc(l.producer_initials)}</div>
             <div class="detail-partner-info">
-              <strong>${esc(l.est_name || l.producer_name)}</strong>
+              <strong>${esc(l.est_name || l.producer_name)} ${planBadge(l.plan)}</strong>
               <small>${esc(l.producer_kind || '')} · cadastro ${STATUS_LABEL[l.producer_status]}</small>
               ${l.address ? `<small>${esc(l.address)}${l.city ? ' — ' + esc(l.city) : ''}</small>` : ''}
               ${l.phone ? `<small>Contato: ${esc(l.phone)}</small>` : ''}
@@ -909,6 +936,10 @@ async function openListingDetailAdmin(id) {
         </div>
       </div>`);
     overlay.querySelector('.modal').classList.add('detail-modal');
+    overlay.querySelectorAll('.gallery-strip img').forEach(t => t.addEventListener('click', () => {
+      overlay.querySelector('#detail-hero-img').src = gallery[Number(t.dataset.gi)];
+      overlay.querySelectorAll('.gallery-strip img').forEach(x => x.classList.toggle('on', x === t));
+    }));
     bindDetailReview(overlay, close, 'listings', l.id);
     overlay.querySelector('[data-producer]').addEventListener('click', () => {
       close();

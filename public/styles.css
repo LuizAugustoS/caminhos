@@ -754,3 +754,53 @@ body.offline .offline-banner { display: block; }
 .bk-info { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 2px; }
 .bk-info strong { font-size: 13.5px; color: var(--ink); }
 .bk-info small { font-size: 12px; color: #A08D6F; font-weight: 600; }
+
+/* ─── Planos de produtor ─── */
+.plan-badge {
+  display: inline-flex; align-items: center; gap: 4px; vertical-align: middle;
+  padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 800;
+  letter-spacing: .2px; white-space: nowrap;
+}
+.plan-gratuito { background: #EFE9DA; color: #8A7A62; }
+.plan-profissional { background: #E4F0E7; color: var(--green-dark); }
+.plan-premium { background: #F6E7C6; color: #8A6414; border: 1px solid #E8D29B; }
+
+/* Cadastro na landing: escolha do plano */
+.plan-note { font-weight: 600; color: #A08D6F; text-transform: none; letter-spacing: 0; }
+.plan-pick { display: grid; gap: 8px; }
+.plan-opt { display: flex; }
+.plan-opt span { min-width: 0; }
+.plan-opt small { display: block; line-height: 1.45; }
+
+/* Card em destaque no Explorar (plano Premium) */
+.ex-card.plan-featured { border-color: #E8D29B; box-shadow: 0 10px 24px rgba(138, 100, 20, .10); }
+
+/* Galeria: miniaturas no detalhe do anúncio */
+.gallery-strip {
+  display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto;
+  background: #FBF7EC; border-bottom: 1px solid #F0E9D8;
+}
+.gallery-strip img {
+  width: 64px; height: 48px; object-fit: cover; border-radius: 8px; flex-shrink: 0;
+  border: 2px solid transparent; cursor: pointer; opacity: .75;
+}
+.gallery-strip img.on, .gallery-strip img:hover { border-color: var(--green); opacity: 1; }
+
+/* Galeria: gerenciador do produtor */
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin: 6px 0 14px; }
+.gallery-item { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--card-border); }
+.gallery-item img { width: 100%; height: 84px; object-fit: cover; display: block; }
+.gallery-cover {
+  position: absolute; left: 6px; bottom: 6px; padding: 1px 8px; border-radius: 999px;
+  background: rgba(20, 64, 46, .85); color: #FFF9EC; font-size: 10px; font-weight: 800;
+}
+.gallery-del {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 999px;
+  border: none; background: rgba(58, 44, 32, .75); color: #FFF9EC; font-size: 12px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.gallery-del:hover { background: #A33B2C; }
+
+/* Troca de plano no detalhe do produtor (admin) */
+.plan-switch { display: flex; gap: 8px; flex-wrap: wrap; }
+.plan-switch-btn.on { border-color: var(--green); background: #E4F0E7; color: var(--green-dark); }

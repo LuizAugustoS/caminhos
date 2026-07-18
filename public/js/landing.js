@@ -17,8 +17,26 @@
     $('#auth-error').textContent = '';
   }));
 
+  // Planos de produtor: carregados do servidor e exibidos só no cadastro de produtor
+  const fmtPlanPrice = cents => cents
+    ? `R$ ${(cents / 100).toLocaleString('pt-BR')}/mês` : 'R$ 0';
+  api('/plans').then(({ plans }) => {
+    $('#plan-pick').innerHTML = plans.map((p, i) => `
+      <label class="role-opt plan-opt">
+        <input type="radio" name="plan" value="${esc(p.key)}" ${i === 0 ? 'checked' : ''}>
+        <span>
+          <strong>${esc(p.label)} · ${fmtPlanPrice(p.price_cents)}</strong>
+          <small>${esc(p.blurb)}</small>
+          <small>${p.max_listings == null ? 'Anúncios ilimitados' : `Até ${p.max_listings} anúncios`}
+            · ${p.max_photos} foto${p.max_photos > 1 ? 's' : ''} por anúncio${p.featured ? ' · destaque no Explorar' : ''}</small>
+        </span>
+      </label>`).join('');
+  }).catch(() => {});
+
   $$('input[name=role]').forEach(r => r.addEventListener('change', () => {
-    $('#field-establishment').classList.toggle('hidden', r.value !== 'producer' || !r.checked);
+    const isProducer = r.value === 'producer' && r.checked;
+    $('#field-establishment').classList.toggle('hidden', !isProducer);
+    $('#field-plan').classList.toggle('hidden', !isProducer);
   }));
 
   // Mostrar/ocultar senha
@@ -52,6 +70,7 @@
           role,
           city: $('#f-city').value || null,
           establishment: role === 'producer' ? $('#f-establishment').value : null,
+          plan: role === 'producer' ? ($('input[name=plan]:checked')?.value || null) : null,
         }) });
       }
       location.href = HOME_BY_ROLE[user.role] || '/';
