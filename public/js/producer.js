@@ -32,7 +32,10 @@ async function loadShowcase() {
     const plan = overview.plan;
     const pp = $('#producer-plan');
     pp.className = `plan-badge plan-${plan.key}`;
+    pp.style.cursor = 'pointer';
+    pp.title = 'Solicitar mudança de plano';
     pp.textContent = `${plan.key === 'premium' ? '★ ' : ''}Plano ${plan.label} · ${plan.active_listings}${plan.max_listings != null ? `/${plan.max_listings}` : ''} anúncio${plan.active_listings === 1 && plan.max_listings == null ? '' : 's'}`;
+    pp.onclick = () => openPlanRequest(plan.key);
 
     const badge = $('#chat-badge');
     badge.classList.toggle('hidden', !overview.unreadMessages);
@@ -55,16 +58,19 @@ async function loadShowcase() {
       </div>`).join('');
 
     $('#my-listings').innerHTML = listings.map(l => `
-      <div class="table-row listing-cols" data-id="${l.id}">
+      <div class="table-row listing-cols ${l.available ? '' : 'listing-paused'}" data-id="${l.id}" data-available="${l.available}">
         ${thumbHTML(l)}
         <div class="cell-title">
-          <div class="t">${esc(l.title)}</div>
-          <div class="s">${esc(l.subtitle || '')}</div>
+          <div class="t">${esc(l.title)}${l.available ? '' : ' <span class="paused-pill">pausado</span>'}</div>
+          <div class="s">${esc(l.subtitle || '')}${l.status === 'approved' ? ` · ${l.views_30d} visualizaç${l.views_30d == 1 ? 'ão' : 'ões'} em 30 dias` : ''}</div>
         </div>
         <span class="cell-date">${TYPE_LABEL[l.type]}</span>
         <span class="cell-date">${fmtDate(l.listed_at)}</span>
         <span class="status-pill status-${l.status}">${STATUS_LABEL[l.status]}</span>
         <div class="row-actions">
+          ${l.status === 'approved' ? `
+            <button class="btn-view" data-action="share" title="Copiar link público">⧉</button>
+            <button class="btn-view" data-action="toggle" title="${l.available ? 'Pausar anúncio' : 'Reativar anúncio'}">${l.available ? '⏸' : '▶'}</button>` : ''}
           <button class="btn-view" data-action="photo" title="Fotos do anúncio">⊡</button>
           <button class="btn-view" data-action="edit" title="Editar">✎</button>
           <button class="btn-reject" data-action="delete" title="Excluir">✕</button>
@@ -129,7 +135,20 @@ $('#my-listings').addEventListener('click', async e => {
   const btn = e.target.closest('button[data-action]');
   if (!btn) return;
   const id = Number(btn.closest('.table-row').dataset.id);
-  if (btn.dataset.action === 'photo') {
+  if (btn.dataset.action === 'share') {
+    const link = `${location.origin}/p/${id}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast('Link copiado — cole no WhatsApp ou onde quiser');
+    } catch { toast(link); }
+  } else if (btn.dataset.action === 'toggle') {
+    const available = btn.closest('.table-row').dataset.available !== 'true';
+    try {
+      await api(`/portal/listings/${id}/availability`, { method: 'POST', body: JSON.stringify({ available }) });
+      toast(available ? 'Anúncio reativado no Explorar' : 'Anúncio pausado — some do Explorar até reativar');
+      loadShowcase();
+    } catch (err) { toast(err.message); }
+  } else if (btn.dataset.action === 'photo') {
     openGalleryManager(id);
   } else if (btn.dataset.action === 'edit') {
     openListingForm(myListings.find(l => l.id === id));
@@ -148,6 +167,32 @@ $('#my-listings').addEventListener('click', async e => {
     } catch (err) { toast(err.message); }
   }
 });
+
+// ─── Mudança de plano (pedido para a equipe; cobrança fora do app) ──────────
+async function openPlanRequest(currentPlan) {
+  let plans = [];
+  try { ({ plans } = await api('/plans')); } catch { return; }
+  const pick = await modalPick({
+    title: 'Solicitar mudança de plano',
+    options: plans.filter(p => p.key !== currentPlan).map(p => ({
+      value: p.key,
+      label: `${p.label} · ${p.price_cents ? `R$ ${(p.price_cents / 100).toLocaleString('pt-BR')}/mês` : 'R$ 0'}`,
+      sub: `${p.max_listings == null ? 'anúncios ilimitados' : `até ${p.max_listings} anúncios`} · ${p.max_photos} foto${p.max_photos > 1 ? 's' : ''}/anúncio${p.featured ? ' · destaque no Explorar' : ''}`,
+    })),
+  });
+  if (!pick) return;
+  const values = await modalForm({
+    title: 'Quase lá',
+    confirmText: 'Enviar pedido',
+    fields: [{ name: 'note', label: 'Observação para a equipe (opcional)', type: 'textarea', required: false,
+      placeholder: 'Ex.: melhor horário para contato, dúvidas sobre o plano…' }],
+  });
+  if (values === null) return;
+  try {
+    await api('/portal/plan-request', { method: 'POST', body: JSON.stringify({ plan: pick, note: values.note || null }) });
+    toast('Pedido enviado — a equipe entra em contato para combinar a mudança');
+  } catch (err) { toast(err.message); }
+}
 
 // ─── Galeria de fotos do anúncio ─────────────────────────────────────────────
 // A primeira foto é a capa exibida nos cards; o limite de fotos vem do plano.

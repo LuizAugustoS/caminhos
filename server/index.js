@@ -17,6 +17,7 @@ import { reviews, adminReviews } from './routes/reviews.js';
 import { password } from './routes/password.js';
 import { push } from './routes/push.js';
 import { emailVerify } from './routes/verify.js';
+import { publicPages } from './routes/public.js';
 import { UPLOADS_DIR } from './upload.js';
 import { pool } from './db.js';
 import { PLANS } from './plans.js';
@@ -111,6 +112,7 @@ app.use(express.static(publicDir, {
     if (path.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-cache');
   },
 }));
+app.use(publicPages); // /p/:id e /e/:id — páginas compartilháveis com OG tags
 app.get('/termos', (_req, res) => res.sendFile(join(publicDir, 'termos.html')));
 app.get('/privacidade', (_req, res) => res.sendFile(join(publicDir, 'privacidade.html')));
 app.get('/admin', (_req, res) => res.sendFile(join(publicDir, 'admin.html')));
