@@ -14,6 +14,7 @@ const attempts = new Map(); // chave → { count, resetAt }
 
 export function rateLimit(keyFn, max, windowMs, message) {
   return (req, res, next) => {
+    if (process.env.DISABLE_RATE_LIMIT === '1') return next(); // testes automatizados
     const now = Date.now();
     if (attempts.size > 10_000) {
       for (const [k, v] of attempts) if (v.resetAt < now) attempts.delete(k);

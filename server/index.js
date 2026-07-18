@@ -58,6 +58,20 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
+// Log conciso das requisições de API (método, rota, status, duração).
+// Desative com LOG_REQUESTS=0; erros 5xx sempre são registrados.
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/') || req.path === '/api/events') return next();
+  const t0 = process.hrtime.bigint();
+  res.on('finish', () => {
+    const ms = Math.round(Number(process.hrtime.bigint() - t0) / 1e6);
+    const line = `${req.method} ${req.path} ${res.statusCode} ${ms}ms`;
+    if (res.statusCode >= 500) console.error('[req]', line);
+    else if (process.env.LOG_REQUESTS !== '0') console.log('[req]', line);
+  });
+  next();
+});
+
 // ─── API ────────────────────────────────────────────────────────────────────
 app.get('/api/health', async (_req, res) => {
   try {

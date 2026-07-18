@@ -10,7 +10,9 @@
     "db:migrate": "node db/migrate.js",
     "db:seed": "node db/seed.js",
     "db:setup": "npm run db:migrate && npm run db:seed",
-    "push:keys": "web-push generate-vapid-keys"
+    "db:backup": "node db/backup.js",
+    "push:keys": "web-push generate-vapid-keys",
+    "test": "node --test test/*.test.mjs"
   },
   "engines": {
     "node": ">=20"

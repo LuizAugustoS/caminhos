@@ -131,6 +131,18 @@ O app é um único serviço Node + um PostgreSQL — roda em qualquer host (Rail
 
 Proteções já embutidas: CSP e security headers, HSTS sob HTTPS, rate-limiting em login (10/15min por IP+e-mail) e cadastro (5/h por IP), cookie de sessão `HttpOnly`+`SameSite`+`Secure`, senhas com scrypt e uploads validados por tipo/tamanho.
 
+## Testes e CI
+
+- `npm test` roda a suíte de API (`test/api.test.mjs`, node:test): sobe o servidor real contra o banco configurado e cobre autenticação, verificação de e-mail, redefinição/troca de senha com revogação de sessão, limites de plano, busca sem acento, fluxo completo de reserva + avaliação, páginas públicas, pausa de anúncio, roteiros idempotentes, exclusão de conta (LGPD) e ferramentas do admin. Rode `npm run db:setup` antes.
+- GitHub Actions (`.github/workflows/ci.yml`) executa migrations + seed + testes com Postgres 16 em todo push/PR.
+
+## Operação
+
+- **Backup**: `npm run db:backup` gera `backups/caminhos-<data>.dump` (pg_dump, formato custom — restaure com `pg_restore --clean --no-owner`) e `uploads-<data>.tar.gz` com as fotos. Agende (cron) e copie os arquivos para fora do servidor.
+- **Logs**: toda requisição de API é registrada (`método rota status duração`); erros 5xx vão para stderr. Desative o log de sucesso com `LOG_REQUESTS=0`.
+- **Auditoria**: ações administrativas ficam em `audit_log` e visíveis em Configurações.
+- **Exclusão de conta**: o próprio usuário exclui em "Minha conta" (LGPD); os dados e fotos são removidos em cascata.
+
 ## Testado de ponta a ponta
 
 O MVP foi verificado em navegador real (Chromium): cadastro de turista, exploração, favoritos, **criação de roteiro em modo offline com sincronização automática ao reconectar**, chat turista ↔ produtor nos dois sentidos, criação de anúncio pelo produtor caindo na moderação do admin, e o painel admin completo.
