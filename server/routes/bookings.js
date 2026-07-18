@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { notify } from './events.js';
+import { sendMail } from '../mailer.js';
 
 export const bookings = Router();        // /api/bookings (turista)
 export const portalBookings = Router();  // /api/portal/bookings (produtor; recebe req.producer)
@@ -53,6 +54,16 @@ bookings.post('/', async (req, res) => {
   if (l.producer_user_id) {
     notify(l.producer_user_id, 'booking', { id: b.id, title: l.title, from: req.user.name });
     notify(l.producer_user_id, 'chat', { conversation_id: conv.id, from: req.user.name });
+    const { rows: [pu] } = await query('SELECT name, email FROM users WHERE id = $1', [l.producer_user_id]);
+    if (pu) {
+      sendMail({
+        to: pu.email,
+        subject: `Novo pedido de reserva: ${l.title}`,
+        text: `Olá, ${pu.name}!\n\n${req.user.name} pediu ${b.qty} × ${l.title}${when}.` +
+          `${b.note ? `\nObservação: ${b.note}` : ''}\n\n` +
+          `Entre no portal para confirmar ou recusar: acesse Reservas no Caminhos do Caparaó.`,
+      });
+    }
   }
   res.status(201).json({ ...b, status_label: BOOKING_LABEL[b.status] });
 });
@@ -131,5 +142,22 @@ portalBookings.post('/:id/status', async (req, res) => {
   notify(b.tourist_id, 'booking', {
     id: b.id, title: l?.title, status, status_label: BOOKING_LABEL[status],
   });
+  // Avisa o turista por e-mail sobre a resposta do produtor
+  const { rows: [tu] } = await query('SELECT name, email FROM users WHERE id = $1', [b.tourist_id]);
+  if (tu) {
+    const lines = {
+      confirmed: `Boa notícia: sua reserva de ${b.qty} × ${l?.title} foi confirmada por ${req.producer.name}. ` +
+        `Combine os detalhes pelo chat do app.`,
+      declined: `Sua reserva de ${b.qty} × ${l?.title} foi recusada por ${req.producer.name}. ` +
+        `Você pode conversar com o produtor pelo app ou explorar outras opções na plataforma.`,
+      completed: `Sua reserva de ${b.qty} × ${l?.title} foi concluída. ` +
+        `Que tal avaliar a experiência em "Minhas Reservas"? Sua opinião ajuda outros turistas.`,
+    };
+    sendMail({
+      to: tu.email,
+      subject: `Reserva ${BOOKING_LABEL[status].toLowerCase()}: ${l?.title}`,
+      text: `Olá, ${tu.name}!\n\n${lines[status]}`,
+    });
+  }
   res.json({ ...b, status_label: BOOKING_LABEL[b.status] });
 });

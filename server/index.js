@@ -13,6 +13,7 @@ import { trips, favorites } from './routes/trips.js';
 import { conversations } from './routes/chat.js';
 import { portal } from './routes/portal.js';
 import { reviews, adminReviews } from './routes/reviews.js';
+import { password } from './routes/password.js';
 import { UPLOADS_DIR } from './upload.js';
 import { pool } from './db.js';
 import { PLANS } from './plans.js';
@@ -66,6 +67,7 @@ app.get('/api/plans', (_req, res) => res.json({ plans: Object.values(PLANS) }));
 
 app.post('/api/login', loginLimiter, login);
 app.post('/api/register', registerLimiter, register);
+app.use('/api/password', password);
 app.post('/api/logout', logout);
 app.use('/api/me', requireAuth, account);
 app.use('/api/events', requireAuth, events);

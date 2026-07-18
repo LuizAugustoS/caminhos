@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { PLAN_KEYS } from '../plans.js';
+import { sendMail } from '../mailer.js';
 
 export const producers = Router();
 export const listings = Router();
@@ -71,10 +72,24 @@ producers.post('/:id/status', async (req, res) => {
   }
   const { rows } = await query(
     `UPDATE producers SET status = $1, reviewed_at = now() WHERE id = $2
-     RETURNING id, name, status`,
+     RETURNING id, name, status, user_id`,
     [status, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Produtor não encontrado' });
+
+  // Avisa o parceiro por e-mail (quando há conta vinculada)
+  if (rows[0].user_id) {
+    const { rows: [u] } = await query('SELECT name, email FROM users WHERE id = $1', [rows[0].user_id]);
+    if (u) {
+      sendMail(status === 'approved'
+        ? { to: u.email, subject: 'Cadastro aprovado — Caminhos do Caparaó',
+            text: `Olá, ${u.name}!\n\nSeu estabelecimento "${rows[0].name}" foi aprovado. ` +
+              `Sua vitrine já pode receber anúncios e os turistas podem falar com você pelo app.\n\nBoas vendas!` }
+        : { to: u.email, subject: 'Cadastro não aprovado — Caminhos do Caparaó',
+            text: `Olá, ${u.name}.\n\nInfelizmente o cadastro de "${rows[0].name}" não foi aprovado desta vez. ` +
+              `Responda este e-mail se quiser entender o motivo ou ajustar as informações.` });
+    }
+  }
   res.json(rows[0]);
 });
 

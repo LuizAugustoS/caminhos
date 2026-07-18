@@ -1,5 +1,25 @@
-/* Landing: login e cadastro multi-perfil */
+/* Landing: login, cadastro multi-perfil e redefinição de senha */
 (async () => {
+  // Link de redefinição vindo do e-mail (/reset?token=…) tem prioridade
+  const resetToken = new URLSearchParams(location.search).get('token');
+  if (resetToken && location.pathname === '/reset') {
+    const values = await modalForm({
+      title: 'Escolha sua nova senha',
+      confirmText: 'Redefinir senha',
+      fields: [{ name: 'password', label: 'Nova senha (mínimo 8 caracteres)', type: 'password', minlength: 8 }],
+    });
+    if (values) {
+      try {
+        await api('/password/reset', {
+          method: 'POST',
+          body: JSON.stringify({ token: resetToken, password: values.password }),
+        });
+        toast('Senha redefinida — entre com a nova senha');
+      } catch (err) { toast(err.message); }
+    }
+    history.replaceState(null, '', '/'); // remove o token da URL
+  }
+
   // Sessão ativa → vai direto para a área do perfil
   try {
     const me = await api('/me');
@@ -12,10 +32,26 @@
     mode = tab.dataset.mode;
     $$('.auth-tabs .tab').forEach(t => t.classList.toggle('active', t === tab));
     $('#signup-fields').classList.toggle('hidden', mode === 'login');
+    $('.forgot-row').classList.toggle('hidden', mode !== 'login');
     $('#auth-submit').textContent = mode === 'login' ? 'Entrar' : 'Criar conta';
     $('#f-password').autocomplete = mode === 'login' ? 'current-password' : 'new-password';
     $('#auth-error').textContent = '';
   }));
+
+  // Esqueci minha senha: pede o e-mail e dispara o link de redefinição
+  $('#forgot-link').addEventListener('click', async e => {
+    e.preventDefault();
+    const values = await modalForm({
+      title: 'Recuperar senha',
+      confirmText: 'Enviar link',
+      fields: [{ name: 'email', label: 'E-mail da conta', type: 'email', value: $('#f-email').value }],
+    });
+    if (!values?.email) return;
+    try {
+      const r = await api('/password/forgot', { method: 'POST', body: JSON.stringify({ email: values.email }) });
+      toast(r.message || 'Se o e-mail estiver cadastrado, enviamos um link de redefinição');
+    } catch (err) { toast(err.message); }
+  });
 
   // Planos de produtor: carregados do servidor e exibidos só no cadastro de produtor
   const fmtPlanPrice = cents => cents
