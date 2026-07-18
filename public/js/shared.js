@@ -24,6 +24,14 @@ const planBadge = plan => plan && plan !== 'gratuito'
   ? `<span class="plan-badge plan-${esc(plan)}">${plan === 'premium' ? '★ ' : ''}${PLAN_LABEL[plan] || ''}</span>`
   : '';
 
+// Avaliação média → "★★★★☆ 4.3 (12)"; sem avaliações → vazio
+function starsHTML(avg, count) {
+  if (!count) return '';
+  const full = Math.round(Number(avg));
+  return `<span class="stars" title="${Number(avg).toFixed(1)} de 5">${'★'.repeat(full)}${'☆'.repeat(5 - full)}</span>
+    <span class="stars-meta">${Number(avg).toFixed(1)} (${count})</span>`;
+}
+
 // Preço em centavos → "R$ 48 · 500g"; null → "sob consulta"
 function fmtPrice(cents, unit) {
   if (cents == null) return unit || 'sob consulta';

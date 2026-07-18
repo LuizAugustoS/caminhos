@@ -245,6 +245,46 @@ await client.query(`
          now() - (random() * interval '180 days')
   FROM generate_series(1, 2025) g`);
 
+// ─── Avaliações de demonstração (reserva concluída → avaliação) ───────────
+const reviewers = [];
+for (const [name, email] of [
+  ['Beatriz Monteiro', 'beatriz.monteiro@demo.com'],
+  ['Caio Andrade', 'caio.andrade@demo.com'],
+  ['Renata Freitas', 'renata.freitas@demo.com'],
+]) {
+  const { rows: [u] } = await client.query(
+    `INSERT INTO users (name, email, password_hash, role, city)
+     VALUES ($1, $2, $3, 'tourist', 'Vitória') RETURNING id`,
+    [name, email, hashPassword(demoPassword)]
+  );
+  reviewers.push(u.id);
+}
+const demoReviews = [
+  ['Tour de Colheita e Torra de Café', 0, 5, 'Experiência incrível — a degustação no terreiro vale cada minuto.'],
+  ['Tour de Colheita e Torra de Café', 1, 5, 'O produtor conhece cada pé de café da propriedade. Voltaremos!'],
+  ['Hospedagem Rural — Vale Verde', 2, 4, 'Quarto simples e impecável, café da manhã da roça maravilhoso.'],
+  ['Hospedagem Rural — Vale Verde', 0, 5, null],
+  ['Mel Silvestre de Altitude — 300g', 2, 5, 'Mel escuro e perfumado, comprei mais três potes.'],
+  ['Feira de Artesanato da Serra', 1, 4, 'Feira organizada e cheia de peças bonitas — vale a visita.'],
+];
+for (const [title, ri, rating, comment] of demoReviews) {
+  const touristId = reviewers[ri];
+  const { rows: [bk] } = await client.query(
+    `INSERT INTO bookings (listing_id, tourist_id, producer_id, status, qty, created_at, responded_at, completed_at)
+     SELECT l.id, $2, l.producer_id, 'completed', 1,
+            now() - interval '20 days', now() - interval '19 days', now() - interval '12 days'
+     FROM listings l WHERE l.title = $1 LIMIT 1
+     RETURNING id, listing_id, producer_id`,
+    [title, touristId]
+  );
+  if (!bk) continue;
+  await client.query(
+    `INSERT INTO reviews (booking_id, listing_id, producer_id, tourist_id, rating, comment, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, now() - (random() * interval '10 days'))`,
+    [bk.id, bk.listing_id, bk.producer_id, touristId, rating, comment]
+  );
+}
+
 // ─── Transações: ~R$ 96,4 mil no mês corrente + mês anterior menor ────────
 await client.query(`
   INSERT INTO transactions (listing_id, amount_cents, created_at)

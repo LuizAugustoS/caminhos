@@ -54,10 +54,13 @@ explore.get('/listings', async (req, res) => {
     `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.listed_at,
             l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place,
             p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
-            p.avatar_color AS producer_color, p.plan, coalesce(e.city, p.city) AS city
+            p.avatar_color AS producer_color, p.plan, coalesce(e.city, p.city) AS city,
+            r.rating_avg, r.rating_count
      FROM listings l
      JOIN producers p ON p.id = l.producer_id AND p.status = 'approved'
      LEFT JOIN establishments e ON e.producer_id = p.id
+     LEFT JOIN (SELECT listing_id, round(avg(rating)::numeric, 1) AS rating_avg, count(*) AS rating_count
+                FROM reviews WHERE NOT hidden GROUP BY listing_id) r ON r.listing_id = l.id
      WHERE l.status = 'approved'
        AND l.image_label <> 'Foto do anúncio'
        AND ($1::text IS NULL OR l.type = $1::listing_type)
@@ -91,7 +94,20 @@ explore.get('/listings/:id', async (req, res) => {
     'SELECT path FROM listing_images WHERE listing_id = $1 ORDER BY position, id',
     [req.params.id]
   );
-  res.json({ ...rows[0], images: images.map(i => i.path) });
+  const { rows: revs } = await query(
+    `SELECT r.rating, r.comment, r.created_at, u.name AS tourist_name
+     FROM reviews r JOIN users u ON u.id = r.tourist_id
+     WHERE r.listing_id = $1 AND NOT r.hidden
+     ORDER BY r.created_at DESC LIMIT 10`,
+    [req.params.id]
+  );
+  const { rows: [agg] } = await query(
+    `SELECT round(avg(rating)::numeric, 1) AS rating_avg, count(*) AS rating_count
+     FROM reviews WHERE listing_id = $1 AND NOT hidden`,
+    [req.params.id]
+  );
+  res.json({ ...rows[0], images: images.map(i => i.path), reviews: revs,
+             rating_avg: agg.rating_avg, rating_count: Number(agg.rating_count) });
 });
 
 explore.get('/establishments', async (req, res) => {
@@ -99,9 +115,12 @@ explore.get('/establishments', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 24, 60);
   const { rows } = await query(
     `SELECT e.id, e.name, e.description, e.category, e.city, e.address, e.phone, e.open_hours,
-            e.photo_path, p.id AS producer_id, p.initials, p.avatar_color, p.kind, p.plan
+            e.photo_path, p.id AS producer_id, p.initials, p.avatar_color, p.kind, p.plan,
+            r.rating_avg, r.rating_count
      FROM establishments e
      JOIN producers p ON p.id = e.producer_id AND p.status = 'approved'
+     LEFT JOIN (SELECT producer_id, round(avg(rating)::numeric, 1) AS rating_avg, count(*) AS rating_count
+                FROM reviews WHERE NOT hidden GROUP BY producer_id) r ON r.producer_id = p.id
      WHERE ($1 = '' OR e.name ILIKE '%' || $1 || '%' OR e.category ILIKE '%' || $1 || '%'
             OR e.city ILIKE '%' || $1 || '%')
      ORDER BY (p.plan = 'premium') DESC, e.name

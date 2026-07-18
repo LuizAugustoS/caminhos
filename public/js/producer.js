@@ -42,6 +42,10 @@ async function loadShowcase() {
       ['Publicados', overview.listings.approved, '#1C6B4A', 'visíveis para turistas'],
       ['Em revisão', overview.listings.pending, '#C0714F', 'aguardando moderação'],
       ['Mensagens não lidas', overview.unreadMessages, '#4A3226', 'de turistas interessados'],
+      ['Avaliação média', overview.rating.count ? `★ ${Number(overview.rating.avg).toFixed(1)}` : '—',
+        '#9A6224', overview.rating.count
+          ? `${overview.rating.count} avaliaç${overview.rating.count > 1 ? 'ões' : 'ão'} de turistas`
+          : 'após vendas concluídas'],
     ];
     $('#portal-kpis').innerHTML = kpis.map(([label, value, accent, caption]) => `
       <div class="kpi-card" style="border-top-color:${accent}">

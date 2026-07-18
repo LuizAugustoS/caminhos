@@ -36,6 +36,14 @@ const planBadge = plan => plan && plan !== 'gratuito'
   ? `<span class="plan-badge plan-${esc(plan)}">${plan === 'premium' ? '★ ' : ''}${PLAN_LABEL[plan] || ''}</span>`
   : '';
 
+// Avaliação média → "★★★★☆ 4.3 (12)"; sem avaliações → vazio
+function starsHTML(avg, count) {
+  if (!count) return '';
+  const full = Math.round(Number(avg));
+  return `<span class="stars" title="${Number(avg).toFixed(1)} de 5">${'★'.repeat(full)}${'☆'.repeat(5 - full)}</span>
+    <span class="stars-meta">${Number(avg).toFixed(1)} (${count})</span>`;
+}
+
 function toast(msg) {
   const el = $('#toast');
   el.textContent = msg;
@@ -820,7 +828,7 @@ function bindDetailReview(overlay, close, kind, id) {
 // ─── Detalhe do produtor ─────────────────────────────────────────────────────
 async function openProducerDetail(id) {
   try {
-    const { producer: p, listings, conversations } = await api(`/producers/${id}`);
+    const { producer: p, listings, conversations, rating } = await api(`/producers/${id}`);
     const { overlay, close } = openAdminModal(`
       <div class="detail-head">
         <div class="avatar lg" style="background:${esc(p.avatar_color)}">${p.avatar_path
@@ -857,6 +865,8 @@ async function openProducerDetail(id) {
         ${infoLine('Cadastro', fmtDate(p.created_at))}
         ${p.reviewed_at ? infoLine('Última revisão', fmtDate(p.reviewed_at)) : ''}
         ${infoLine('Conversas com turistas', String(conversations))}
+        ${rating.count ? `<div class="settings-item"><span>Avaliação média</span>
+          <strong>${starsHTML(rating.avg, rating.count)}</strong></div>` : ''}
       </div>
 
       <h4 class="detail-section">Anúncios (${listings.length})</h4>
@@ -929,6 +939,21 @@ async function openListingDetailAdmin(id) {
               ${l.phone ? `<small>Contato: ${esc(l.phone)}</small>` : ''}
             </div>
           </div>
+          ${l.reviews?.length ? `
+            <h4 class="detail-section">Avaliações (${l.reviews.length})</h4>
+            <div class="review-list">
+              ${l.reviews.map(r => `
+                <div class="review-row ${r.hidden ? 'review-hidden' : ''}" data-review="${r.id}" data-hidden="${r.hidden}">
+                  <div class="review-head">
+                    <strong>${esc(r.tourist_name)}</strong>
+                    <span class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
+                    <small>${fmtDate(r.created_at)}${r.hidden ? ' · oculta' : ''}</small>
+                    <button class="btn-view review-toggle" title="${r.hidden ? 'Voltar a exibir' : 'Ocultar da plataforma'}">
+                      ${r.hidden ? 'Exibir' : 'Ocultar'}</button>
+                  </div>
+                  ${r.comment ? `<p>${esc(r.comment)}</p>` : ''}
+                </div>`).join('')}
+            </div>` : ''}
           ${detailActions('listings', l.id, l.status)}
           <div class="row-actions modal-actions">
             <button class="btn-secondary" data-modal-cancel style="flex:1">Fechar</button>
@@ -936,6 +961,19 @@ async function openListingDetailAdmin(id) {
         </div>
       </div>`);
     overlay.querySelector('.modal').classList.add('detail-modal');
+    overlay.querySelectorAll('.review-toggle').forEach(btn => btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const row = btn.closest('[data-review]');
+      const hide = row.dataset.hidden !== 'true';
+      try {
+        await api(`/admin/reviews/${row.dataset.review}/visibility`, {
+          method: 'POST', body: JSON.stringify({ hidden: hide }),
+        });
+        toast(hide ? 'Avaliação oculta da plataforma' : 'Avaliação visível novamente');
+        close();
+        openListingDetailAdmin(id);
+      } catch (err) { toast(err.message); }
+    }));
     overlay.querySelectorAll('.gallery-strip img').forEach(t => t.addEventListener('click', () => {
       overlay.querySelector('#detail-hero-img').src = gallery[Number(t.dataset.gi)];
       overlay.querySelectorAll('.gallery-strip img').forEach(x => x.classList.toggle('on', x === t));

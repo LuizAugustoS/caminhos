@@ -55,7 +55,13 @@ producers.get('/:id', async (req, res) => {
      FROM conversations c WHERE c.producer_id = $1`,
     [req.params.id]
   );
-  res.json({ producer: rows[0], listings: producerListings, conversations: Number(msgs.conversations) });
+  const { rows: [rating] } = await query(
+    `SELECT round(avg(rating)::numeric, 1) AS avg, count(*) AS n
+     FROM reviews WHERE producer_id = $1 AND NOT hidden`,
+    [req.params.id]
+  );
+  res.json({ producer: rows[0], listings: producerListings, conversations: Number(msgs.conversations),
+             rating: { avg: rating.avg, count: Number(rating.n) } });
 });
 
 producers.post('/:id/status', async (req, res) => {
@@ -134,7 +140,15 @@ listings.get('/:id', async (req, res) => {
     'SELECT path FROM listing_images WHERE listing_id = $1 ORDER BY position, id',
     [req.params.id]
   );
-  res.json({ ...rows[0], images: images.map(i => i.path) });
+  // Todas as avaliações (inclusive ocultas) — o admin modera daqui
+  const { rows: revs } = await query(
+    `SELECT r.id, r.rating, r.comment, r.hidden, r.created_at, u.name AS tourist_name
+     FROM reviews r JOIN users u ON u.id = r.tourist_id
+     WHERE r.listing_id = $1
+     ORDER BY r.created_at DESC LIMIT 30`,
+    [req.params.id]
+  );
+  res.json({ ...rows[0], images: images.map(i => i.path), reviews: revs });
 });
 
 listings.post('/:id/status', async (req, res) => {

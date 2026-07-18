@@ -96,6 +96,7 @@ const listingCard = (l, favIds) => `
       <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')} ${planBadge(l.plan)}</span>
       <strong class="ex-title">${esc(l.title)}</strong>
       <span class="ex-sub">${esc(l.subtitle || '')}</span>
+      ${l.rating_count ? `<span class="ex-rating">${starsHTML(l.rating_avg, l.rating_count)}</span>` : ''}
       <span class="ex-price">${esc(fmtPrice(l.price_cents, l.price_unit))}</span>
       ${l.type === 'event' && l.event_date
         ? `<span class="ex-meta">${esc(fmtEventDate(l.event_date))}${l.event_time ? ` · ${esc(l.event_time)}` : ''}${l.event_place ? ` · ${esc(l.event_place)}` : ''}</span>`
@@ -118,6 +119,7 @@ const placeCard = e => `
     <div class="ex-body">
       <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')} ${planBadge(e.plan)}</span>
       <strong class="ex-title">${esc(e.name)}</strong>
+      ${e.rating_count ? `<span class="ex-rating">${starsHTML(e.rating_avg, e.rating_count)}</span>` : ''}
       <span class="ex-sub">${esc(e.description || e.kind || '')}</span>
       <span class="ex-meta">${esc(e.address || '')}${e.open_hours ? ' · ' + esc(e.open_hours) : ''}${e.phone ? ' · ' + esc(e.phone) : ''}</span>
     </div>
@@ -190,6 +192,7 @@ async function openListingDetail(listingId) {
       <div class="detail-body">
         <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')}</span>
         <h3>${esc(l.title)}</h3>
+        ${l.rating_count ? `<p class="ex-rating detail-rating">${starsHTML(l.rating_avg, l.rating_count)}</p>` : ''}
         ${l.subtitle ? `<p class="detail-sub">${esc(l.subtitle)}</p>` : ''}
         <p class="ex-price detail-price">${esc(fmtPrice(l.price_cents, l.price_unit))}</p>
         ${eventLine}
@@ -206,6 +209,19 @@ async function openListingDetail(listingId) {
           <button class="btn-secondary" data-detail="chat">Conversar</button>
           ${canBook ? '<button class="btn-primary" data-detail="book">Reservar</button>' : ''}
         </div>
+        ${l.reviews?.length ? `
+          <h4 class="detail-section">Avaliações de turistas</h4>
+          <div class="review-list">
+            ${l.reviews.map(r => `
+              <div class="review-row">
+                <div class="review-head">
+                  <strong>${esc(r.tourist_name)}</strong>
+                  <span class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
+                  <small>${fmtDate(r.created_at)}</small>
+                </div>
+                ${r.comment ? `<p>${esc(r.comment)}</p>` : ''}
+              </div>`).join('')}
+          </div>` : ''}
       </div>
     </div>`);
   overlay.querySelector('.modal').classList.add('detail-modal');
@@ -258,6 +274,8 @@ async function openBookingForm(l) {
   } catch (err) { toast(err.message); }
 }
 
+let lastBookings = [];
+
 async function renderBookings() {
   let bookings = [];
   try { ({ bookings } = await api('/bookings')); }
@@ -266,6 +284,7 @@ async function renderBookings() {
     $('#bookings-list').innerHTML = '<p class="empty-note">Reservas indisponíveis offline — conecte-se para ver seus pedidos.</p>';
     return;
   }
+  lastBookings = bookings;
   $('#bookings-list').innerHTML = bookings.map(b => `
     <div class="bk-row" data-id="${b.id}">
       ${thumbHTML(b, 'bk-thumb')}
@@ -277,11 +296,62 @@ async function renderBookings() {
       </div>
       <span class="status-pill ${BOOKING_PILL[b.status]}">${esc(b.status_label)}</span>
       ${b.status === 'pending' ? '<button class="btn-secondary" data-bk-cancel>Cancelar</button>' : ''}
+      ${b.status === 'completed' ? (b.my_rating
+        ? `<button class="btn-secondary" data-bk-review>Sua nota: <span class="stars">${'★'.repeat(b.my_rating)}</span></button>`
+        : '<button class="btn-primary" data-bk-review>Avaliar</button>') : ''}
     </div>`).join('')
     || '<p class="empty-note">Nenhuma reserva ainda — abra um anúncio no Explorar e toque em "Reservar".</p>';
 }
 
+// Formulário de avaliação (estrelas + comentário); editar reaproveita a nota
+function openReviewForm(b) {
+  let rating = b.my_rating || 0;
+  const { overlay, close } = openModal(`
+    <h3>Avaliar: ${esc(b.title)}</h3>
+    <p class="modal-msg">Como foi sua experiência com ${esc(b.producer_name)}?</p>
+    <div class="star-pick">
+      ${[1, 2, 3, 4, 5].map(i => `<button type="button" data-star="${i}">★</button>`).join('')}
+    </div>
+    <form class="modal-form" id="review-form">
+      <div class="field">
+        <label>Comentário (opcional)</label>
+        <textarea name="comment" rows="3" placeholder="Conte como foi — ajuda outros turistas a escolher">${esc(b.my_comment || '')}</textarea>
+      </div>
+      <div class="row-actions modal-actions">
+        <button type="submit" class="btn-primary">${b.my_rating ? 'Atualizar avaliação' : 'Enviar avaliação'}</button>
+        <button type="button" class="btn-secondary" data-modal-cancel>Cancelar</button>
+      </div>
+    </form>`);
+  const paint = () => overlay.querySelectorAll('[data-star]').forEach(s =>
+    s.classList.toggle('on', Number(s.dataset.star) <= rating));
+  paint();
+  overlay.querySelectorAll('[data-star]').forEach(s => s.addEventListener('click', () => {
+    rating = Number(s.dataset.star);
+    paint();
+  }));
+  overlay.querySelector('#review-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!rating) return toast('Escolha de 1 a 5 estrelas');
+    try {
+      await api('/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ booking_id: b.id, rating, comment: e.target.elements.comment.value.trim() || null }),
+      });
+      close();
+      toast('Avaliação enviada — obrigado!');
+      renderBookings();
+    } catch (err) { toast(err.message); }
+  });
+}
+
 $('#bookings-list').addEventListener('click', async e => {
+  const reviewBtn = e.target.closest('[data-bk-review]');
+  if (reviewBtn) {
+    const id = Number(reviewBtn.closest('.bk-row').dataset.id);
+    const b = lastBookings.find(x => x.id === id);
+    if (b) openReviewForm(b);
+    return;
+  }
   const btn = e.target.closest('[data-bk-cancel]');
   if (!btn) return;
   const id = btn.closest('.bk-row').dataset.id;
