@@ -12,6 +12,7 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 - **Meus Roteiros**: criação e gestão de itinerários personalizados **100% offline-first** — os roteiros vivem no IndexedDB do dispositivo, funcionam sem rede e sincronizam automaticamente quando a conexão volta
 - **Favoritos**: disponíveis offline
 - **Mensagens**: chat assimétrico com produtores (dúvidas/reservas); envios offline entram na fila e são entregues ao reconectar
+- **Avaliações**: após uma reserva concluída, o turista avalia com 1–5 estrelas e comentário (editável); a média aparece nos cards do Explorar, no detalhe do anúncio e nos estabelecimentos
 
 ### ☕ Produtor/Comerciante (`/portal`)
 - **Planos de cadastro** (a cobrança acontece fora da plataforma — sem pagamento no app): **Gratuito** (até 3 anúncios, 1 foto por anúncio), **Profissional** (até 10 anúncios, 5 fotos, selo) e **Premium** (anúncios ilimitados, 10 fotos, selo ★ e destaque no topo do Explorar). O produtor escolhe o plano no cadastro; o admin pode trocar o plano de qualquer parceiro pelo painel
@@ -21,6 +22,7 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 
 ### 🛠 Administrador (`/admin`)
 - Painel completo conforme o protótipo: 4 cartões de KPI com gráficos, gestão/moderação de produtores e conteúdo, mapa de calor de buscas 12×6 com indicador de itinerários offline, listas de conteúdo com abas, chat interno e alertas
+- **Moderação de avaliações**: o detalhe do anúncio lista todas as avaliações (inclusive ocultas) com ocultar/exibir — avaliações ocultas saem das médias públicas
 
 ## Arquitetura offline-first
 
@@ -98,6 +100,7 @@ Novas contas de turista e produtor podem ser criadas pela própria landing page 
 | GET | `/api/explore/itineraries` | público | Itinerários publicados (flag offline) |
 | GET/PUT/DELETE | `/api/trips[/:clientUid]` | turista | Roteiros — upsert completo idempotente |
 | GET/PUT/DELETE | `/api/favorites[/:listingId]` | turista | Favoritos idempotentes |
+| POST | `/api/reviews` | turista | Avaliação de reserva concluída (1–5 estrelas, editável) |
 | GET/POST | `/api/conversations[/:id/messages]` | turista/produtor | Chat assimétrico (envio idempotente por `client_uid`) |
 | GET/PUT/POST/DELETE | `/api/portal/*` | produtor | Overview, estabelecimento e vitrine |
 | GET/POST | `/api/dashboard` · `/api/producers` · `/api/listings` … | admin | Painel e moderação |

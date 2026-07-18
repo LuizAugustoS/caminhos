@@ -12,6 +12,7 @@ import { explore } from './routes/explore.js';
 import { trips, favorites } from './routes/trips.js';
 import { conversations } from './routes/chat.js';
 import { portal } from './routes/portal.js';
+import { reviews, adminReviews } from './routes/reviews.js';
 import { UPLOADS_DIR } from './upload.js';
 import { pool } from './db.js';
 import { PLANS } from './plans.js';
@@ -76,6 +77,7 @@ app.use('/api/explore', explore);
 app.use('/api/trips', requireRole('tourist'), trips);
 app.use('/api/favorites', requireRole('tourist'), favorites);
 app.use('/api/bookings', requireRole('tourist'), bookings);
+app.use('/api/reviews', requireRole('tourist'), reviews);
 
 // Turista + produtor (chat assimétrico)
 app.use('/api/conversations', requireRole('tourist', 'producer', 'admin'), conversations);
@@ -84,6 +86,7 @@ app.use('/api/conversations', requireRole('tourist', 'producer', 'admin'), conve
 app.use('/api/portal', requireRole('producer'), portal);
 
 // Admin
+app.use('/api/admin/reviews', requireRole('admin'), adminReviews);
 app.use('/api/dashboard', requireRole('admin'), dashboard);
 app.use('/api/producers', requireRole('admin'), producers);
 app.use('/api/listings', requireRole('admin'), listings);

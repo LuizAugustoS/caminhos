@@ -804,3 +804,26 @@ body.offline .offline-banner { display: block; }
 /* Troca de plano no detalhe do produtor (admin) */
 .plan-switch { display: flex; gap: 8px; flex-wrap: wrap; }
 .plan-switch-btn.on { border-color: var(--green); background: #E4F0E7; color: var(--green-dark); }
+
+/* ─── Avaliações ─── */
+.stars { color: #D99A2B; letter-spacing: 1px; font-size: 13px; }
+.stars-meta { font-size: 11.5px; font-weight: 700; color: #A08D6F; }
+.ex-rating { display: flex; align-items: baseline; gap: 6px; }
+.detail-rating { margin: 0 0 6px; }
+.star-pick { display: flex; gap: 6px; justify-content: center; margin: 8px 0 14px; }
+.star-pick button {
+  border: none; background: none; cursor: pointer; font-size: 32px; line-height: 1;
+  color: #E4DCC8; transition: color .12s, transform .12s; padding: 2px;
+}
+.star-pick button.on { color: #D99A2B; }
+.star-pick button:hover { transform: scale(1.15); }
+.review-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.review-row {
+  background: #FBF7EC; border: 1px solid #F0E9D8; border-radius: 12px; padding: 10px 14px;
+}
+.review-row p { margin: 6px 0 0; font-size: 12.5px; color: #6B5946; font-weight: 500; line-height: 1.5; }
+.review-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.review-head strong { font-size: 12.5px; color: var(--ink); }
+.review-head small { font-size: 11px; color: #A08D6F; font-weight: 600; }
+.review-head .review-toggle { margin-left: auto; }
+.review-hidden { opacity: .55; border-style: dashed; }

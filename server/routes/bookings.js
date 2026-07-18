@@ -61,10 +61,12 @@ bookings.get('/', async (req, res) => {
   if (req.user.role !== 'tourist') return res.status(403).json({ error: 'Apenas turistas' });
   const { rows } = await query(
     `SELECT b.*, l.title, l.price_cents, l.price_unit, l.image_path, l.image_kind, l.glyph,
-            p.name AS producer_name, p.id AS producer_id
+            p.name AS producer_name, p.id AS producer_id,
+            r.rating AS my_rating, r.comment AS my_comment
      FROM bookings b
      JOIN listings l ON l.id = b.listing_id
      JOIN producers p ON p.id = b.producer_id
+     LEFT JOIN reviews r ON r.booking_id = b.id
      WHERE b.tourist_id = $1
      ORDER BY b.created_at DESC LIMIT 50`,
     [req.user.id]

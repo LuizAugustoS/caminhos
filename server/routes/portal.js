@@ -39,12 +39,18 @@ portal.get('/overview', async (req, res) => {
      WHERE c.producer_id = $1 AND m.read_at IS NULL AND m.sender_id <> $2`,
     [req.producer.id, req.user.id]
   );
+  const { rows: [rating] } = await query(
+    `SELECT round(avg(rating)::numeric, 1) AS avg, count(*) AS n
+     FROM reviews WHERE producer_id = $1 AND NOT hidden`,
+    [req.producer.id]
+  );
   const active = Number(stats.approved) + Number(stats.pending);
   res.json({
     producer: req.producer,
     plan: { ...req.plan, active_listings: active },
     listings: { approved: Number(stats.approved), pending: Number(stats.pending), rejected: Number(stats.rejected) },
     unreadMessages: Number(unread.n),
+    rating: { avg: rating.avg, count: Number(rating.n) },
   });
 });
 
