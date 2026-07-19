@@ -139,7 +139,8 @@ Proteções já embutidas: CSP e security headers, HSTS sob HTTPS, rate-limiting
 ## Operação
 
 - **Backup**: `npm run db:backup` gera `backups/caminhos-<data>.dump` (pg_dump, formato custom — restaure com `pg_restore --clean --no-owner`) e `uploads-<data>.tar.gz` com as fotos. Agende (cron) e copie os arquivos para fora do servidor.
-- **Logs**: toda requisição de API é registrada (`método rota status duração`); erros 5xx vão para stderr. Desative o log de sucesso com `LOG_REQUESTS=0`.
+- **Armazenamento de imagens**: por padrão em disco (`UPLOADS_DIR`). Em host com disco efêmero, configure S3/Cloudflare R2 (`S3_*` no `.env`, + `npm i @aws-sdk/client-s3`) para as fotos sobreviverem a redeploys.
+- **Logs e erros**: toda requisição de API é registrada (`método rota status duração`); erros 5xx vão para stderr. Desative o log de sucesso com `LOG_REQUESTS=0`. Para rastreamento de exceções, configure `SENTRY_DSN` (+ `npm i @sentry/node`).
 - **Auditoria**: ações administrativas ficam em `audit_log` e visíveis em Configurações.
 - **Exclusão de conta**: o próprio usuário exclui em "Minha conta" (LGPD); os dados e fotos são removidos em cascata.
 

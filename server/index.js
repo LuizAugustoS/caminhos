@@ -21,6 +21,7 @@ import { publicPages } from './routes/public.js';
 import { UPLOADS_DIR } from './upload.js';
 import { pool } from './db.js';
 import { PLANS } from './plans.js';
+import { captureError } from './errors.js';
 
 const app = express();
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -135,8 +136,9 @@ app.get('/portal', (_req, res) => res.sendFile(join(publicDir, 'producer.html'))
 app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(join(publicDir, 'index.html')));
 
 // eslint-disable-next-line no-unused-vars
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   console.error(err);
+  captureError(err, { path: req.path, method: req.method });
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 

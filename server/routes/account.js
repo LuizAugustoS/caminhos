@@ -89,7 +89,7 @@ account.delete('/', async (req, res) => {
 
 // Avatar do usuário (multipart, campo 'image'); substitui o anterior
 account.post('/avatar', acceptImage, async (req, res) => {
-  const newPath = `/uploads/${req.file.filename}`;
+  const newPath = req.file.publicPath;
   const { rows: [old] } = await query('SELECT avatar_path FROM users WHERE id = $1', [req.user.id]);
   if (!old) {
     await removeUpload(newPath);

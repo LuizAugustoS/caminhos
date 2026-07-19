@@ -234,7 +234,7 @@ portal.get('/listings/:id/images', async (req, res) => {
 
 // Adiciona uma foto à galeria (multipart, campo 'image'), até o limite do plano
 portal.post('/listings/:id/images', acceptImage, async (req, res) => {
-  const newPath = `/uploads/${req.file.filename}`;
+  const newPath = req.file.publicPath;
   if (!await ownListing(req)) {
     await removeUpload(newPath);
     return res.status(404).json({ error: 'Anúncio não encontrado' });
@@ -272,7 +272,7 @@ portal.delete('/listings/:id/images/:imageId', async (req, res) => {
 
 // Foto do estabelecimento (multipart, campo 'image'); substitui a anterior
 portal.post('/establishment/photo', acceptImage, async (req, res) => {
-  const newPath = `/uploads/${req.file.filename}`;
+  const newPath = req.file.publicPath;
   const { rows: [old] } = await query(
     'SELECT photo_path FROM establishments WHERE producer_id = $1',
     [req.producer.id]
