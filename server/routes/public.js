@@ -78,6 +78,40 @@ publicPages.get('/p/:id', async (req, res, next) => {
   }));
 });
 
+// robots.txt aponta o sitemap (páginas públicas são indexáveis; a API não)
+publicPages.get('/robots.txt', (req, res) => {
+  const base = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+  res.type('text/plain').send(
+    `User-agent: *\nAllow: /$\nAllow: /p/\nAllow: /e/\nDisallow: /api/\nDisallow: /admin\nDisallow: /portal\nDisallow: /app\n\nSitemap: ${base}/sitemap.xml\n`
+  );
+});
+
+// sitemap.xml com os anúncios e estabelecimentos ativos (cache curto)
+publicPages.get('/sitemap.xml', async (req, res) => {
+  const base = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+  const { rows: listings } = await query(
+    `SELECT l.id, l.created_at FROM listings l
+     JOIN producers p ON p.id = l.producer_id AND p.status = 'approved'
+     WHERE l.status = 'approved' AND l.available AND (l.stock IS NULL OR l.stock > 0)
+       AND l.image_label <> 'Foto do anúncio'
+     ORDER BY l.id LIMIT 5000`
+  );
+  const { rows: estabs } = await query(
+    `SELECT e.id, e.updated_at FROM establishments e
+     JOIN producers p ON p.id = e.producer_id AND p.status = 'approved'
+     ORDER BY e.id LIMIT 5000`
+  );
+  const url = (loc, lastmod) =>
+    `  <url><loc>${base}${loc}</loc>${lastmod ? `<lastmod>${new Date(lastmod).toISOString().slice(0, 10)}</lastmod>` : ''}</url>`;
+  const body =
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+    url('/') + '\n' +
+    listings.map(l => url(`/p/${l.id}`, l.created_at)).join('\n') + (listings.length ? '\n' : '') +
+    estabs.map(e => url(`/e/${e.id}`, e.updated_at)).join('\n') + (estabs.length ? '\n' : '') +
+    `</urlset>\n`;
+  res.type('application/xml').set('Cache-Control', 'public, max-age=3600').send(body);
+});
+
 publicPages.get('/e/:id', async (req, res, next) => {
   if (!/^\d+$/.test(req.params.id)) return next();
   const { rows: [e] } = await query(

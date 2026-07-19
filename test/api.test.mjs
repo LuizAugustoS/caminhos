@@ -240,6 +240,19 @@ test('página pública do anúncio com OG tags', async () => {
   assert.equal((await fetch(`${BASE}/p/999999`)).status, 404);
 });
 
+test('sitemap.xml e robots.txt', async () => {
+  const sm = await fetch(`${BASE}/sitemap.xml`);
+  assert.equal(sm.status, 200);
+  assert.match(sm.headers.get('content-type'), /xml/);
+  const xml = await sm.text();
+  assert.match(xml, /<urlset/);
+  assert.match(xml, /\/p\/\d+/);   // anúncios
+  assert.match(xml, /\/e\/\d+/);   // estabelecimentos
+  const robots = await (await fetch(`${BASE}/robots.txt`)).text();
+  assert.match(robots, /Sitemap: .*\/sitemap\.xml/);
+  assert.match(robots, /Disallow: \/api\//);
+});
+
 test('pausar anúncio o tira do Explorar e da página pública', async () => {
   const p = client();
   await p('/api/login', { method: 'POST', body: { email: 'produtor@demo.com', password: 'caparao2026' } });
