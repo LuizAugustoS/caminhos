@@ -5,6 +5,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { notify } from './events.js';
 import { sendMail } from '../mailer.js';
+import { pushToUser } from '../push.js';
 
 export const bookings = Router();        // /api/bookings (turista)
 export const portalBookings = Router();  // /api/portal/bookings (produtor; recebe req.producer)
@@ -54,6 +55,12 @@ bookings.post('/', async (req, res) => {
   if (l.producer_user_id) {
     notify(l.producer_user_id, 'booking', { id: b.id, title: l.title, from: req.user.name });
     notify(l.producer_user_id, 'chat', { conversation_id: conv.id, from: req.user.name });
+    pushToUser(l.producer_user_id, {
+      title: 'Novo pedido de reserva',
+      body: `${req.user.name}: ${b.qty} × ${l.title}`,
+      tag: `booking-${b.id}`,
+      url: '/portal',
+    });
     const { rows: [pu] } = await query('SELECT name, email FROM users WHERE id = $1', [l.producer_user_id]);
     if (pu) {
       sendMail({
@@ -141,6 +148,12 @@ portalBookings.post('/:id/status', async (req, res) => {
   }
   notify(b.tourist_id, 'booking', {
     id: b.id, title: l?.title, status, status_label: BOOKING_LABEL[status],
+  });
+  pushToUser(b.tourist_id, {
+    title: `Reserva ${BOOKING_LABEL[status].toLowerCase()}`,
+    body: `${b.qty} × ${l?.title} — ${req.producer.name}`,
+    tag: `booking-${b.id}`,
+    url: '/app',
   });
   // Avisa o turista por e-mail sobre a resposta do produtor
   const { rows: [tu] } = await query('SELECT name, email FROM users WHERE id = $1', [b.tourist_id]);

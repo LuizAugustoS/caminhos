@@ -61,11 +61,12 @@ explore.get('/listings', async (req, res) => {
      LEFT JOIN establishments e ON e.producer_id = p.id
      LEFT JOIN (SELECT listing_id, round(avg(rating)::numeric, 1) AS rating_avg, count(*) AS rating_count
                 FROM reviews WHERE NOT hidden GROUP BY listing_id) r ON r.listing_id = l.id
-     WHERE l.status = 'approved'
+     WHERE l.status = 'approved' AND l.available
        AND l.image_label <> 'Foto do anúncio'
        AND ($1::text IS NULL OR l.type = $1::listing_type)
-       AND ($2::text = '' OR l.title ILIKE '%' || $2 || '%' OR l.subtitle ILIKE '%' || $2 || '%'
-            OR p.name ILIKE '%' || $2 || '%')
+       AND ($2::text = '' OR f_unaccent(l.title) LIKE '%' || f_unaccent($2) || '%'
+            OR f_unaccent(l.subtitle) LIKE '%' || f_unaccent($2) || '%'
+            OR f_unaccent(p.name) LIKE '%' || f_unaccent($2) || '%')
      ORDER BY (p.plan = 'premium') DESC, l.listed_at DESC
      LIMIT $3`,
     [type || null, (q || '').trim(), limit]
@@ -86,10 +87,16 @@ explore.get('/listings/:id', async (req, res) => {
      FROM listings l
      JOIN producers p ON p.id = l.producer_id AND p.status = 'approved'
      LEFT JOIN establishments e ON e.producer_id = p.id
-     WHERE l.id = $1 AND l.status = 'approved'`,
+     WHERE l.id = $1 AND l.status = 'approved' AND l.available`,
     [req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Anúncio não encontrado' });
+  // Visualização do dia (estatística do produtor) — nunca atrasa a resposta
+  query(
+    `INSERT INTO listing_views (listing_id, views) VALUES ($1, 1)
+     ON CONFLICT (listing_id, day) DO UPDATE SET views = listing_views.views + 1`,
+    [req.params.id]
+  ).catch(() => {});
   const { rows: images } = await query(
     'SELECT path FROM listing_images WHERE listing_id = $1 ORDER BY position, id',
     [req.params.id]
@@ -121,8 +128,9 @@ explore.get('/establishments', async (req, res) => {
      JOIN producers p ON p.id = e.producer_id AND p.status = 'approved'
      LEFT JOIN (SELECT producer_id, round(avg(rating)::numeric, 1) AS rating_avg, count(*) AS rating_count
                 FROM reviews WHERE NOT hidden GROUP BY producer_id) r ON r.producer_id = p.id
-     WHERE ($1 = '' OR e.name ILIKE '%' || $1 || '%' OR e.category ILIKE '%' || $1 || '%'
-            OR e.city ILIKE '%' || $1 || '%')
+     WHERE ($1 = '' OR f_unaccent(e.name) LIKE '%' || f_unaccent($1) || '%'
+            OR f_unaccent(e.category) LIKE '%' || f_unaccent($1) || '%'
+            OR f_unaccent(e.city) LIKE '%' || f_unaccent($1) || '%')
      ORDER BY (p.plan = 'premium') DESC, e.name
      LIMIT $2`,
     [q, limit]

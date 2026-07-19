@@ -6,7 +6,7 @@
  *  - Mutações offline NÃO passam por aqui: ficam na fila do IndexedDB (js/idb.js)
  *    e são reenviadas quando a conexão volta, com rotas idempotentes no servidor.
  */
-const VERSION = 'v15';
+const VERSION = 'v17';
 const SHELL_CACHE = `shell-${VERSION}`;
 const DATA_CACHE = `data-${VERSION}`;
 
@@ -128,4 +128,37 @@ self.addEventListener('fetch', event => {
       }).catch(() => caches.match(key).then(cached => cached || new Response('offline', { status: 503 })))
     );
   }
+});
+
+// ─── Web Push: avisos de mensagens e reservas com o app fechado ─────────────
+self.addEventListener('push', event => {
+  if (!event.data) return;
+  let data = {};
+  try { data = event.data.json(); } catch { return; }
+  event.waitUntil((async () => {
+    // Com uma janela do app focada, o SSE já avisa em tela — sem duplicar
+    const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (wins.some(w => w.focused)) return;
+    await self.registration.showNotification(data.title || 'Caminhos do Caparaó', {
+      body: data.body || '',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: data.tag || undefined,     // mesma conversa/reserva substitui a anterior
+      data: { url: data.url || '/' },
+    });
+  })());
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/';
+  event.waitUntil((async () => {
+    const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const win = wins.find(w => new URL(w.url).pathname === url) || wins[0];
+    if (win) {
+      if (new URL(win.url).pathname !== url) await win.navigate(url).catch(() => {});
+      return win.focus();
+    }
+    return clients.openWindow(url);
+  })());
 });

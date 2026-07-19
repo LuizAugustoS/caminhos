@@ -1,5 +1,6 @@
 // Popula o banco com dados de demonstração coerentes com o painel.
 // Idempotente: limpa as tabelas de domínio e recria tudo.
+import '../server/env.js';
 import { randomBytes, scryptSync } from 'node:crypto';
 import pg from 'pg';
 
@@ -470,6 +471,9 @@ await client.query(
    ($1, $2, 'Pode reservar, por favor! Chegamos na sexta à noite.', now() - interval '1 hour')`,
   [conv.id, touristUser.id, producerUser.id]
 );
+
+// Contas demo já nascem com o e-mail confirmado
+await client.query('UPDATE users SET email_verified_at = now()');
 
 await client.query('COMMIT');
 

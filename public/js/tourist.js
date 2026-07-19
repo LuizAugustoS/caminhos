@@ -249,6 +249,7 @@ async function openListingDetail(listingId) {
         </div>
         <div class="ex-actions">
           <button class="btn-fav ${isFav ? 'on' : ''}" data-detail="fav" title="Favoritar">♥</button>
+          <button class="btn-secondary" data-detail="share" title="Compartilhar">⧉</button>
           <button class="btn-secondary" data-detail="add-trip">+ Roteiro</button>
           <button class="btn-secondary" data-detail="chat">Conversar</button>
           ${canBook ? '<button class="btn-primary" data-detail="book">Reservar</button>' : ''}
@@ -276,6 +277,11 @@ async function openListingDetail(listingId) {
   }));
   overlay.querySelector('[data-detail=fav]').addEventListener('click', e =>
     toggleFavorite(l.id, e.currentTarget).then(loadExplore));
+  overlay.querySelector('[data-detail=share]').addEventListener('click', async () => {
+    const url = `${location.origin}/p/${l.id}`;
+    if (navigator.share) return navigator.share({ title: l.title, url }).catch(() => {});
+    try { await navigator.clipboard.writeText(url); toast('Link copiado'); } catch { toast(url); }
+  });
   overlay.querySelector('[data-detail=add-trip]').addEventListener('click', () => {
     close();
     addToTrip({ listing_id: l.id }, l.title);

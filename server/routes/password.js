@@ -56,7 +56,10 @@ password.post('/reset', async (req, res) => {
   );
   if (!reset) return res.status(400).json({ error: 'Link inválido ou expirado — peça uma nova redefinição' });
 
-  await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashPassword(newPassword), reset.user_id]);
+  // Nova época: sessões abertas com a senha antiga deixam de valer
+  await query(
+    'UPDATE users SET password_hash = $1, session_epoch = session_epoch + 1 WHERE id = $2',
+    [hashPassword(newPassword), reset.user_id]);
   // Consome o token usado e invalida os demais pendentes do usuário
   await query('UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL', [reset.user_id]);
   res.json({ ok: true });

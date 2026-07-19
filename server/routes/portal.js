@@ -3,7 +3,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { acceptImage, removeUpload } from '../upload.js';
-import { planOf } from '../plans.js';
+import { PLAN_KEYS, planOf } from '../plans.js';
 import { portalBookings } from './bookings.js';
 
 export const portal = Router();
@@ -90,12 +90,44 @@ const IMAGE_KINDS = ['cafe', 'arte', 'verde', 'sage'];
 
 portal.get('/listings', async (req, res) => {
   const { rows } = await query(
-    `SELECT id, type, title, subtitle, glyph, image_kind, image_path, status, listed_at, created_at,
-            price_cents, price_unit, event_date, event_time, event_place
-     FROM listings WHERE producer_id = $1 ORDER BY created_at DESC`,
+    `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.status,
+            l.listed_at, l.created_at, l.available,
+            l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place,
+            coalesce(v.views_30d, 0) AS views_30d
+     FROM listings l
+     LEFT JOIN (SELECT listing_id, sum(views) AS views_30d FROM listing_views
+                WHERE day > CURRENT_DATE - 30 GROUP BY listing_id) v ON v.listing_id = l.id
+     WHERE l.producer_id = $1 ORDER BY l.created_at DESC`,
     [req.producer.id]
   );
   res.json({ listings: rows });
+});
+
+// Pausar/reativar anúncio (some do Explorar sem passar pela moderação de novo)
+portal.post('/listings/:id/availability', async (req, res) => {
+  const { available } = req.body || {};
+  if (typeof available !== 'boolean') return res.status(400).json({ error: 'available deve ser true ou false' });
+  const { rows } = await query(
+    `UPDATE listings SET available = $1 WHERE id = $2 AND producer_id = $3
+     RETURNING id, available`,
+    [available, req.params.id, req.producer.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Anúncio não encontrado' });
+  res.json(rows[0]);
+});
+
+// Solicitação de mudança de plano — vira alerta para a equipe (a cobrança
+// é combinada fora da plataforma)
+portal.post('/plan-request', async (req, res) => {
+  const { plan, note } = req.body || {};
+  if (!PLAN_KEYS.includes(plan)) return res.status(400).json({ error: 'Plano inválido' });
+  if (plan === req.producer.plan) return res.status(400).json({ error: 'Este já é o seu plano atual' });
+  await query(
+    `INSERT INTO alerts (title, meta, severity) VALUES ($1, $2, 'info')`,
+    [`Pedido de plano: ${req.producer.name}`,
+     `${planOf(req.producer.plan).label} → ${planOf(plan).label}${note?.trim() ? ` · "${note.trim().slice(0, 140)}"` : ''}`]
+  );
+  res.status(201).json({ ok: true });
 });
 
 function validListing(body) {

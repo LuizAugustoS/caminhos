@@ -179,12 +179,18 @@
               <input id="producers-q" type="search" placeholder="Buscar por nome, atividade ou cidade…">
             </div>
           </div>
-          <div class="tabs" id="producers-filter" style="margin-bottom:16px; max-width:fit-content;">
+          <div class="tabs" id="producers-filter" style="margin-bottom:8px; max-width:fit-content;">
             <button class="tab active" data-status="">Todos</button>
             <button class="tab" data-status="pending">Pendentes</button>
             <button class="tab" data-status="in_review">Em análise</button>
             <button class="tab" data-status="approved">Aprovados</button>
             <button class="tab" data-status="rejected">Recusados</button>
+          </div>
+          <div class="tabs" id="producers-plan-filter" style="margin-bottom:16px; max-width:fit-content;">
+            <button class="tab active" data-plan="">Todos os planos</button>
+            <button class="tab" data-plan="gratuito">Gratuito</button>
+            <button class="tab" data-plan="profissional">Profissional</button>
+            <button class="tab" data-plan="premium">★ Premium</button>
           </div>
           <section class="panel">
             <div class="producer-list" id="producers-all"></div>
@@ -316,7 +322,23 @@
               <div class="panel-head"><h2>Plataforma</h2></div>
               <div id="settings-platform"></div>
             </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Equipe</h2><button class="btn-secondary" id="btn-new-admin">+ Novo admin</button></div>
+              <div id="settings-admins"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Exportar dados (CSV)</h2></div>
+              <div class="row-actions" id="settings-exports" style="flex-wrap:wrap">
+                <a class="btn-secondary" href="/api/export/producers.csv" download>Produtores</a>
+                <a class="btn-secondary" href="/api/export/tourists.csv" download>Turistas</a>
+                <a class="btn-secondary" href="/api/export/transactions.csv" download>Transações</a>
+              </div>
+            </section>
           </div>
+          <section class="panel" style="margin-top:16px">
+            <div class="panel-head"><h2>Auditoria</h2><span class="sub">últimas ações administrativas</span></div>
+            <div id="settings-audit"></div>
+          </section>
         </section>
 
       </main>

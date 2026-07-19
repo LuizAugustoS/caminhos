@@ -1,4 +1,5 @@
 // Executa as migrations SQL pendentes em db/migrations, em ordem alfabética.
+import '../server/env.js';
 import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';

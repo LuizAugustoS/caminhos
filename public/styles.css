@@ -845,3 +845,36 @@ body.offline .offline-banner { display: block; }
 .leaflet-popup-content { font: 500 13px 'Manrope', sans-serif; }
 .leaflet-popup-content strong { font-weight: 800; }
 .directions-link { display: inline-block; font-size: 12px; font-weight: 800; margin-top: 2px; }
+
+/* ─── Banner de verificação de e-mail ─── */
+.verify-banner {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: #FBF3DC; border: 1px solid #EAD9A8; border-radius: 12px;
+  padding: 10px 14px; margin-bottom: 16px; font-size: 12.5px; font-weight: 600; color: #7A6224;
+}
+.verify-banner span { flex: 1; min-width: 200px; }
+.verify-banner .btn-secondary { padding: 6px 12px; font-size: 12px; }
+.verify-dismiss { border: none; background: none; cursor: pointer; color: #A08D6F; font-size: 13px; }
+
+/* ─── Páginas legais (termos/privacidade) ─── */
+.legal-page {
+  max-width: 720px; margin: 40px auto; background: #FFFFFF;
+  border: 1px solid var(--card-border); border-radius: 20px; padding: 36px 40px;
+}
+.legal-page h1 { margin: 8px 0 2px; font-size: 26px; color: var(--forest); }
+.legal-page h2 { margin: 22px 0 6px; font-size: 15px; color: var(--forest); }
+.legal-page p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.65; color: #5A4A38; font-weight: 500; }
+.legal-updated { font-size: 12px !important; color: #A08D6F !important; }
+.legal-back { display: inline-block; margin-bottom: 8px; font-size: 13px; }
+@media (max-width: 640px) { .legal-page { margin: 12px; padding: 24px 20px; } }
+
+/* ─── Anúncio pausado / páginas públicas ─── */
+.listing-paused .cell-title .t, .listing-paused .thumb { opacity: .55; }
+.paused-pill {
+  display: inline-block; padding: 1px 8px; border-radius: 999px; vertical-align: middle;
+  background: #EFE9DA; color: #8A7A62; font-size: 10px; font-weight: 800;
+}
+.public-hero { border-radius: 14px; overflow: hidden; margin: 6px 0 14px; max-height: 320px; }
+.public-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.public-cta { margin-top: 20px; }
+.public-cta .btn-primary { display: inline-block; text-decoration: none; }

@@ -2,6 +2,7 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { pool, query } from './db.js';
 import { PLAN_KEYS } from './plans.js';
+import { baseUrlOf, sendVerificationEmail } from './routes/verify.js';
 
 const SECRET = process.env.SESSION_SECRET || 'dev-secret-inseguro';
 const COOKIE = 'caparao_session';
@@ -13,6 +14,7 @@ const attempts = new Map(); // chave → { count, resetAt }
 
 export function rateLimit(keyFn, max, windowMs, message) {
   return (req, res, next) => {
+    if (process.env.DISABLE_RATE_LIMIT === '1') return next(); // testes automatizados
     const now = Date.now();
     if (attempts.size > 10_000) {
       for (const [k, v] of attempts) if (v.resetAt < now) attempts.delete(k);
@@ -87,8 +89,12 @@ export function hashPassword(password) {
   return `scrypt$${salt}$${scryptSync(password, salt, 64).toString('hex')}`;
 }
 
-export function setSession(res, admin) {
-  const token = sign({ id: admin.id, name: admin.name, role: admin.role, exp: Date.now() + SESSION_TTL_MS });
+export function setSession(res, user) {
+  const token = sign({
+    id: user.id, name: user.name, role: user.role,
+    ep: user.session_epoch ?? 0,           // época: revoga sessões antigas
+    exp: Date.now() + SESSION_TTL_MS,
+  });
   res.setHeader('Set-Cookie',
     `${COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${SESSION_TTL_MS / 1000}; SameSite=Lax${SECURE_FLAG}`);
 }
@@ -97,9 +103,15 @@ export function clearSession(res) {
   res.setHeader('Set-Cookie', `${COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${SECURE_FLAG}`);
 }
 
-export function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
   const session = verify(parseCookies(req)[COOKIE]);
   if (!session) return res.status(401).json({ error: 'Não autenticado' });
+  // Época da sessão: senha trocada/conta excluída invalida cookies antigos
+  const { rows: [u] } = await query('SELECT session_epoch FROM users WHERE id = $1', [session.id]);
+  if (!u || u.session_epoch !== (session.ep ?? 0)) {
+    clearSession(res);
+    return res.status(401).json({ error: 'Sessão expirada — entre novamente' });
+  }
   req.user = session;
   req.admin = session; // compatibilidade com rotas antigas
   next();
@@ -113,7 +125,8 @@ export const requireRole = (...roles) => [requireAuth, (req, res, next) => {
 export async function login(req, res) {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'Informe e-mail e senha' });
-  const { rows } = await query('SELECT id, name, email, password_hash, role FROM users WHERE email = $1', [email]);
+  const { rows } = await query(
+    'SELECT id, name, email, password_hash, role, session_epoch FROM users WHERE email = $1', [email]);
   const user = rows[0];
   if (!user || !verifyPassword(password, user.password_hash)) {
     return res.status(401).json({ error: 'E-mail ou senha inválidos' });
@@ -163,6 +176,7 @@ export async function register(req, res) {
       );
     }
     await client.query('COMMIT');
+    sendVerificationEmail(user, baseUrlOf(req)).catch(() => {});
     setSession(res, user);
     res.status(201).json(user);
   } catch (err) {
