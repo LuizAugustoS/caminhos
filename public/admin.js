@@ -184,7 +184,9 @@ function deltaBadge(deltaPct) {
 }
 
 function renderKpis(k) {
-  const producerBars = [38, 52, 44, 60, 55, 72, 66, 84]; // tendência ilustrativa
+  // Série real de aprovações de produtores (fallback plano se ainda vazia)
+  const producerBars = k.activeProducers.series?.some(v => v > 0)
+    ? k.activeProducers.series : [1, 1, 1, 1, 1, 1, 1, 1];
   const cards = [
     {
       label: 'Novos Turistas', accent: '#1C6B4A', icon: '◎', iconBg: '#E4F0E7',

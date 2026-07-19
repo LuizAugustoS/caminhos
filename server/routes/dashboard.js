@@ -8,7 +8,7 @@ const pctDelta = (current, previous) =>
 
 // KPIs, sparklines, heatmap e estatísticas da semana — tudo em uma chamada.
 dashboard.get('/', async (_req, res) => {
-  const [tourists, touristSeries, producers, listings, listingShare, volume, volumeSeries, heat, weekStats, itineraries] =
+  const [tourists, touristSeries, producers, producerSeries, listings, listingShare, volume, volumeSeries, heat, weekStats, itineraries] =
     await Promise.all([
       query(`SELECT
                count(*) FILTER (WHERE created_at >= now() - interval '30 days') AS current,
@@ -27,6 +27,14 @@ dashboard.get('/', async (_req, res) => {
                   AND created_at < now() - interval '30 days') AS previous,
                (SELECT count(*) FROM producers WHERE status IN ('pending', 'in_review')) AS pending,
                (SELECT count(DISTINCT producer_id) FROM listings WHERE status = 'approved') AS with_listings`),
+      // Crescimento de produtores aprovados: aprovações por janela de 4 dias
+      query(`SELECT count(p.id) AS n
+             FROM generate_series(7, 0, -1) AS bucket
+             LEFT JOIN producers p
+               ON p.status = 'approved'
+              AND coalesce(p.reviewed_at, p.created_at) >= now() - (bucket + 1) * interval '4 days'
+              AND coalesce(p.reviewed_at, p.created_at) <  now() - bucket * interval '4 days'
+             GROUP BY bucket ORDER BY bucket DESC`),
       query(`SELECT
                count(*) FILTER (WHERE status = 'approved') AS current,
                count(*) FILTER (WHERE status = 'approved' AND created_at < now() - interval '30 days') AS previous
@@ -81,7 +89,7 @@ dashboard.get('/', async (_req, res) => {
         value: Number(p.approved),
         deltaPct: pctDelta(Number(p.approved), Number(p.previous)),
         withListingsPct: Math.round((Number(p.with_listings) / Math.max(1, Number(p.approved))) * 100),
-        series: null,
+        series: producerSeries.rows.map(r => Number(r.n)),
       },
       totalListings: {
         value: Number(l.current),

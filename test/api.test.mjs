@@ -289,6 +289,19 @@ test('exclusão de conta (LGPD) remove o acesso', async () => {
   assert.equal((await login('/api/login', { method: 'POST', body: { email, password: 'senha1234' } })).status, 401);
 });
 
+test('dashboard: KPIs com séries reais (sem dados ilustrativos)', async () => {
+  const a = client();
+  await a('/api/login', { method: 'POST', body: {
+    email: 'admin@caminhosdocaparao.com.br', password: 'caparao2026' } });
+  const d = await (await a('/api/dashboard')).json();
+  const ps = d.kpis.activeProducers.series;
+  assert.ok(Array.isArray(ps) && ps.length === 8, 'série de produtores presente');
+  assert.ok(ps.every(n => Number.isInteger(n)), 'série de produtores numérica');
+  assert.ok(ps.some(n => n > 0), 'série reflete aprovações reais do seed');
+  assert.equal(d.kpis.newTourists.series.length, 8);
+  assert.equal(d.kpis.transactionVolume.series.length, 8);
+});
+
 test('admin: troca de plano, auditoria e CSV', async () => {
   const a = client();
   const r = await a('/api/login', { method: 'POST', body: {
