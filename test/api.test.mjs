@@ -200,6 +200,37 @@ test('paginação do chat: página + carregar anteriores', async () => {
   assert.equal(older.messages[0].body, 'msg 1');
 });
 
+test('estoque: reserva respeita e concluir venda decrementa/esgota', async () => {
+  const p = client();
+  await p('/api/register', { method: 'POST', body: {
+    name: 'Estoque', email: `st-${uniq}@test.com`, password: 'senha1234',
+    role: 'producer', establishment: `Sítio Estoque ${uniq}`, plan: 'gratuito' } });
+  const created = await (await p('/api/portal/listings', { method: 'POST', body: {
+    type: 'product', title: `Item Estoque ${uniq}`, price_cents: 1000, stock: 2 } })).json();
+  // aprova produtor e anúncio como admin
+  const a = client();
+  await a('/api/login', { method: 'POST', body: { email: 'admin@caminhosdocaparao.com.br', password: 'caparao2026' } });
+  const { producers } = await (await a(`/api/producers?limit=100&q=Estoque ${uniq}`)).json();
+  await a(`/api/producers/${producers[0].id}/status`, { method: 'POST', body: { status: 'approved' } });
+  await a(`/api/listings/${created.id}/status`, { method: 'POST', body: { status: 'approved' } });
+
+  const t = client();
+  await t('/api/register', { method: 'POST', body: {
+    name: 'Comprador', email: `cmp-${uniq}@test.com`, password: 'senha1234', role: 'tourist' } });
+  // pedir mais que o estoque falha
+  const over = await t('/api/bookings', { method: 'POST', body: {
+    listing_id: created.id, qty: 5, client_uid: `over-${uniq}` } });
+  assert.equal(over.status, 409);
+  // pedir 2 e concluir zera o estoque → some do Explorar
+  const bk = await (await t('/api/bookings', { method: 'POST', body: {
+    listing_id: created.id, qty: 2, client_uid: `ok-${uniq}` } })).json();
+  await p(`/api/portal/bookings/${bk.id}/status`, { method: 'POST', body: { status: 'confirmed' } });
+  await p(`/api/portal/bookings/${bk.id}/status`, { method: 'POST', body: { status: 'completed' } });
+  assert.equal((await fetch(`${BASE}/api/explore/listings/${created.id}`)).status, 404);
+  const { listings } = await (await p('/api/portal/listings')).json();
+  assert.equal(listings.find(l => l.id === created.id).stock, 0);
+});
+
 test('página pública do anúncio com OG tags', async () => {
   const ok = await fetch(`${BASE}/p/6`);
   assert.equal(ok.status, 200);

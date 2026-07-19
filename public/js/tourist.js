@@ -105,7 +105,7 @@ const listingCard = (l, favIds) => `
       <strong class="ex-title">${esc(l.title)}</strong>
       <span class="ex-sub">${esc(l.subtitle || '')}</span>
       ${l.rating_count ? `<span class="ex-rating">${starsHTML(l.rating_avg, l.rating_count)}</span>` : ''}
-      <span class="ex-price">${esc(fmtPrice(l.price_cents, l.price_unit))}</span>
+      <span class="ex-price">${esc(fmtPrice(l.price_cents, l.price_unit))}${l.stock != null && l.stock <= 5 ? ` · <span class="stock-low">restam ${l.stock}</span>` : ''}</span>
       ${l.type === 'event' && l.event_date
         ? `<span class="ex-meta">${esc(fmtEventDate(l.event_date))}${l.event_time ? ` · ${esc(l.event_time)}` : ''}${l.event_place ? ` · ${esc(l.event_place)}` : ''}</span>`
         : ''}
@@ -236,7 +236,7 @@ async function openListingDetail(listingId) {
         <h3>${esc(l.title)}</h3>
         ${l.rating_count ? `<p class="ex-rating detail-rating">${starsHTML(l.rating_avg, l.rating_count)}</p>` : ''}
         ${l.subtitle ? `<p class="detail-sub">${esc(l.subtitle)}</p>` : ''}
-        <p class="ex-price detail-price">${esc(fmtPrice(l.price_cents, l.price_unit))}</p>
+        <p class="ex-price detail-price">${esc(fmtPrice(l.price_cents, l.price_unit))}${l.stock != null ? ` · <span class="stock-low">${l.stock} disponíve${l.stock === 1 ? 'l' : 'is'}</span>` : ''}</p>
         ${eventLine}
         <div class="detail-partner">
           <div class="avatar lg" style="background:${esc(l.producer_color || '#1C6B4A')}">${esc(l.producer_initials || '')}</div>
@@ -298,11 +298,12 @@ async function openListingDetail(listingId) {
 
 // ─── Reservas ────────────────────────────────────────────────────────────────
 async function openBookingForm(l) {
+  const qtyLabel = l.stock != null ? `Quantidade (máx. ${l.stock})` : 'Quantidade';
   const values = await modalForm({
     title: `Reservar: ${l.title}`,
     confirmText: 'Enviar pedido',
     fields: [
-      { name: 'qty', label: 'Quantidade', type: 'number', value: '1' },
+      { name: 'qty', label: qtyLabel, type: 'number', value: '1' },
       { name: 'requested_date', label: 'Data desejada (opcional)', type: 'date', required: false },
       { name: 'note', label: 'Observação (opcional)', type: 'textarea', required: false,
         placeholder: 'Ex.: chegamos na sexta à noite, tem opção vegetariana?' },

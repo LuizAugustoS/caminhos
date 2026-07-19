@@ -21,12 +21,18 @@ bookings.post('/', async (req, res) => {
   const { listing_id, qty, requested_date, note, client_uid } = req.body || {};
   const n = Math.max(1, Math.min(Number(qty) || 1, 50));
   const { rows: [l] } = await query(
-    `SELECT l.id, l.title, l.producer_id, l.price_cents, l.price_unit, p.user_id AS producer_user_id
+    `SELECT l.id, l.title, l.producer_id, l.price_cents, l.price_unit, l.stock, l.available,
+            p.user_id AS producer_user_id
      FROM listings l JOIN producers p ON p.id = l.producer_id
      WHERE l.id = $1 AND l.status = 'approved' AND p.status = 'approved'`,
     [Number(listing_id)]
   );
-  if (!l) return res.status(404).json({ error: 'Anúncio não encontrado ou indisponível' });
+  if (!l || !l.available) return res.status(404).json({ error: 'Anúncio não encontrado ou indisponível' });
+  if (l.stock != null && l.stock < n) {
+    return res.status(409).json({
+      error: l.stock === 0 ? 'Anúncio esgotado' : `Restam apenas ${l.stock} — ajuste a quantidade`,
+    });
+  }
 
   const { rows: [b] } = await query(
     `INSERT INTO bookings (listing_id, tourist_id, producer_id, qty, requested_date, note, client_uid)
@@ -163,6 +169,11 @@ portalBookings.post('/:id/status', async (req, res) => {
   if (status === 'completed' && l?.price_cents) {
     await query('INSERT INTO transactions (listing_id, amount_cents) VALUES ($1, $2)',
       [b.listing_id, l.price_cents * b.qty]);
+  }
+  // Concluir venda baixa o estoque (quando há controle), nunca abaixo de zero
+  if (status === 'completed') {
+    await query('UPDATE listings SET stock = GREATEST(stock - $2, 0) WHERE id = $1 AND stock IS NOT NULL',
+      [b.listing_id, b.qty]);
   }
   notify(b.tourist_id, 'booking', {
     id: b.id, title: l?.title, status, status_label: BOOKING_LABEL[status],

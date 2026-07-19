@@ -91,7 +91,7 @@ const IMAGE_KINDS = ['cafe', 'arte', 'verde', 'sage'];
 portal.get('/listings', async (req, res) => {
   const { rows } = await query(
     `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.status,
-            l.listed_at, l.created_at, l.available,
+            l.listed_at, l.created_at, l.available, l.stock,
             l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place,
             coalesce(v.views_30d, 0) AS views_30d
      FROM listings l
@@ -131,16 +131,19 @@ portal.post('/plan-request', async (req, res) => {
 });
 
 function validListing(body) {
-  const { type, title, price_cents } = body || {};
+  const { type, title, price_cents, stock } = body || {};
   if (!LISTING_TYPES.includes(type)) return 'type deve ser product, service ou event';
   if (!title?.trim()) return 'Informe o título do anúncio';
   if (price_cents != null && (!Number.isInteger(price_cents) || price_cents <= 0)) {
     return 'Preço inválido';
   }
+  if (stock != null && (!Number.isInteger(stock) || stock < 0)) {
+    return 'Estoque inválido — deixe vazio para não controlar';
+  }
   return null;
 }
 
-// Normaliza os campos opcionais de preço e evento
+// Normaliza os campos opcionais de preço, evento e estoque
 function listingFields(body) {
   const isEvent = body.type === 'event';
   return [
@@ -149,6 +152,7 @@ function listingFields(body) {
     isEvent ? body.event_date || null : null,
     isEvent ? (body.event_time || '').trim() || null : null,
     isEvent ? (body.event_place || '').trim() || null : null,
+    body.stock ?? null,
   ];
 }
 
@@ -171,10 +175,10 @@ portal.post('/listings', async (req, res) => {
   const glyph = { product: '◉', service: '✤', event: '⛰' }[type];
   const { rows } = await query(
     `INSERT INTO listings (producer_id, type, title, subtitle, glyph, image_kind, image_label, status,
-                           price_cents, price_unit, event_date, event_time, event_place)
-     VALUES ($1, $2, $3, $4, $5, $6, $3, 'pending', $7, $8, $9, $10, $11)
+                           price_cents, price_unit, event_date, event_time, event_place, stock)
+     VALUES ($1, $2, $3, $4, $5, $6, $3, 'pending', $7, $8, $9, $10, $11, $12)
      RETURNING id, type, title, subtitle, glyph, image_kind, status, listed_at,
-               price_cents, price_unit, event_date, event_time, event_place`,
+               price_cents, price_unit, event_date, event_time, event_place, stock`,
     [req.producer.id, type, title.trim(), subtitle || null, glyph,
      IMAGE_KINDS.includes(image_kind) ? image_kind : 'verde', ...listingFields(req.body)]
   );
@@ -189,10 +193,10 @@ portal.put('/listings/:id', async (req, res) => {
   const { rows } = await query(
     `UPDATE listings
      SET type = $1, title = $2, subtitle = $3, image_kind = $4, status = 'pending', reviewed_at = NULL,
-         price_cents = $7, price_unit = $8, event_date = $9, event_time = $10, event_place = $11
+         price_cents = $7, price_unit = $8, event_date = $9, event_time = $10, event_place = $11, stock = $12
      WHERE id = $5 AND producer_id = $6
      RETURNING id, type, title, subtitle, glyph, image_kind, status, listed_at,
-               price_cents, price_unit, event_date, event_time, event_place`,
+               price_cents, price_unit, event_date, event_time, event_place, stock`,
     [type, title.trim(), subtitle || null,
      IMAGE_KINDS.includes(image_kind) ? image_kind : 'verde',
      req.params.id, req.producer.id, ...listingFields(req.body)]

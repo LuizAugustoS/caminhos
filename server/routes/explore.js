@@ -52,7 +52,7 @@ explore.get('/listings', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 24, 60);
   const { rows } = await query(
     `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.listed_at,
-            l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place,
+            l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place, l.stock,
             p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
             p.avatar_color AS producer_color, p.plan, coalesce(e.city, p.city) AS city,
             r.rating_avg, r.rating_count
@@ -61,7 +61,7 @@ explore.get('/listings', async (req, res) => {
      LEFT JOIN establishments e ON e.producer_id = p.id
      LEFT JOIN (SELECT listing_id, round(avg(rating)::numeric, 1) AS rating_avg, count(*) AS rating_count
                 FROM reviews WHERE NOT hidden GROUP BY listing_id) r ON r.listing_id = l.id
-     WHERE l.status = 'approved' AND l.available
+     WHERE l.status = 'approved' AND l.available AND (l.stock IS NULL OR l.stock > 0)
        AND l.image_label <> 'Foto do anúncio'
        AND ($1::text IS NULL OR l.type = $1::listing_type)
        AND ($2::text = '' OR f_unaccent(l.title) LIKE '%' || f_unaccent($2) || '%'
@@ -79,7 +79,7 @@ explore.get('/listings', async (req, res) => {
 explore.get('/listings/:id', async (req, res) => {
   const { rows } = await query(
     `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.listed_at,
-            l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place,
+            l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place, l.stock,
             p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
             p.avatar_color AS producer_color, p.kind AS producer_kind, p.plan,
             e.name AS est_name, e.description AS est_description, e.category AS est_category,
@@ -87,7 +87,8 @@ explore.get('/listings/:id', async (req, res) => {
      FROM listings l
      JOIN producers p ON p.id = l.producer_id AND p.status = 'approved'
      LEFT JOIN establishments e ON e.producer_id = p.id
-     WHERE l.id = $1 AND l.status = 'approved' AND l.available`,
+     WHERE l.id = $1 AND l.status = 'approved' AND l.available
+       AND (l.stock IS NULL OR l.stock > 0)`,
     [req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Anúncio não encontrado' });

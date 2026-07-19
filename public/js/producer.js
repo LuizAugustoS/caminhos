@@ -61,8 +61,8 @@ async function loadShowcase() {
       <div class="table-row listing-cols ${l.available ? '' : 'listing-paused'}" data-id="${l.id}" data-available="${l.available}">
         ${thumbHTML(l)}
         <div class="cell-title">
-          <div class="t">${esc(l.title)}${l.available ? '' : ' <span class="paused-pill">pausado</span>'}</div>
-          <div class="s">${esc(l.subtitle || '')}${l.status === 'approved' ? ` · ${l.views_30d} visualizaç${l.views_30d == 1 ? 'ão' : 'ões'} em 30 dias` : ''}</div>
+          <div class="t">${esc(l.title)}${l.available ? '' : ' <span class="paused-pill">pausado</span>'}${l.stock === 0 ? ' <span class="paused-pill">esgotado</span>' : ''}</div>
+          <div class="s">${esc(l.subtitle || '')}${l.stock != null ? ` · ${l.stock} em estoque` : ''}${l.status === 'approved' ? ` · ${l.views_30d} visualizaç${l.views_30d == 1 ? 'ão' : 'ões'} em 30 dias` : ''}</div>
         </div>
         <span class="cell-date">${TYPE_LABEL[l.type]}</span>
         <span class="cell-date">${fmtDate(l.listed_at)}</span>
@@ -97,6 +97,7 @@ function openListingForm(listing) {
   $('#l-subtitle').value = listing?.subtitle || '';
   $('#l-price').value = listing?.price_cents ? (listing.price_cents / 100).toFixed(2) : '';
   $('#l-price-unit').value = listing?.price_unit || '';
+  $('#l-stock').value = listing?.stock ?? '';
   $('#l-event-date').value = listing?.event_date ? listing.event_date.slice(0, 10) : '';
   $('#l-event-time').value = listing?.event_time || '';
   $('#l-event-place').value = listing?.event_place || '';
@@ -121,6 +122,7 @@ $('#listing-form').addEventListener('submit', async e => {
     event_date: $('#l-event-date').value || null,
     event_time: $('#l-event-time').value || null,
     event_place: $('#l-event-place').value || null,
+    stock: $('#l-stock').value === '' ? null : Math.max(0, parseInt($('#l-stock').value, 10) || 0),
   });
   try {
     if (editingId) await api(`/portal/listings/${editingId}`, { method: 'PUT', body });
