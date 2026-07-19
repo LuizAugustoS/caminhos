@@ -134,7 +134,8 @@ Proteções já embutidas: CSP e security headers, HSTS sob HTTPS, rate-limiting
 ## Testes e CI
 
 - `npm test` roda a suíte de API (`test/api.test.mjs`, node:test): sobe o servidor real contra o banco configurado e cobre autenticação, verificação de e-mail, redefinição/troca de senha com revogação de sessão, limites de plano, busca sem acento, fluxo completo de reserva + avaliação, páginas públicas, pausa de anúncio, roteiros idempotentes, exclusão de conta (LGPD) e ferramentas do admin. Rode `npm run db:setup` antes.
-- GitHub Actions (`.github/workflows/ci.yml`) executa migrations + seed + testes com Postgres 16 em todo push/PR.
+- `npm run test:ui` roda o smoke de navegador (`test/ui/`, Playwright): sobe o servidor, valida os caminhos visuais de turista, produtor, admin e landing contra o seed. Localmente aponte o Chromium com `PLAYWRIGHT_CHROMIUM=<caminho>`; o CI instala o browser automaticamente.
+- GitHub Actions (`.github/workflows/ci.yml`) roda dois jobs em todo push/PR com Postgres 16: **test** (migrations + seed + testes de API) e **ui** (smoke de navegador).
 
 ## Operação
 
