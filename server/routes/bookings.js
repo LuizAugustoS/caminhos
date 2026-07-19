@@ -77,6 +77,8 @@ bookings.post('/', async (req, res) => {
 
 bookings.get('/', async (req, res) => {
   if (req.user.role !== 'tourist') return res.status(403).json({ error: 'Apenas turistas' });
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
+  const before = Number(req.query.before) || null;
   const { rows } = await query(
     `SELECT b.*, l.title, l.price_cents, l.price_unit, l.image_path, l.image_kind, l.glyph,
             p.name AS producer_name, p.id AS producer_id,
@@ -85,11 +87,16 @@ bookings.get('/', async (req, res) => {
      JOIN listings l ON l.id = b.listing_id
      JOIN producers p ON p.id = b.producer_id
      LEFT JOIN reviews r ON r.booking_id = b.id
-     WHERE b.tourist_id = $1
-     ORDER BY b.created_at DESC LIMIT 50`,
-    [req.user.id]
+     WHERE b.tourist_id = $1 AND ($3::int IS NULL OR b.id < $3)
+     ORDER BY b.id DESC LIMIT $2 + 1`,
+    [req.user.id, limit, before]
   );
-  res.json({ bookings: rows.map(b => ({ ...b, status_label: BOOKING_LABEL[b.status] })) });
+  const hasMore = rows.length > limit;
+  const page = rows.slice(0, limit);
+  res.json({
+    bookings: page.map(b => ({ ...b, status_label: BOOKING_LABEL[b.status] })),
+    hasMore, oldestId: page[page.length - 1]?.id ?? null,
+  });
 });
 
 bookings.post('/:id/cancel', async (req, res) => {
@@ -107,17 +114,28 @@ bookings.post('/:id/cancel', async (req, res) => {
 
 // ─── Produtor ───────────────────────────────────────────────────────────────
 portalBookings.get('/', async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 30, 100);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
   const { rows } = await query(
     `SELECT b.*, l.title, l.price_cents, l.price_unit, u.name AS tourist_name
      FROM bookings b
      JOIN listings l ON l.id = b.listing_id
      JOIN users u ON u.id = b.tourist_id
      WHERE b.producer_id = $1
-     ORDER BY (b.status = 'pending') DESC, b.created_at DESC LIMIT 100`,
+     ORDER BY (b.status = 'pending') DESC, b.created_at DESC
+     LIMIT $2 + 1 OFFSET $3`,
+    [req.producer.id, limit, offset]
+  );
+  const hasMore = rows.length > limit;
+  // Total de pendentes independe da página (mantém o badge correto)
+  const { rows: [{ pending }] } = await query(
+    `SELECT count(*) AS pending FROM bookings WHERE producer_id = $1 AND status = 'pending'`,
     [req.producer.id]
   );
-  const pending = rows.filter(b => b.status === 'pending').length;
-  res.json({ bookings: rows.map(b => ({ ...b, status_label: BOOKING_LABEL[b.status] })), pending });
+  res.json({
+    bookings: rows.slice(0, limit).map(b => ({ ...b, status_label: BOOKING_LABEL[b.status] })),
+    hasMore, pending: Number(pending),
+  });
 });
 
 const TRANSITIONS = {

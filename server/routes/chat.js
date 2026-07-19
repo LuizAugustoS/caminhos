@@ -31,6 +31,8 @@ async function canAccess(convId, user) {
 
 conversations.get('/', async (req, res) => {
   const producerId = req.user.role === 'producer' ? await myProducerId(req.user.id) : null;
+  const limit = Math.min(Number(req.query.limit) || 40, 100);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
   const { rows } = await query(
     `SELECT c.id, c.created_at,
             p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
@@ -45,10 +47,20 @@ conversations.get('/', async (req, res) => {
      JOIN users u ON u.id = c.tourist_id
      WHERE ($2::int IS NOT NULL AND c.producer_id = $2)
         OR ($2::int IS NULL AND c.tourist_id = $1)
-     ORDER BY last_at DESC NULLS LAST`,
+     ORDER BY last_at DESC NULLS LAST
+     LIMIT $3 + 1 OFFSET $4`,
+    [req.user.id, producerId, limit, offset]
+  );
+  const hasMore = rows.length > limit;
+  // Total de não lidas independe da página (mantém o badge correto)
+  const { rows: [{ unread_total }] } = await query(
+    `SELECT count(*) AS unread_total FROM messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     WHERE m.read_at IS NULL AND m.sender_id <> $1
+       AND (($2::int IS NOT NULL AND c.producer_id = $2) OR ($2::int IS NULL AND c.tourist_id = $1))`,
     [req.user.id, producerId]
   );
-  res.json({ conversations: rows });
+  res.json({ conversations: rows.slice(0, limit), hasMore, unreadTotal: Number(unread_total) });
 });
 
 // Turista abre (ou reencontra) conversa com um produtor
@@ -70,20 +82,29 @@ conversations.post('/', async (req, res) => {
 conversations.get('/:id/messages', async (req, res) => {
   const conv = await canAccess(req.params.id, req.user);
   if (!conv) return res.status(404).json({ error: 'Conversa não encontrada' });
+  // Paginação por página: carrega as N mais recentes; `before` (id) busca as
+  // anteriores para o botão "carregar mais" no topo do histórico.
+  const limit = Math.min(Number(req.query.limit) || 30, 100);
+  const before = Number(req.query.before) || null;
   const { rows } = await query(
     `SELECT m.id, m.sender_id, m.client_uid, m.body, m.created_at, m.read_at, u.name AS sender_name
      FROM messages m JOIN users u ON u.id = m.sender_id
-     WHERE m.conversation_id = $1
-     ORDER BY m.created_at`,
-    [conv.id]
+     WHERE m.conversation_id = $1 AND ($3::int IS NULL OR m.id < $3)
+     ORDER BY m.created_at DESC, m.id DESC
+     LIMIT $2 + 1`,
+    [conv.id, limit, before]
   );
-  // Marca como lidas as mensagens recebidas
-  await query(
-    `UPDATE messages SET read_at = now()
-     WHERE conversation_id = $1 AND sender_id <> $2 AND read_at IS NULL`,
-    [conv.id, req.user.id]
-  );
-  res.json({ messages: rows });
+  const hasMore = rows.length > limit;
+  const page = rows.slice(0, limit).reverse(); // devolve em ordem cronológica
+  // Marca como lidas as mensagens recebidas (só na primeira página)
+  if (!before) {
+    await query(
+      `UPDATE messages SET read_at = now()
+       WHERE conversation_id = $1 AND sender_id <> $2 AND read_at IS NULL`,
+      [conv.id, req.user.id]
+    );
+  }
+  res.json({ messages: page, hasMore, oldestId: page[0]?.id ?? null });
 });
 
 conversations.post('/:id/messages', async (req, res) => {

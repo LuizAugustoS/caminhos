@@ -180,6 +180,26 @@ test('reserva completa: pedido → confirmar → concluir → avaliação', asyn
   assert.equal(other.status, 403); // produtor não é turista
 });
 
+test('paginação do chat: página + carregar anteriores', async () => {
+  const t = client();
+  await t('/api/register', { method: 'POST', body: {
+    name: 'Chat Page', email: `cp-${uniq}@test.com`, password: 'senha1234', role: 'tourist' } });
+  const conv = await (await t('/api/conversations', { method: 'POST', body: { producer_id: 1 } })).json();
+  // manda 35 mensagens
+  for (let i = 1; i <= 35; i++) {
+    await t(`/api/conversations/${conv.id}/messages`, { method: 'POST', body: {
+      body: `msg ${i}`, client_uid: `cp-${uniq}-${i}` } });
+  }
+  const first = await (await t(`/api/conversations/${conv.id}/messages?limit=30`)).json();
+  assert.equal(first.messages.length, 30);
+  assert.equal(first.hasMore, true);
+  assert.equal(first.messages.at(-1).body, 'msg 35'); // ordem cronológica
+  const older = await (await t(`/api/conversations/${conv.id}/messages?limit=30&before=${first.oldestId}`)).json();
+  assert.equal(older.messages.length, 5);
+  assert.equal(older.hasMore, false);
+  assert.equal(older.messages[0].body, 'msg 1');
+});
+
 test('página pública do anúncio com OG tags', async () => {
   const ok = await fetch(`${BASE}/p/6`);
   assert.equal(ok.status, 200);

@@ -326,16 +326,7 @@ async function openBookingForm(l) {
 
 let lastBookings = [];
 
-async function renderBookings() {
-  let bookings = [];
-  try { ({ bookings } = await api('/bookings')); }
-  catch (err) {
-    if (err.unauthorized) return;
-    $('#bookings-list').innerHTML = '<p class="empty-note">Reservas indisponíveis offline — conecte-se para ver seus pedidos.</p>';
-    return;
-  }
-  lastBookings = bookings;
-  $('#bookings-list').innerHTML = bookings.map(b => `
+const bookingRow = b => `
     <div class="bk-row" data-id="${b.id}">
       ${thumbHTML(b, 'bk-thumb')}
       <div class="bk-info">
@@ -349,7 +340,19 @@ async function renderBookings() {
       ${b.status === 'completed' ? (b.my_rating
         ? `<button class="btn-secondary" data-bk-review>Sua nota: <span class="stars">${'★'.repeat(b.my_rating)}</span></button>`
         : '<button class="btn-primary" data-bk-review>Avaliar</button>') : ''}
-    </div>`).join('')
+    </div>`;
+
+async function renderBookings() {
+  let data;
+  try { data = await api('/bookings'); }
+  catch (err) {
+    if (err.unauthorized) return;
+    $('#bookings-list').innerHTML = '<p class="empty-note">Reservas indisponíveis offline — conecte-se para ver seus pedidos.</p>';
+    return;
+  }
+  lastBookings = data.bookings;
+  $('#bookings-list').innerHTML = data.bookings.map(bookingRow).join('')
+    + (data.hasMore ? `<button class="btn-secondary load-more" data-bk-more="${data.oldestId}">Carregar mais</button>` : '')
     || '<p class="empty-note">Nenhuma reserva ainda — abra um anúncio no Explorar e toque em "Reservar".</p>';
 }
 
@@ -395,6 +398,18 @@ function openReviewForm(b) {
 }
 
 $('#bookings-list').addEventListener('click', async e => {
+  const moreBtn = e.target.closest('[data-bk-more]');
+  if (moreBtn) {
+    moreBtn.disabled = true;
+    try {
+      const data = await api(`/bookings?before=${moreBtn.dataset.bkMore}`);
+      lastBookings = lastBookings.concat(data.bookings);
+      moreBtn.insertAdjacentHTML('beforebegin', data.bookings.map(bookingRow).join(''));
+      if (data.hasMore) moreBtn.dataset.bkMore = data.oldestId;
+      else moreBtn.remove();
+    } catch (err) { toast(err.message); moreBtn.disabled = false; }
+    return;
+  }
   const reviewBtn = e.target.closest('[data-bk-review]');
   if (reviewBtn) {
     const id = Number(reviewBtn.closest('.bk-row').dataset.id);
@@ -758,16 +773,17 @@ async function startConversation(producerId) {
 }
 
 async function loadConversations() {
-  let convs = [];
+  let convs = [], unreadTotal = null;
   if (navigator.onLine) {
     try {
-      ({ conversations: convs } = await api('/conversations'));
+      ({ conversations: convs, unreadTotal } = await api('/conversations'));
       await CaparaoDB.put('kv', 'conversations', convs);
     } catch { convs = (await CaparaoDB.get('kv', 'conversations')) || []; }
   } else {
     convs = (await CaparaoDB.get('kv', 'conversations')) || [];
   }
-  const unread = convs.reduce((s, c) => s + Number(c.unread || 0), 0);
+  // unreadTotal cobre todas as conversas mesmo com a lista paginada
+  const unread = unreadTotal ?? convs.reduce((s, c) => s + Number(c.unread || 0), 0);
   const badge = $('#chat-badge');
   badge.classList.toggle('hidden', !unread);
   badge.textContent = unread || '';
@@ -782,18 +798,29 @@ async function loadConversations() {
     </div>`).join('') || '<p class="empty-note">Nenhuma conversa ainda.</p>';
 }
 
+// Estado de paginação do histórico da conversa aberta
+let threadHasMore = false, threadOldestId = null;
+
 async function fetchThreadMsgs(convId) {
   let msgs = [];
   if (navigator.onLine) {
     try {
-      ({ messages: msgs } = await api(`/conversations/${convId}/messages`));
+      const data = await api(`/conversations/${convId}/messages`);
+      msgs = data.messages;
+      threadHasMore = data.hasMore;
+      threadOldestId = data.oldestId;
       await CaparaoDB.put('kv', `messages-${convId}`, msgs);
-    } catch { msgs = (await CaparaoDB.get('kv', `messages-${convId}`)) || []; }
+    } catch { msgs = (await CaparaoDB.get('kv', `messages-${convId}`)) || []; threadHasMore = false; }
   } else {
     msgs = (await CaparaoDB.get('kv', `messages-${convId}`)) || [];
+    threadHasMore = false;
   }
   return msgs;
 }
+
+const olderBtnHTML = () => threadHasMore
+  ? `<button type="button" class="btn-secondary load-more" id="thread-older" data-before="${threadOldestId}">Carregar mensagens anteriores</button>`
+  : '';
 
 // Atualiza só as bolhas de mensagem (o campo de digitação fica intocado)
 async function refreshThreadMsgs(convId) {
@@ -803,7 +830,7 @@ async function refreshThreadMsgs(convId) {
   const queued = (await CaparaoDB.get('kv', `queued-${convId}`)) || [];
   if (convId !== currentConvId) return;
   const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-  box.innerHTML =
+  box.innerHTML = olderBtnHTML() +
     msgs.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('') +
     queued.map(q => msgBubble(q.body, true, 'aguardando envio')).join('');
   if (atBottom) box.scrollTop = box.scrollHeight;
@@ -817,6 +844,7 @@ async function openThread(convId) {
   $('#conv-thread').innerHTML = `
     <button type="button" class="thread-back" id="thread-back">‹ Conversas</button>
     <div class="thread-msgs" id="thread-msgs">
+      ${olderBtnHTML()}
       ${msgs.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('')}
       ${queued.map(q => msgBubble(q.body, true, 'aguardando envio')).join('')}
     </div>
@@ -826,6 +854,21 @@ async function openThread(convId) {
     </form>`;
   const box = $('#thread-msgs');
   box.scrollTop = box.scrollHeight;
+  box.addEventListener('click', async e => {
+    const older = e.target.closest('#thread-older');
+    if (!older) return;
+    older.disabled = true;
+    try {
+      const data = await api(`/conversations/${convId}/messages?before=${older.dataset.before}`);
+      threadHasMore = data.hasMore;
+      threadOldestId = data.oldestId;
+      const prevH = box.scrollHeight;
+      older.remove();
+      box.insertAdjacentHTML('afterbegin',
+        olderBtnHTML() + data.messages.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join(''));
+      box.scrollTop = box.scrollHeight - prevH; // mantém a posição de leitura
+    } catch (err) { toast(err.message); older.disabled = false; }
+  });
   $('#thread-back').addEventListener('click', () => {
     currentConvId = null;
     $('.chat-layout')?.classList.remove('thread-open');
