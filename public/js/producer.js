@@ -69,11 +69,11 @@ async function loadShowcase() {
         <span class="status-pill status-${l.status}">${STATUS_LABEL[l.status]}</span>
         <div class="row-actions">
           ${l.status === 'approved' ? `
-            <button class="btn-view" data-action="share" title="Copiar link público">⧉</button>
-            <button class="btn-view" data-action="toggle" title="${l.available ? 'Pausar anúncio' : 'Reativar anúncio'}">${l.available ? '⏸' : '▶'}</button>` : ''}
-          <button class="btn-view" data-action="photo" title="Fotos do anúncio">⊡</button>
-          <button class="btn-view" data-action="edit" title="Editar">✎</button>
-          <button class="btn-reject" data-action="delete" title="Excluir">✕</button>
+            <button class="btn-view" data-action="share" title="Copiar link público">${icon('share')}</button>
+            <button class="btn-view" data-action="toggle" title="${l.available ? 'Pausar anúncio' : 'Reativar anúncio'}">${icon(l.available ? 'pause' : 'play')}</button>` : ''}
+          <button class="btn-view" data-action="photo" title="Fotos do anúncio">${icon('image')}</button>
+          <button class="btn-view" data-action="edit" title="Editar">${icon('edit')}</button>
+          <button class="btn-reject" data-action="delete" title="Excluir">${icon('close')}</button>
         </div>
       </div>`).join('') || '<p class="empty-note">Nenhum anúncio ainda — crie o primeiro!</p>';
   } catch (err) {
@@ -92,7 +92,7 @@ function openListingForm(listing) {
   editingId = listing?.id ?? null;
   $('#listing-form-title').textContent = editingId ? 'Editar anúncio' : 'Novo anúncio';
   $('#l-type').value = listing?.type || 'product';
-  $('#l-image').value = listing?.image_kind || 'cafe';
+
   $('#l-title').value = listing?.title || '';
   $('#l-subtitle').value = listing?.subtitle || '';
   $('#l-price').value = listing?.price_cents ? (listing.price_cents / 100).toFixed(2) : '';
@@ -114,7 +114,7 @@ $('#listing-form').addEventListener('submit', async e => {
   const price = parseFloat(String($('#l-price').value).replace(',', '.'));
   const body = JSON.stringify({
     type: $('#l-type').value,
-    image_kind: $('#l-image').value,
+    image_kind: 'verde',
     title: $('#l-title').value,
     subtitle: $('#l-subtitle').value || null,
     price_cents: Number.isFinite(price) && price > 0 ? Math.round(price * 100) : null,
@@ -212,7 +212,7 @@ async function openGalleryManager(id) {
         <div class="gallery-item" data-img="${img.id}">
           <img src="${esc(img.path)}" alt="">
           ${i === 0 ? '<span class="gallery-cover">capa</span>' : ''}
-          <button type="button" class="gallery-del" title="Remover foto">✕</button>
+          <button type="button" class="gallery-del" title="Remover foto">${icon('close')}</button>
         </div>`).join('') || '<p class="empty-note">Nenhuma foto ainda — a capa ilustrativa é usada no lugar.</p>'}
     </div>
     <div class="row-actions modal-actions">
@@ -260,7 +260,7 @@ const producerBookingRow = b => `
     <div class="row-actions">
       ${b.status === 'pending' ? `
         <button class="btn-approve" data-bk="confirmed">Confirmar</button>
-        <button class="btn-reject" data-bk="declined" title="Recusar">✕</button>` : ''}
+        <button class="btn-reject" data-bk="declined" title="Recusar">${icon('close')}</button>` : ''}
       ${b.status === 'confirmed' ? '<button class="btn-primary" data-bk="completed">Concluir venda</button>' : ''}
     </div>
   </div>`;
