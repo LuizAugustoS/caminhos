@@ -9,28 +9,68 @@ const COOKIE = 'caparao_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12 horas
 const SECURE_FLAG = process.env.NODE_ENV === 'production' ? '; Secure' : '';
 
-// ─── Rate limit em memória (login/registro) ─────────────────────────────────
+// ─── Rate limit (login/registro/reenvios) ───────────────────────────────────
+// Padrão: em memória (instância única). Com RATE_LIMIT_STORE=db usa o Postgres
+// para valer entre múltiplas instâncias.
 const attempts = new Map(); // chave → { count, resetAt }
+const USE_DB_RATE_LIMIT = process.env.RATE_LIMIT_STORE === 'db';
+
+function memoryHit(key, max, windowMs) {
+  const now = Date.now();
+  if (attempts.size > 10_000) {
+    for (const [k, v] of attempts) if (v.resetAt < now) attempts.delete(k);
+  }
+  const entry = attempts.get(key);
+  if (!entry || entry.resetAt < now) {
+    attempts.set(key, { count: 1, resetAt: now + windowMs });
+    return { limited: false };
+  }
+  if (entry.count >= max) return { limited: true, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+  entry.count++;
+  return { limited: false };
+}
+
+// Contagem atômica no banco: upsert que zera a janela expirada e incrementa.
+async function dbHit(key, max, windowMs) {
+  const { rows: [row] } = await query(
+    `INSERT INTO rate_limits (bucket, count, reset_at)
+     VALUES ($1, 1, now() + ($2 || ' milliseconds')::interval)
+     ON CONFLICT (bucket) DO UPDATE SET
+       count = CASE WHEN rate_limits.reset_at < now() THEN 1 ELSE rate_limits.count + 1 END,
+       reset_at = CASE WHEN rate_limits.reset_at < now()
+                       THEN now() + ($2 || ' milliseconds')::interval ELSE rate_limits.reset_at END
+     RETURNING count, reset_at`,
+    [key, windowMs]
+  );
+  if (row.count > max) {
+    return { limited: true, retryAfter: Math.max(1, Math.ceil((new Date(row.reset_at) - Date.now()) / 1000)) };
+  }
+  return { limited: false };
+}
+
+// Limpeza periódica dos buckets expirados (só no modo banco)
+if (USE_DB_RATE_LIMIT) {
+  setInterval(() => {
+    query('DELETE FROM rate_limits WHERE reset_at < now()').catch(() => {});
+  }, 10 * 60 * 1000).unref();
+}
 
 export function rateLimit(keyFn, max, windowMs, message) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (process.env.DISABLE_RATE_LIMIT === '1') return next(); // testes automatizados
-    const now = Date.now();
-    if (attempts.size > 10_000) {
-      for (const [k, v] of attempts) if (v.resetAt < now) attempts.delete(k);
+    try {
+      const key = keyFn(req);
+      const r = USE_DB_RATE_LIMIT ? await dbHit(key, max, windowMs) : memoryHit(key, max, windowMs);
+      if (r.limited) {
+        res.setHeader('Retry-After', r.retryAfter);
+        return res.status(429).json({ error: message });
+      }
+      next();
+    } catch (err) {
+      // Falha no store nunca deve bloquear o serviço — segue sem limitar
+      console.warn('rateLimit falhou:', err.message);
+      next();
     }
-    const key = keyFn(req);
-    const entry = attempts.get(key);
-    if (!entry || entry.resetAt < now) {
-      attempts.set(key, { count: 1, resetAt: now + windowMs });
-      return next();
-    }
-    if (entry.count >= max) {
-      res.setHeader('Retry-After', Math.ceil((entry.resetAt - now) / 1000));
-      return res.status(429).json({ error: message });
-    }
-    entry.count++;
-    next();
   };
 }
 

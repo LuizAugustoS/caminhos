@@ -61,8 +61,8 @@ async function loadShowcase() {
       <div class="table-row listing-cols ${l.available ? '' : 'listing-paused'}" data-id="${l.id}" data-available="${l.available}">
         ${thumbHTML(l)}
         <div class="cell-title">
-          <div class="t">${esc(l.title)}${l.available ? '' : ' <span class="paused-pill">pausado</span>'}</div>
-          <div class="s">${esc(l.subtitle || '')}${l.status === 'approved' ? ` · ${l.views_30d} visualizaç${l.views_30d == 1 ? 'ão' : 'ões'} em 30 dias` : ''}</div>
+          <div class="t">${esc(l.title)}${l.available ? '' : ' <span class="paused-pill">pausado</span>'}${l.stock === 0 ? ' <span class="paused-pill">esgotado</span>' : ''}</div>
+          <div class="s">${esc(l.subtitle || '')}${l.stock != null ? ` · ${l.stock} em estoque` : ''}${l.status === 'approved' ? ` · ${l.views_30d} visualizaç${l.views_30d == 1 ? 'ão' : 'ões'} em 30 dias` : ''}</div>
         </div>
         <span class="cell-date">${TYPE_LABEL[l.type]}</span>
         <span class="cell-date">${fmtDate(l.listed_at)}</span>
@@ -97,6 +97,7 @@ function openListingForm(listing) {
   $('#l-subtitle').value = listing?.subtitle || '';
   $('#l-price').value = listing?.price_cents ? (listing.price_cents / 100).toFixed(2) : '';
   $('#l-price-unit').value = listing?.price_unit || '';
+  $('#l-stock').value = listing?.stock ?? '';
   $('#l-event-date').value = listing?.event_date ? listing.event_date.slice(0, 10) : '';
   $('#l-event-time').value = listing?.event_time || '';
   $('#l-event-place').value = listing?.event_place || '';
@@ -121,6 +122,7 @@ $('#listing-form').addEventListener('submit', async e => {
     event_date: $('#l-event-date').value || null,
     event_time: $('#l-event-time').value || null,
     event_place: $('#l-event-place').value || null,
+    stock: $('#l-stock').value === '' ? null : Math.max(0, parseInt($('#l-stock').value, 10) || 0),
   });
   try {
     if (editingId) await api(`/portal/listings/${editingId}`, { method: 'PUT', body });
@@ -246,26 +248,32 @@ function setBkBadge(pending) {
   badge.textContent = pending || '';
 }
 
+const producerBookingRow = b => `
+  <div class="bk-row" data-id="${b.id}">
+    <div class="bk-info">
+      <strong>${b.qty} × ${esc(b.title)}</strong>
+      <small>${esc(b.tourist_name)} · pedido em ${fmtDate(b.created_at)}${b.requested_date ? ` · para ${fmtDate(b.requested_date)}` : ''}</small>
+      ${b.note ? `<small>Obs.: ${esc(b.note)}</small>` : ''}
+      <small>${esc(fmtPrice(b.price_cents, b.price_unit))}${b.price_cents ? ` — total ${esc(fmtPrice(b.price_cents * b.qty))}` : ''}</small>
+    </div>
+    <span class="status-pill ${BOOKING_PILL[b.status]}">${esc(b.status_label)}</span>
+    <div class="row-actions">
+      ${b.status === 'pending' ? `
+        <button class="btn-approve" data-bk="confirmed">Confirmar</button>
+        <button class="btn-reject" data-bk="declined" title="Recusar">✕</button>` : ''}
+      ${b.status === 'confirmed' ? '<button class="btn-primary" data-bk="completed">Concluir venda</button>' : ''}
+    </div>
+  </div>`;
+
+let bookingsOffset = 0;
+
 async function loadBookings() {
   try {
-    const { bookings, pending } = await api('/portal/bookings');
+    const { bookings, pending, hasMore } = await api('/portal/bookings');
     setBkBadge(pending);
-    $('#producer-bookings').innerHTML = bookings.map(b => `
-      <div class="bk-row" data-id="${b.id}">
-        <div class="bk-info">
-          <strong>${b.qty} × ${esc(b.title)}</strong>
-          <small>${esc(b.tourist_name)} · pedido em ${fmtDate(b.created_at)}${b.requested_date ? ` · para ${fmtDate(b.requested_date)}` : ''}</small>
-          ${b.note ? `<small>Obs.: ${esc(b.note)}</small>` : ''}
-          <small>${esc(fmtPrice(b.price_cents, b.price_unit))}${b.price_cents ? ` — total ${esc(fmtPrice(b.price_cents * b.qty))}` : ''}</small>
-        </div>
-        <span class="status-pill ${BOOKING_PILL[b.status]}">${esc(b.status_label)}</span>
-        <div class="row-actions">
-          ${b.status === 'pending' ? `
-            <button class="btn-approve" data-bk="confirmed">Confirmar</button>
-            <button class="btn-reject" data-bk="declined" title="Recusar">✕</button>` : ''}
-          ${b.status === 'confirmed' ? '<button class="btn-primary" data-bk="completed">Concluir venda</button>' : ''}
-        </div>
-      </div>`).join('')
+    bookingsOffset = bookings.length;
+    $('#producer-bookings').innerHTML = bookings.map(producerBookingRow).join('')
+      + (hasMore ? '<button class="btn-secondary load-more" data-bk-more>Carregar mais</button>' : '')
       || '<p class="empty-note">Nenhuma reserva ainda — os pedidos dos turistas aparecem aqui.</p>';
   } catch (err) {
     if (!err.unauthorized) toast(err.message);
@@ -273,6 +281,17 @@ async function loadBookings() {
 }
 
 $('#producer-bookings').addEventListener('click', async e => {
+  const moreBtn = e.target.closest('[data-bk-more]');
+  if (moreBtn) {
+    moreBtn.disabled = true;
+    try {
+      const { bookings, hasMore } = await api(`/portal/bookings?offset=${bookingsOffset}`);
+      bookingsOffset += bookings.length;
+      moreBtn.insertAdjacentHTML('beforebegin', bookings.map(producerBookingRow).join(''));
+      if (!hasMore) moreBtn.remove(); else moreBtn.disabled = false;
+    } catch (err) { toast(err.message); moreBtn.disabled = false; }
+    return;
+  }
   const btn = e.target.closest('[data-bk]');
   if (!btn) return;
   const id = btn.closest('.bk-row').dataset.id;
@@ -289,8 +308,8 @@ $('#producer-bookings').addEventListener('click', async e => {
 // ─── Mensagens ───────────────────────────────────────────────────────────────
 async function loadConversations() {
   try {
-    const { conversations } = await api('/conversations');
-    const unread = conversations.reduce((s, c) => s + Number(c.unread || 0), 0);
+    const { conversations, unreadTotal } = await api('/conversations');
+    const unread = unreadTotal ?? conversations.reduce((s, c) => s + Number(c.unread || 0), 0);
     const badge = $('#chat-badge');
     badge.classList.toggle('hidden', !unread);
     badge.textContent = unread || '';
@@ -308,14 +327,20 @@ async function loadConversations() {
   }
 }
 
+let threadHasMore = false, threadOldestId = null;
+const olderBtnHTML = () => threadHasMore
+  ? `<button type="button" class="btn-secondary load-more" id="thread-older" data-before="${threadOldestId}">Carregar mensagens anteriores</button>`
+  : '';
+
 // Atualiza só as bolhas de mensagem (o campo de digitação fica intocado)
 async function refreshThreadMsgs(convId) {
   const box = $('#thread-msgs');
   if (!box || convId !== currentConvId) return;
-  const { messages } = await api(`/conversations/${convId}/messages`);
+  const data = await api(`/conversations/${convId}/messages`);
   if (convId !== currentConvId) return;
+  threadHasMore = data.hasMore; threadOldestId = data.oldestId;
   const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-  box.innerHTML = messages.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('');
+  box.innerHTML = olderBtnHTML() + data.messages.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('');
   if (atBottom) box.scrollTop = box.scrollHeight;
 }
 
@@ -323,11 +348,13 @@ async function openThread(convId) {
   currentConvId = convId;
   $('.chat-layout')?.classList.add('thread-open'); // celular: mostra a conversa
   try {
-    const { messages } = await api(`/conversations/${convId}/messages`);
+    const data = await api(`/conversations/${convId}/messages`);
+    threadHasMore = data.hasMore; threadOldestId = data.oldestId;
     $('#conv-thread').innerHTML = `
       <button type="button" class="thread-back" id="thread-back">‹ Conversas</button>
       <div class="thread-msgs" id="thread-msgs">
-        ${messages.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('')}
+        ${olderBtnHTML()}
+        ${data.messages.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('')}
       </div>
       <form class="thread-form" id="thread-form">
         <input id="thread-input" type="text" placeholder="Responder ao turista…" autocomplete="off">
@@ -335,6 +362,20 @@ async function openThread(convId) {
       </form>`;
     const box = $('#thread-msgs');
     box.scrollTop = box.scrollHeight;
+    box.addEventListener('click', async ev => {
+      const older = ev.target.closest('#thread-older');
+      if (!older) return;
+      older.disabled = true;
+      try {
+        const d = await api(`/conversations/${convId}/messages?before=${older.dataset.before}`);
+        threadHasMore = d.hasMore; threadOldestId = d.oldestId;
+        const prevH = box.scrollHeight;
+        older.remove();
+        box.insertAdjacentHTML('afterbegin',
+          olderBtnHTML() + d.messages.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join(''));
+        box.scrollTop = box.scrollHeight - prevH;
+      } catch (err) { toast(err.message); older.disabled = false; }
+    });
     $('#thread-back').addEventListener('click', () => {
       currentConvId = null;
       $('.chat-layout')?.classList.remove('thread-open');

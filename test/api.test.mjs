@@ -180,6 +180,57 @@ test('reserva completa: pedido → confirmar → concluir → avaliação', asyn
   assert.equal(other.status, 403); // produtor não é turista
 });
 
+test('paginação do chat: página + carregar anteriores', async () => {
+  const t = client();
+  await t('/api/register', { method: 'POST', body: {
+    name: 'Chat Page', email: `cp-${uniq}@test.com`, password: 'senha1234', role: 'tourist' } });
+  const conv = await (await t('/api/conversations', { method: 'POST', body: { producer_id: 1 } })).json();
+  // manda 35 mensagens
+  for (let i = 1; i <= 35; i++) {
+    await t(`/api/conversations/${conv.id}/messages`, { method: 'POST', body: {
+      body: `msg ${i}`, client_uid: `cp-${uniq}-${i}` } });
+  }
+  const first = await (await t(`/api/conversations/${conv.id}/messages?limit=30`)).json();
+  assert.equal(first.messages.length, 30);
+  assert.equal(first.hasMore, true);
+  assert.equal(first.messages.at(-1).body, 'msg 35'); // ordem cronológica
+  const older = await (await t(`/api/conversations/${conv.id}/messages?limit=30&before=${first.oldestId}`)).json();
+  assert.equal(older.messages.length, 5);
+  assert.equal(older.hasMore, false);
+  assert.equal(older.messages[0].body, 'msg 1');
+});
+
+test('estoque: reserva respeita e concluir venda decrementa/esgota', async () => {
+  const p = client();
+  await p('/api/register', { method: 'POST', body: {
+    name: 'Estoque', email: `st-${uniq}@test.com`, password: 'senha1234',
+    role: 'producer', establishment: `Sítio Estoque ${uniq}`, plan: 'gratuito' } });
+  const created = await (await p('/api/portal/listings', { method: 'POST', body: {
+    type: 'product', title: `Item Estoque ${uniq}`, price_cents: 1000, stock: 2 } })).json();
+  // aprova produtor e anúncio como admin
+  const a = client();
+  await a('/api/login', { method: 'POST', body: { email: 'admin@caminhosdocaparao.com.br', password: 'caparao2026' } });
+  const { producers } = await (await a(`/api/producers?limit=100&q=Estoque ${uniq}`)).json();
+  await a(`/api/producers/${producers[0].id}/status`, { method: 'POST', body: { status: 'approved' } });
+  await a(`/api/listings/${created.id}/status`, { method: 'POST', body: { status: 'approved' } });
+
+  const t = client();
+  await t('/api/register', { method: 'POST', body: {
+    name: 'Comprador', email: `cmp-${uniq}@test.com`, password: 'senha1234', role: 'tourist' } });
+  // pedir mais que o estoque falha
+  const over = await t('/api/bookings', { method: 'POST', body: {
+    listing_id: created.id, qty: 5, client_uid: `over-${uniq}` } });
+  assert.equal(over.status, 409);
+  // pedir 2 e concluir zera o estoque → some do Explorar
+  const bk = await (await t('/api/bookings', { method: 'POST', body: {
+    listing_id: created.id, qty: 2, client_uid: `ok-${uniq}` } })).json();
+  await p(`/api/portal/bookings/${bk.id}/status`, { method: 'POST', body: { status: 'confirmed' } });
+  await p(`/api/portal/bookings/${bk.id}/status`, { method: 'POST', body: { status: 'completed' } });
+  assert.equal((await fetch(`${BASE}/api/explore/listings/${created.id}`)).status, 404);
+  const { listings } = await (await p('/api/portal/listings')).json();
+  assert.equal(listings.find(l => l.id === created.id).stock, 0);
+});
+
 test('página pública do anúncio com OG tags', async () => {
   const ok = await fetch(`${BASE}/p/6`);
   assert.equal(ok.status, 200);
@@ -187,6 +238,19 @@ test('página pública do anúncio com OG tags', async () => {
   assert.match(html, /og:title/);
   assert.match(html, /Tour de Colheita/);
   assert.equal((await fetch(`${BASE}/p/999999`)).status, 404);
+});
+
+test('sitemap.xml e robots.txt', async () => {
+  const sm = await fetch(`${BASE}/sitemap.xml`);
+  assert.equal(sm.status, 200);
+  assert.match(sm.headers.get('content-type'), /xml/);
+  const xml = await sm.text();
+  assert.match(xml, /<urlset/);
+  assert.match(xml, /\/p\/\d+/);   // anúncios
+  assert.match(xml, /\/e\/\d+/);   // estabelecimentos
+  const robots = await (await fetch(`${BASE}/robots.txt`)).text();
+  assert.match(robots, /Sitemap: .*\/sitemap\.xml/);
+  assert.match(robots, /Disallow: \/api\//);
 });
 
 test('pausar anúncio o tira do Explorar e da página pública', async () => {
@@ -223,6 +287,19 @@ test('exclusão de conta (LGPD) remove o acesso', async () => {
   assert.equal(del.status, 200);
   const login = client();
   assert.equal((await login('/api/login', { method: 'POST', body: { email, password: 'senha1234' } })).status, 401);
+});
+
+test('dashboard: KPIs com séries reais (sem dados ilustrativos)', async () => {
+  const a = client();
+  await a('/api/login', { method: 'POST', body: {
+    email: 'admin@caminhosdocaparao.com.br', password: 'caparao2026' } });
+  const d = await (await a('/api/dashboard')).json();
+  const ps = d.kpis.activeProducers.series;
+  assert.ok(Array.isArray(ps) && ps.length === 8, 'série de produtores presente');
+  assert.ok(ps.every(n => Number.isInteger(n)), 'série de produtores numérica');
+  assert.ok(ps.some(n => n > 0), 'série reflete aprovações reais do seed');
+  assert.equal(d.kpis.newTourists.series.length, 8);
+  assert.equal(d.kpis.transactionVolume.series.length, 8);
 });
 
 test('admin: troca de plano, auditoria e CSV', async () => {

@@ -184,7 +184,9 @@ function deltaBadge(deltaPct) {
 }
 
 function renderKpis(k) {
-  const producerBars = [38, 52, 44, 60, 55, 72, 66, 84]; // tendência ilustrativa
+  // Série real de aprovações de produtores (fallback plano se ainda vazia)
+  const producerBars = k.activeProducers.series?.some(v => v > 0)
+    ? k.activeProducers.series : [1, 1, 1, 1, 1, 1, 1, 1];
   const cards = [
     {
       label: 'Novos Turistas', accent: '#1C6B4A', icon: '◎', iconBg: '#E4F0E7',
@@ -980,6 +982,8 @@ async function openListingDetailAdmin(id) {
             ${l.type === 'event' ? infoLine('Data do evento', l.event_date
               ? `${fmtDate(l.event_date)}${l.event_time ? ' · ' + l.event_time : ''}` : 'não informada') : ''}
             ${l.type === 'event' && l.event_place ? infoLine('Local', l.event_place) : ''}
+            ${l.stock != null ? infoLine('Estoque', `${l.stock} unidade${l.stock === 1 ? '' : 's'}${l.stock === 0 ? ' (esgotado)' : ''}`) : ''}
+            ${!l.available ? infoLine('Disponibilidade', 'pausado pelo produtor') : ''}
             ${infoLine('Publicado em', fmtDate(l.listed_at))}
             ${l.reviewed_at ? infoLine('Última revisão', fmtDate(l.reviewed_at)) : ''}
             ${l.image_path ? '' : infoLine('Foto', 'sem foto enviada — capa ilustrativa')}

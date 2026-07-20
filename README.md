@@ -134,12 +134,14 @@ Proteções já embutidas: CSP e security headers, HSTS sob HTTPS, rate-limiting
 ## Testes e CI
 
 - `npm test` roda a suíte de API (`test/api.test.mjs`, node:test): sobe o servidor real contra o banco configurado e cobre autenticação, verificação de e-mail, redefinição/troca de senha com revogação de sessão, limites de plano, busca sem acento, fluxo completo de reserva + avaliação, páginas públicas, pausa de anúncio, roteiros idempotentes, exclusão de conta (LGPD) e ferramentas do admin. Rode `npm run db:setup` antes.
-- GitHub Actions (`.github/workflows/ci.yml`) executa migrations + seed + testes com Postgres 16 em todo push/PR.
+- `npm run test:ui` roda o smoke de navegador (`test/ui/`, Playwright): sobe o servidor, valida os caminhos visuais de turista, produtor, admin e landing contra o seed. Localmente aponte o Chromium com `PLAYWRIGHT_CHROMIUM=<caminho>`; o CI instala o browser automaticamente.
+- GitHub Actions (`.github/workflows/ci.yml`) roda dois jobs em todo push/PR com Postgres 16: **test** (migrations + seed + testes de API) e **ui** (smoke de navegador).
 
 ## Operação
 
 - **Backup**: `npm run db:backup` gera `backups/caminhos-<data>.dump` (pg_dump, formato custom — restaure com `pg_restore --clean --no-owner`) e `uploads-<data>.tar.gz` com as fotos. Agende (cron) e copie os arquivos para fora do servidor.
-- **Logs**: toda requisição de API é registrada (`método rota status duração`); erros 5xx vão para stderr. Desative o log de sucesso com `LOG_REQUESTS=0`.
+- **Armazenamento de imagens**: por padrão em disco (`UPLOADS_DIR`). Em host com disco efêmero, configure S3/Cloudflare R2 (`S3_*` no `.env`, + `npm i @aws-sdk/client-s3`) para as fotos sobreviverem a redeploys.
+- **Logs e erros**: toda requisição de API é registrada (`método rota status duração`); erros 5xx vão para stderr. Desative o log de sucesso com `LOG_REQUESTS=0`. Para rastreamento de exceções, configure `SENTRY_DSN` (+ `npm i @sentry/node`).
 - **Auditoria**: ações administrativas ficam em `audit_log` e visíveis em Configurações.
 - **Exclusão de conta**: o próprio usuário exclui em "Minha conta" (LGPD); os dados e fotos são removidos em cascata.
 
