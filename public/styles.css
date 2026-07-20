@@ -454,16 +454,39 @@ body.offline .offline-banner { display: block; }
 .hidden { display: none !important; }
 
 /* ─── Landing ─── */
-.landing { display: flex; align-items: center; justify-content: center; gap: 48px; flex-wrap: wrap; max-width: 1080px; }
-.landing-hero { flex: 1; min-width: 320px; max-width: 520px; }
-.landing-brand { margin-bottom: 28px; }
-.landing-hero h1 { margin: 0 0 14px; font-size: 34px; font-weight: 800; color: var(--forest); letter-spacing: -.6px; line-height: 1.15; }
-.landing-hero p { margin: 0 0 20px; font-size: 15px; color: #6B5946; font-weight: 500; line-height: 1.6; }
-.landing-feats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.landing-feats li {
-  background: rgba(255,255,255,.65); border: 1px solid var(--card-border); border-radius: 12px;
-  padding: 10px 14px; font-size: 13.5px; font-weight: 700; color: var(--forest);
+.login-wrap { position: relative; overflow: hidden; }
+/* Silhueta de serra ao fundo — ancora a composição sem depender de foto */
+.landing-range {
+  position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 42vh; min-height: 240px;
+  fill: var(--forest); opacity: .06; pointer-events: none;
 }
+.landing { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 56px; flex-wrap: wrap; max-width: 1080px; }
+.landing-hero { flex: 1; min-width: 320px; max-width: 520px; }
+.landing-brand { margin-bottom: 26px; }
+.landing-brand .brand-mark { width: 52px; height: 48px; }
+.landing-brand .brand-title strong { font-size: 19px; }
+.landing-kicker {
+  display: inline-block; margin-bottom: 12px; font-size: 11px; font-weight: 800;
+  letter-spacing: 1.4px; text-transform: uppercase; color: var(--green);
+}
+.landing-hero h1 { margin: 0 0 16px; font-size: 40px; color: var(--forest); letter-spacing: -.4px; line-height: 1.1; }
+.landing-hero p { margin: 0 0 26px; font-size: 15.5px; color: #6B5946; font-weight: 500; line-height: 1.6; max-width: 440px; }
+.landing-feats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.landing-feats li { display: flex; align-items: center; gap: 13px; }
+.feat-ico {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  background: #E7F0E9; color: var(--green); border: 1px solid #D6E5DA;
+}
+.landing-feats li strong { display: block; font-size: 13.5px; font-weight: 800; color: var(--forest); }
+.landing-feats li small { font-size: 12.5px; color: #8A7A62; font-weight: 600; }
+.landing-foot {
+  position: absolute; z-index: 1; bottom: 20px; left: 0; right: 0; text-align: center;
+  font-size: 11.5px; font-weight: 600; color: #9A8B72;
+}
+.landing-foot a { color: #7A6A50; font-weight: 700; }
+.landing-foot a:hover { color: var(--forest); }
+.dot-sep { margin: 0 8px; color: #C9BCA2; }
 .auth-tabs { margin-bottom: 20px; }
 .auth-tabs .tab { flex: 1; }
 .role-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
