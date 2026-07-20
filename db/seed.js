@@ -233,22 +233,16 @@ const featuredListings = [
   ['event', '✤', 'arte', 'Foto: feira', 'Feira de Artesanato da Serra', 'Edição de inverno · 40 expositores', 'Associação de Artesãos do Caparaó', '2026-07-26', 'approved', null, 'entrada gratuita', '2026-08-01', '9h às 18h', 'Casa de Cultura de Ibitirama'],
   ['event', '⛰', 'sage', 'Foto: observação', 'Noite de Observação de Estrelas', 'Terreirão do Pico · céu Bortle 2', 'Clube Astronômico Capixaba', '2026-08-15', 'in_review', 4000, 'por pessoa', '2026-08-22', '19h às 23h', 'Terreirão do Pico'],
 ];
-// Capa ilustrada por conteúdo (imagens em /img/covers)
-const coverFor = title =>
-  /Café Arábica|Tour de Colheita|Festival do Café/.test(title) ? 'cafe'
-  : /Cesto|Feira de Artesanato/.test(title) ? 'arte'
-  : /Queijo/.test(title) ? 'queijo'
-  : /Mel/.test(title) ? 'mel'
-  : /Hospedagem|Cavalgada/.test(title) ? 'sage'
-  : 'verde';
+// Sem foto real na demo: capa fica com o placeholder editorial (monograma).
+// Produtores reais sobem as próprias fotos pela vitrine.
 for (const [type, glyph, imageKind, imageLabel, title, subtitle, producerName, date, status,
             priceCents, priceUnit, eventDate, eventTime, eventPlace] of featuredListings) {
   await client.query(
     `INSERT INTO listings (producer_id, type, glyph, image_kind, image_label, image_path, title, subtitle, status, listed_at, created_at,
                            price_cents, price_unit, event_date, event_time, event_place)
-     SELECT id, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10::date + time '10:00', $11, $12, $13, $14, $15
+     SELECT id, $2, $3, $4, $5, NULL, $6, $7, $8, $9, $9::date + time '10:00', $10, $11, $12, $13, $14
      FROM producers WHERE name = $1 LIMIT 1`,
-    [producerName, type, glyph, imageKind, imageLabel, `/img/covers/${coverFor(title)}.png`, title, subtitle, status, date,
+    [producerName, type, glyph, imageKind, imageLabel, title, subtitle, status, date,
      priceCents, priceUnit, eventDate, eventTime, eventPlace]
   );
 }

@@ -123,7 +123,9 @@ const listingCard = (l, favIds) => `
 
 const placeCard = e => `
   <div class="ex-card ${e.plan === 'premium' ? 'plan-featured' : ''}" data-producer="${e.producer_id}">
-    <div class="ex-thumb has-photo"><img src="${esc(e.photo_path || '/img/covers/sage.png')}" alt="" loading="lazy"></div>
+    ${e.photo_path
+      ? `<div class="ex-thumb has-photo"><img src="${esc(e.photo_path)}" alt="" loading="lazy"></div>`
+      : coverHTML({ producer_name: e.name }, 'ex-thumb')}
     <div class="ex-body">
       <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')} ${planBadge(e.plan)}</span>
       <strong class="ex-title">${esc(e.name)}</strong>
@@ -143,7 +145,7 @@ const placeCard = e => `
 const itineraryCard = it => `
   <div class="ex-card" data-itinerary="${it.id}" data-title="${esc(it.title)}"
        data-region="${esc(it.region || '')}" data-duration="${esc(it.duration || '')}">
-    <div class="ex-thumb has-photo"><img src="/img/covers/verde.png" alt="" loading="lazy"></div>
+    ${coverHTML({ producer_name: it.title }, 'ex-thumb')}
     <div class="ex-body">
       <span class="ex-type">Roteiro publicado · ${esc(it.region || 'Caparaó')}</span>
       <strong class="ex-title">${esc(it.title)}</strong>
@@ -216,7 +218,7 @@ async function openListingDetail(listingId) {
     ? `<div class="detail-hero"><img id="detail-hero-img" src="${esc(gallery[0])}" alt=""></div>
        ${gallery.length > 1 ? `<div class="gallery-strip">${gallery.map((p, i) =>
          `<img src="${esc(p)}" data-gi="${i}" class="${i === 0 ? 'on' : ''}" alt="" loading="lazy">`).join('')}</div>` : ''}`
-    : `<div class="detail-hero img-${esc(l.image_kind || 'verde')}">${esc(l.glyph || '◉')}</div>`;
+    : coverHTML(l, 'detail-hero');
   const partnerLines = [
     l.est_description || l.producer_kind,
     l.address ? `${l.address}${l.city ? ` — ${l.city}` : ''}` : (l.city ? l.city : null),
@@ -249,7 +251,7 @@ async function openListingDetail(listingId) {
         </div>
         <div class="ex-actions">
           <button class="btn-fav ${isFav ? 'on' : ''}" data-detail="fav" title="Favoritar">♥</button>
-          <button class="btn-secondary" data-detail="share" title="Compartilhar">⧉</button>
+          <button class="btn-secondary" data-detail="share" title="Compartilhar">${icon('share')}</button>
           <button class="btn-secondary" data-detail="add-trip">+ Roteiro</button>
           <button class="btn-secondary" data-detail="chat">Conversar</button>
           ${canBook ? '<button class="btn-primary" data-detail="book">Reservar</button>' : ''}
@@ -556,7 +558,7 @@ async function renderTrips() {
       <span class="trip-meta">${(t.items || []).length} parada${(t.items || []).length === 1 ? '' : 's'}${t.origin === 'ai' ? ' · gerado a partir dos seus gostos' : ''}</span>
       <div class="row-actions">
         <button class="btn-primary" data-action="open">Abrir</button>
-        <button class="btn-reject" data-action="delete" title="Excluir">✕</button>
+        <button class="btn-reject" data-action="delete" title="Excluir">${icon('close')}</button>
       </div>
     </div>`).join('') || '<p class="empty-note">Nenhum roteiro ainda. Crie um e adicione paradas explorando a região — funciona até sem internet.</p>';
 }
@@ -595,8 +597,8 @@ async function renderTripDetail(uid) {
             <div class="row-actions">
               <button class="btn-view" data-action="up" title="Subir">↑</button>
               <button class="btn-view" data-action="down" title="Descer">↓</button>
-              <button class="btn-view" data-action="note" title="Anotação">✎</button>
-              <button class="btn-reject" data-action="remove" title="Remover">✕</button>
+              <button class="btn-view" data-action="note" title="Anotação">${icon('edit')}</button>
+              <button class="btn-reject" data-action="remove" title="Remover">${icon('close')}</button>
             </div>
           </div>`).join('') || '<p class="empty-note">Sem paradas — adicione pela aba Explorar ou crie uma parada livre.</p>'}
       </div>

@@ -104,10 +104,37 @@ const brandHTML = `
     </div>
   </div>`;
 
-// Capa do anúncio: foto enviada pelo produtor ou gradiente do design
-const thumbHTML = (l, cls = 'thumb') => l.image_path
+// Ícones de linha (SVG inline, herdam currentColor) — no lugar de glifos
+const ICON_PATHS = {
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+  share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/>',
+  pause: '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
+  play: '<path d="M6 4l14 8-14 8z"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  close: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+};
+const icon = (name, size = 16) =>
+  `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ''}</svg>`;
+
+// Monograma da capa "sem foto": iniciais do parceiro (ou do título)
+function monogramOf(l) {
+  const base = l.producer_name || l.est_name || l.title || l.name || '?';
+  return base.split(/\s+/).filter(w => /\p{L}/u.test(w)).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '·';
+}
+// Tom sóbrio da capa, variado de forma estável por nome (sem parecer aleatório)
+function coverTone(l) {
+  const s = l.producer_name || l.est_name || l.title || l.name || '';
+  let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 4;
+  return `cover-t${h + 1}`;
+}
+// Capa do anúncio: foto enviada pelo produtor, ou placeholder editorial
+// (monograma em serifa sobre fundo linho) quando ainda não há foto.
+const coverHTML = (l, cls = 'thumb') => l.image_path
   ? `<div class="${cls} has-photo"><img src="${esc(l.image_path)}" alt="" loading="lazy"></div>`
-  : `<div class="${cls} img-${esc(l.image_kind || 'verde')}">${esc(l.glyph || '◉')}</div>`;
+  : `<div class="${cls} cover-mono ${coverTone(l)}"><span class="cover-initials">${esc(monogramOf(l))}</span></div>`;
+const thumbHTML = coverHTML; // compat: nome antigo ainda usado nas telas
 
 // Avatar: foto enviada pelo usuário ou iniciais sobre a cor do perfil
 function renderAvatar(el, { name, avatar_path }) {

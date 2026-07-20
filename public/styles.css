@@ -26,6 +26,20 @@ body {
 a { color: var(--green); text-decoration: none; font-weight: 700; }
 a:hover { color: var(--forest); }
 button { font-family: inherit; }
+
+/* ─── Tipografia editorial ─── */
+/* Fraunces (serif de display) nos títulos; Manrope no restante da interface. */
+:root { --serif: 'Fraunces', Georgia, 'Times New Roman', serif; }
+.page-head h1, .landing-hero h1, .login-card h1, .panel-head h2,
+.trip-card h2, .listing-form h2, .ai-form h2, .detail-body h3,
+.legal-page h1, .brand-title strong, .modal h3 {
+  font-family: var(--serif);
+  font-optical-sizing: auto;
+  letter-spacing: -.2px;
+}
+.page-head h1, .landing-hero h1, .login-card h1, .legal-page h1 { font-weight: 600; }
+.panel-head h2, .trip-card h2, .listing-form h2, .ai-form h2, .detail-body h3,
+.brand-title strong, .modal h3 { font-weight: 600; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #C9BFA9; border-radius: 8px; }
 
@@ -87,7 +101,7 @@ button { font-family: inherit; }
 }
 .brand-title { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-title strong { font-size: 17px; font-weight: 800; color: var(--forest); letter-spacing: -.2px; }
-.brand-title small { font-size: 10.5px; font-weight: 600; color: #A98C6B; letter-spacing: 1.6px; text-transform: uppercase; }
+.brand-title small { font-size: 10px; font-weight: 600; color: #A98C6B; letter-spacing: 1.1px; text-transform: uppercase; }
 
 .search {
   flex: 1; max-width: 520px; display: flex; align-items: center; gap: 10px;
@@ -150,7 +164,8 @@ button { font-family: inherit; }
   color: #B9CBB9; font-size: 13.5px; font-weight: 600; text-align: left; width: 100%;
 }
 .nav-item:hover { background: rgba(242,235,221,.10); }
-.nav-item .icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--sage); flex-shrink: 0; }
+.nav-item .icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: var(--sage); flex-shrink: 0; }
+.ico { display: block; }
 .nav-item.active { background: rgba(242,235,221,.14); box-shadow: inset 0 0 0 1px rgba(242,235,221,.18); color: #F7F3E8; font-weight: 800; }
 .nav-item.active .icon { color: #E9C08F; }
 .nav-badge {
@@ -257,7 +272,7 @@ button { font-family: inherit; }
 .producer-info .name { font-size: 13.5px; font-weight: 700; color: var(--ink); }
 .producer-info .kind { font-size: 11.5px; color: #A08D6F; font-weight: 600; }
 
-.status-pill { font-size: 11px; font-weight: 800; letter-spacing: .4px; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+.status-pill { font-size: 10.5px; font-weight: 700; letter-spacing: .3px; padding: 3px 9px; border-radius: 6px; white-space: nowrap; }
 .status-approved { background: #E4F0E7; color: var(--forest); }
 .status-pending { background: #FBEFDD; color: #9A6224; }
 .status-in_review { background: #F0EADF; color: #6B5946; }
@@ -273,12 +288,16 @@ button { font-family: inherit; }
 .btn-reject {
   width: 30px; height: 30px; border-radius: 9px; border: 1px solid #E3CDBD;
   background: #FBEFE8; color: #B4552F; font-size: 13px; font-weight: 800; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 .btn-reject:hover { background: #F3DDD0; }
 .btn-view {
   width: 30px; height: 30px; border-radius: 9px; border: 1px solid #E0D6BF;
   background: #FFFFFF; color: var(--muted-2); font-size: 13px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
 }
+.btn-view .ico { width: 15px; height: 15px; }
+.btn-reject .ico { width: 15px; height: 15px; }
 .btn-view:hover { background: var(--cream); }
 
 /* Heatmap */
@@ -339,10 +358,33 @@ button { font-family: inherit; }
 }
 .has-photo { padding: 0; overflow: hidden; background: #EFE9DA; }
 .has-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.img-cafe { background: linear-gradient(135deg, #7A4B2E, #4A3226); }
-.img-arte { background: linear-gradient(135deg, #C0714F, #9A5638); }
-.img-verde { background: linear-gradient(135deg, #1C6B4A, #14402E); }
-.img-sage { background: linear-gradient(135deg, #8AA98F, #5E7F66); }
+
+/* ─── Capa "sem foto": monograma editorial sobre linho ─── */
+.cover-mono {
+  position: relative; overflow: hidden; padding: 0;
+  background: var(--cover-bg); color: var(--cover-ink);
+  display: flex; align-items: center; justify-content: center;
+}
+/* textura sutil de papel, sem ruído de "brinquedo" */
+.cover-mono::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(130% 130% at 85% 100%, rgba(0,0,0,.06), transparent 60%);
+  pointer-events: none;
+}
+.cover-initials {
+  position: relative; z-index: 1;
+  font-family: var(--serif); font-weight: 600; line-height: 1; letter-spacing: .5px;
+}
+/* tamanhos por contexto */
+.thumb .cover-initials { font-size: 15px; }
+.ex-thumb .cover-initials { font-size: 34px; }
+.detail-hero .cover-initials { font-size: 60px; }
+.bk-thumb .cover-initials { font-size: 16px; }
+/* tons sóbrios (linho/serra), variados de forma estável — tinta com presença */
+.cover-t1 { --cover-bg: #E3D9C2; --cover-ink: #5E4A2C; }  /* areia */
+.cover-t2 { --cover-bg: #D3DED2; --cover-ink: #38513E; }  /* sálvia */
+.cover-t3 { --cover-bg: #E7D3BE; --cover-ink: #79482A; }  /* terra */
+.cover-t4 { --cover-bg: #CFDAD3; --cover-ink: #2E483A; }  /* mata */
 .cell-title { min-width: 0; }
 .cell-title .t { font-size: 13.5px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cell-title .s { font-size: 11.5px; color: #A08D6F; font-weight: 600; }
@@ -460,13 +502,14 @@ body.offline .offline-banner { display: block; }
 .explore-search { max-width: 420px; flex: 1; min-width: 240px; }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
 .ex-card {
-  background: #FFFFFF; border: 1px solid var(--card-border); border-radius: 16px; padding: 16px;
-  box-shadow: 0 10px 24px -14px rgba(74,50,38,.22); display: flex; flex-direction: column; gap: 12px;
+  background: #FFFFFF; border: 1px solid var(--card-border); border-radius: 13px; padding: 15px;
+  box-shadow: 0 1px 2px rgba(74,50,38,.04), 0 8px 20px -16px rgba(74,50,38,.30);
+  display: flex; flex-direction: column; gap: 12px; transition: box-shadow .16s, transform .16s;
 }
-.ex-card:hover { box-shadow: 0 16px 30px -14px rgba(74,50,38,.32); }
+.ex-card:hover { box-shadow: 0 2px 4px rgba(74,50,38,.06), 0 14px 26px -16px rgba(74,50,38,.34); transform: translateY(-1px); }
 .ex-thumb {
-  width: 100%; height: 88px; border-radius: 11px; display: flex; align-items: center;
-  justify-content: center; font-size: 34px; color: #FFF9EC; border: 1px solid rgba(74,50,38,.12);
+  width: 100%; height: 108px; border-radius: 9px; display: flex; align-items: center;
+  justify-content: center; color: #FFF9EC; border: 1px solid rgba(74,50,38,.08);
 }
 .ex-body { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .ex-type { font-size: 10.5px; font-weight: 800; color: var(--muted-3); text-transform: uppercase; letter-spacing: 1px; }
@@ -758,12 +801,12 @@ body.offline .offline-banner { display: block; }
 /* ─── Planos de produtor ─── */
 .plan-badge {
   display: inline-flex; align-items: center; gap: 4px; vertical-align: middle;
-  padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 800;
-  letter-spacing: .2px; white-space: nowrap;
+  padding: 1px 8px; border-radius: 6px; font-size: 10px; font-weight: 700;
+  letter-spacing: .3px; white-space: nowrap;
 }
 .plan-gratuito { background: #EFE9DA; color: #8A7A62; }
-.plan-profissional { background: #E4F0E7; color: var(--green-dark); }
-.plan-premium { background: #F6E7C6; color: #8A6414; border: 1px solid #E8D29B; }
+.plan-profissional { background: #E9F0EA; color: var(--green-dark); }
+.plan-premium { background: #F4EBD6; color: #8A6414; box-shadow: inset 0 0 0 1px #E6D4A6; }
 
 /* Cadastro na landing: escolha do plano */
 .plan-note { font-weight: 600; color: #A08D6F; text-transform: none; letter-spacing: 0; }
@@ -773,7 +816,7 @@ body.offline .offline-banner { display: block; }
 .plan-opt small { display: block; line-height: 1.45; }
 
 /* Card em destaque no Explorar (plano Premium) */
-.ex-card.plan-featured { border-color: #E8D29B; box-shadow: 0 10px 24px rgba(138, 100, 20, .10); }
+.ex-card.plan-featured { border-color: #E6D4A6; box-shadow: 0 1px 2px rgba(138,100,20,.06), 0 10px 22px -16px rgba(138,100,20,.28); }
 
 /* Galeria: miniaturas no detalhe do anúncio */
 .gallery-strip {
