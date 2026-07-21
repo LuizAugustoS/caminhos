@@ -658,6 +658,69 @@ body.offline .offline-banner { display: block; }
   font-size: 56px; color: #FFF9EC; position: relative;
 }
 .detail-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Fotos ampliáveis (estabelecimento, gerenciador de fotos) */
+img.zoomable { cursor: zoom-in; }
+
+/* ─── Carrossel de galeria ─── */
+.carousel { position: relative; overflow: hidden; }
+.carousel-img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+.carousel-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%; cursor: pointer; color: var(--forest);
+  background: rgba(255,255,255,.86); box-shadow: 0 1px 4px rgba(20,64,46,.25);
+}
+.carousel-nav:hover { background: #fff; }
+.carousel-prev { left: 10px; }
+.carousel-next { right: 10px; }
+.carousel-zoom {
+  position: absolute; top: 10px; right: 10px;
+  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 8px; cursor: zoom-in; color: #fff;
+  background: rgba(20,64,46,.55);
+}
+.carousel-zoom:hover { background: rgba(20,64,46,.8); }
+.carousel-dots {
+  position: absolute; left: 0; right: 0; bottom: 10px;
+  display: flex; gap: 6px; justify-content: center;
+}
+.carousel-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.55);
+  cursor: pointer; transition: background .15s, transform .15s;
+}
+.carousel-dot.on { background: #fff; transform: scale(1.25); }
+
+/* ─── Lightbox (tela cheia) ─── */
+body.no-scroll { overflow: hidden; }
+.lightbox {
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(18,24,20,.94);
+  display: flex; align-items: center; justify-content: center;
+  animation: lb-in .16s ease;
+}
+@keyframes lb-in { from { opacity: 0; } to { opacity: 1; } }
+.lb-img {
+  max-width: 94vw; max-height: 90vh; object-fit: contain;
+  border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.5);
+}
+.lb-close, .lb-nav {
+  position: absolute; display: flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer; color: #fff; background: rgba(255,255,255,.12);
+}
+.lb-close:hover, .lb-nav:hover { background: rgba(255,255,255,.24); }
+.lb-close { top: 16px; right: 16px; width: 42px; height: 42px; border-radius: 50%; }
+.lb-nav { top: 50%; transform: translateY(-50%); width: 48px; height: 48px; border-radius: 50%; }
+.lb-prev { left: 16px; }
+.lb-next { right: 16px; }
+.lb-dots { position: absolute; bottom: 20px; left: 0; right: 0; display: flex; gap: 8px; justify-content: center; }
+.lb-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.4); cursor: pointer; }
+.lb-dot.on { background: #fff; transform: scale(1.25); }
+@media (max-width: 560px) {
+  .lb-nav { width: 40px; height: 40px; }
+  .lb-close { top: 10px; right: 10px; }
+}
+
 .detail-body { padding: 20px 24px 24px; }
 .detail-body .ex-type { display: block; margin-bottom: 4px; }
 .detail-body h3 { margin: 0 0 6px; font-size: 20px; }

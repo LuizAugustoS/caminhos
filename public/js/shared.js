@@ -118,6 +118,9 @@ const ICON_PATHS = {
   close: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
   heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>',
   plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  'chevron-left': '<polyline points="15 18 9 12 15 6"/>',
+  'chevron-right': '<polyline points="9 18 15 12 9 6"/>',
+  expand: '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>',
 };
 const icon = (name, size = 16) =>
   `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ''}</svg>`;
@@ -146,6 +149,124 @@ function renderAvatar(el, { name, avatar_path }) {
   if (avatar_path) el.innerHTML = `<img class="avatar-photo" src="${esc(avatar_path)}" alt="">`;
   else el.textContent = initialsOf(name || '–');
 }
+
+// ─── Visualizador em tela cheia (lightbox) ──────────────────────────────────
+// openLightbox(images, startIndex): abre as imagens em tela cheia com setas,
+// dots, swipe e teclado (Esc fecha, ←/→ navegam). CSP-safe (só addEventListener).
+function openLightbox(images, startIndex = 0) {
+  const list = (Array.isArray(images) ? images : [images]).filter(Boolean);
+  if (!list.length) return;
+  let i = Math.max(0, Math.min(startIndex, list.length - 1));
+  const multi = list.length > 1;
+
+  const box = document.createElement('div');
+  box.className = 'lightbox';
+  box.setAttribute('role', 'dialog');
+  box.setAttribute('aria-modal', 'true');
+  box.setAttribute('aria-label', 'Foto em tela cheia');
+  box.innerHTML = `
+    <button type="button" class="lb-close" aria-label="Fechar">${icon('close', 22)}</button>
+    ${multi ? `<button type="button" class="lb-nav lb-prev" aria-label="Anterior">${icon('chevron-left', 30)}</button>` : ''}
+    <img class="lb-img" src="${esc(list[i])}" alt="">
+    ${multi ? `<button type="button" class="lb-nav lb-next" aria-label="Próxima">${icon('chevron-right', 30)}</button>` : ''}
+    ${multi ? `<div class="lb-dots">${list.map((_, k) => `<span class="lb-dot ${k === i ? 'on' : ''}" data-k="${k}"></span>`).join('')}</div>` : ''}`;
+  document.body.appendChild(box);
+  document.body.classList.add('no-scroll');
+  const lastFocused = document.activeElement;
+
+  const img = box.querySelector('.lb-img');
+  const show = n => {
+    i = (n + list.length) % list.length;
+    img.src = list[i];
+    box.querySelectorAll('.lb-dot').forEach((d, k) => d.classList.toggle('on', k === i));
+  };
+  const close = () => {
+    box.remove();
+    document.body.classList.remove('no-scroll');
+    document.removeEventListener('keydown', onKey);
+    if (lastFocused && lastFocused.focus) lastFocused.focus();
+  };
+  const onKey = e => {
+    if (e.key === 'Escape') close();
+    else if (multi && e.key === 'ArrowLeft') show(i - 1);
+    else if (multi && e.key === 'ArrowRight') show(i + 1);
+  };
+  document.addEventListener('keydown', onKey);
+  box.querySelector('.lb-close').addEventListener('click', close);
+  box.querySelector('.lb-prev')?.addEventListener('click', () => show(i - 1));
+  box.querySelector('.lb-next')?.addEventListener('click', () => show(i + 1));
+  box.querySelectorAll('.lb-dot').forEach(d => d.addEventListener('click', () => show(Number(d.dataset.k))));
+  // clicar no fundo (fora da imagem/controles) fecha
+  box.addEventListener('click', e => { if (e.target === box) close(); });
+  // swipe horizontal
+  let x0 = null;
+  img.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
+  img.addEventListener('touchend', e => {
+    if (x0 == null || !multi) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 40) show(dx < 0 ? i + 1 : i - 1);
+    x0 = null;
+  });
+  box.querySelector('.lb-close').focus();
+  return { close };
+}
+
+// ─── Carrossel de galeria ───────────────────────────────────────────────────
+// carouselHTML(images): markup do carrossel (imagem única visível + setas,
+// dots e botão de tela cheia). wireCarousel(root, images) liga a interação.
+// Usado no detalhe de anúncios (turista e admin). Uma foto só = imagem simples.
+function carouselHTML(images, cls = 'detail-hero') {
+  const list = (images || []).filter(Boolean);
+  if (!list.length) return '';
+  if (list.length === 1) {
+    return `<div class="${cls} carousel is-single" data-carousel>
+      <img class="carousel-img" src="${esc(list[0])}" alt="" data-lb>
+      <button type="button" class="carousel-zoom" aria-label="Ver em tela cheia" data-lb>${icon('expand', 16)}</button>
+    </div>`;
+  }
+  return `<div class="${cls} carousel" data-carousel>
+    <img class="carousel-img" src="${esc(list[0])}" alt="" data-lb>
+    <button type="button" class="carousel-zoom" aria-label="Ver em tela cheia" data-lb>${icon('expand', 16)}</button>
+    <button type="button" class="carousel-nav carousel-prev" aria-label="Foto anterior">${icon('chevron-left', 24)}</button>
+    <button type="button" class="carousel-nav carousel-next" aria-label="Próxima foto">${icon('chevron-right', 24)}</button>
+    <div class="carousel-dots">${list.map((_, k) => `<span class="carousel-dot ${k === 0 ? 'on' : ''}" data-k="${k}"></span>`).join('')}</div>
+  </div>`;
+}
+
+function wireCarousel(root, images) {
+  const el = root.querySelector('[data-carousel]');
+  if (!el) return;
+  const list = (images || []).filter(Boolean);
+  let i = 0;
+  const img = el.querySelector('.carousel-img');
+  const show = n => {
+    i = (n + list.length) % list.length;
+    img.src = list[i];
+    el.querySelectorAll('.carousel-dot').forEach((d, k) => d.classList.toggle('on', k === i));
+  };
+  el.querySelector('.carousel-prev')?.addEventListener('click', () => show(i - 1));
+  el.querySelector('.carousel-next')?.addEventListener('click', () => show(i + 1));
+  el.querySelectorAll('.carousel-dot').forEach(d => d.addEventListener('click', () => show(Number(d.dataset.k))));
+  // abrir em tela cheia no índice atual (clique na imagem ou na lupa)
+  el.querySelectorAll('[data-lb]').forEach(t => t.addEventListener('click', () => openLightbox(list, i)));
+  // swipe
+  let x0 = null;
+  el.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (x0 == null || list.length < 2) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 40) show(dx < 0 ? i + 1 : i - 1);
+    x0 = null;
+  });
+}
+
+// Qualquer <img class="zoomable"> (foto do estabelecimento, foto de anúncio no
+// gerenciador etc.) abre em tela cheia ao ser clicada — delegação global, então
+// vale também para conteúdo renderizado depois.
+document.addEventListener('click', e => {
+  const z = e.target.closest('img.zoomable');
+  if (z && z.getAttribute('src')) openLightbox([z.getAttribute('src')]);
+});
 
 // Abre o seletor de arquivo e envia a imagem (multipart, campo 'image').
 // Resolve com o JSON da resposta, ou null se o usuário cancelar.

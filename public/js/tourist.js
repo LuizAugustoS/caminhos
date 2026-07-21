@@ -214,11 +214,7 @@ async function openListingDetail(listingId) {
   const isFav = !!(await CaparaoDB.get('favorites', l.id));
   // Galeria: várias fotos quando disponíveis (offline cai para a capa em cache)
   const gallery = l.images?.length ? l.images : (l.image_path ? [l.image_path] : []);
-  const hero = gallery.length
-    ? `<div class="detail-hero"><img id="detail-hero-img" src="${esc(gallery[0])}" alt=""></div>
-       ${gallery.length > 1 ? `<div class="gallery-strip">${gallery.map((p, i) =>
-         `<img src="${esc(p)}" data-gi="${i}" class="${i === 0 ? 'on' : ''}" alt="" loading="lazy">`).join('')}</div>` : ''}`
-    : coverHTML(l, 'detail-hero');
+  const hero = gallery.length ? carouselHTML(gallery, 'detail-hero') : coverHTML(l, 'detail-hero');
   const partnerLines = [
     l.est_description || l.producer_kind,
     l.address ? `${l.address}${l.city ? ` — ${l.city}` : ''}` : (l.city ? l.city : null),
@@ -272,11 +268,8 @@ async function openListingDetail(listingId) {
       </div>
     </div>`);
   overlay.querySelector('.modal').classList.add('detail-modal');
-  // Troca a foto principal ao tocar em uma miniatura da galeria
-  overlay.querySelectorAll('.gallery-strip img').forEach(t => t.addEventListener('click', () => {
-    overlay.querySelector('#detail-hero-img').src = gallery[Number(t.dataset.gi)];
-    overlay.querySelectorAll('.gallery-strip img').forEach(x => x.classList.toggle('on', x === t));
-  }));
+  // Carrossel da galeria com setas, dots, swipe e abertura em tela cheia
+  wireCarousel(overlay, gallery);
   overlay.querySelector('[data-detail=fav]').addEventListener('click', e =>
     toggleFavorite(l.id, e.currentTarget).then(loadExplore));
   overlay.querySelector('[data-detail=share]').addEventListener('click', async () => {

@@ -4,6 +4,7 @@
 import { spawn } from 'node:child_process';
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
+import sharp from 'sharp';
 
 const PORT = process.env.TEST_PORT || 3210;
 const BASE = `http://localhost:${PORT}`;
@@ -326,4 +327,29 @@ test('admin: troca de plano, auditoria e CSV', async () => {
   await t('/api/register', { method: 'POST', body: {
     name: 'Não Admin', email: `na-${uniq}@test.com`, password: 'senha1234', role: 'tourist' } });
   assert.equal((await t('/api/audit')).status, 403);
+});
+
+test('upload de imagem é otimizado e gravado como WebP', async () => {
+  // login do produtor e captura do cookie de sessão (multipart não passa pelo
+  // client() JSON, então fazemos a chamada crua com FormData)
+  const login = await fetch(`${BASE}/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'produtor@demo.com', password: 'caparao2026' }),
+  });
+  assert.equal(login.status, 200);
+  const cookie = (login.headers.getSetCookie?.() || []).map(c => c.split(';')[0]).join('; ');
+
+  // PNG grande e válido (2000x1500) enviado como image/png — a resposta deve
+  // vir como .webp, provando que o pipeline de otimização rodou.
+  const png = await sharp({ create: { width: 2000, height: 1500, channels: 3, background: '#1C6B4A' } })
+    .png().toBuffer();
+  const form = new FormData();
+  form.append('image', new Blob([png], { type: 'image/png' }), 'foto.png');
+  const up = await fetch(`${BASE}/api/portal/listings/1/images`, {
+    method: 'POST', headers: { cookie }, body: form,
+  });
+  assert.equal(up.status, 201);
+  const img = await up.json();
+  assert.match(img.path, /\.webp$/, 'imagem enviada deve ser convertida para WebP');
 });
