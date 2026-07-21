@@ -76,6 +76,36 @@ const { check, finish } = runner();
   await page.close();
 }
 
+// ─── Acessibilidade: rótulos em botões só-ícone e anel de foco por teclado ───
+{
+  const page = await (await browser.newContext()).newPage();
+  await login(page, 'turista@demo.com', 'caparao2026');
+  await page.waitForURL('**/app');
+  await page.waitForSelector('.ex-card');
+  const fav = page.locator('.btn-fav').first();
+  check('a11y: botão de favoritar tem aria-label', await fav.getAttribute('aria-label') === 'Favoritar');
+  check('a11y: botão de favoritar expõe aria-pressed', ['true', 'false'].includes(await fav.getAttribute('aria-pressed')));
+
+  // botão só-ícone de compartilhar (no detalhe) é rotulado
+  await page.click('.ex-card:has-text("Tour de Colheita") .ex-title');
+  await page.waitForSelector('.detail-modal');
+  check('a11y: ícone só-ícone de compartilhar é rotulado',
+    await page.locator('[data-detail=share]').getAttribute('aria-label') === 'Compartilhar');
+  check('a11y: diálogo tem nome acessível',
+    await page.locator('.detail-modal').getAttribute('aria-labelledby') !== null);
+  await page.keyboard.press('Escape');
+
+  // anel de foco visível ao focar via teclado
+  const ring = await page.evaluate(() => {
+    const el = document.querySelector('#explore-q');
+    el.focus();
+    const s = getComputedStyle(el);
+    return { w: parseFloat(s.outlineWidth), style: s.outlineStyle };
+  });
+  check('a11y: campo focado mostra anel de foco', ring.w >= 2 && ring.style !== 'none');
+  await page.close();
+}
+
 // ─── Landing: páginas legais e recuperação de senha ───
 {
   const page = await (await browser.newContext()).newPage();

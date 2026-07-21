@@ -264,9 +264,9 @@ async function loadProducers() {
       <span class="status-pill status-${p.status}">${STATUS_LABEL[p.status]}</span>
       <div class="row-actions">
         ${pending
-          ? `<button class="btn-approve" title="Aprovar" data-action="approve">✓</button>
-             <button class="btn-reject" title="Recusar" data-action="reject">✕</button>`
-          : `<button class="btn-view" title="Ver perfil">→</button>`}
+          ? `<button class="btn-approve" aria-label="Aprovar" title="Aprovar" data-action="approve">✓</button>
+             <button class="btn-reject" aria-label="Recusar" title="Recusar" data-action="reject">✕</button>`
+          : `<button class="btn-view" aria-label="Ver perfil" title="Ver perfil">→</button>`}
       </div>
     </div>`;
   }).join('');
@@ -317,8 +317,8 @@ async function loadListings() {
       <div class="row-actions">
         ${pending
           ? `<button class="btn-approve wide" data-action="approve">Aprovar</button>
-             <button class="btn-reject" title="Recusar" data-action="reject">✕</button>`
-          : `<button class="btn-view" title="Ver anúncio">→</button>`}
+             <button class="btn-reject" aria-label="Recusar" title="Recusar" data-action="reject">✕</button>`
+          : `<button class="btn-view" aria-label="Ver anúncio" title="Ver anúncio">→</button>`}
       </div>
     </div>`;
   }).join('');
@@ -457,9 +457,9 @@ function producerRowHTML(p) {
       <span class="status-pill status-${p.status}">${STATUS_LABEL[p.status]}</span>
       <div class="row-actions">
         ${pending
-          ? `<button class="btn-approve" title="Aprovar" data-action="approve">✓</button>
-             <button class="btn-reject" title="Recusar" data-action="reject">✕</button>`
-          : `<button class="btn-view" title="Ver perfil">→</button>`}
+          ? `<button class="btn-approve" aria-label="Aprovar" title="Aprovar" data-action="approve">✓</button>
+             <button class="btn-reject" aria-label="Recusar" title="Recusar" data-action="reject">✕</button>`
+          : `<button class="btn-view" aria-label="Ver perfil" title="Ver perfil">→</button>`}
       </div>
     </div>`;
 }
@@ -506,8 +506,8 @@ function listingQueueRowHTML(l) {
       </div>
       <span class="status-pill status-${l.status}">${STATUS_LABEL[l.status]}</span>
       <div class="row-actions">
-        <button class="btn-approve" title="Aprovar" data-action="approve">✓</button>
-        <button class="btn-reject" title="Recusar" data-action="reject">✕</button>
+        <button class="btn-approve" aria-label="Aprovar" title="Aprovar" data-action="approve">✓</button>
+        <button class="btn-reject" aria-label="Recusar" title="Recusar" data-action="reject">✕</button>
       </div>
     </div>`;
 }
@@ -555,8 +555,8 @@ function listingTableRowHTML(l) {
       <div class="row-actions">
         ${pending
           ? `<button class="btn-approve wide" data-action="approve">Aprovar</button>
-             <button class="btn-reject" title="Recusar" data-action="reject">✕</button>`
-          : `<button class="btn-view" title="Ver anúncio">→</button>`}
+             <button class="btn-reject" aria-label="Recusar" title="Recusar" data-action="reject">✕</button>`
+          : `<button class="btn-view" aria-label="Ver anúncio" title="Ver anúncio">→</button>`}
       </div>
     </div>`;
 }
@@ -1143,7 +1143,7 @@ const alertRowHTML = a => {
       </div>
       <div class="alert-actions">
         ${a.read_at ? '' : '<button data-alert-read title="Marcar como lida">Lida</button>'}
-        <button class="alert-del" data-alert-del title="Excluir">✕</button>
+        <button class="alert-del" data-alert-del aria-label="Excluir" title="Excluir">✕</button>
       </div>
     </div>`;
 };
