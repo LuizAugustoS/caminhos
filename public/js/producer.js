@@ -210,7 +210,7 @@ async function openGalleryManager(id) {
     <div class="gallery-grid">
       ${images.map((img, i) => `
         <div class="gallery-item" data-img="${img.id}">
-          <img src="${esc(img.path)}" alt="">
+          <img src="${esc(img.path)}" alt="" class="zoomable">
           ${i === 0 ? '<span class="gallery-cover">capa</span>' : ''}
           <button type="button" class="gallery-del" aria-label="Remover foto" title="Remover foto">${icon('close')}</button>
         </div>`).join('') || '<p class="empty-note">Nenhuma foto ainda — a capa ilustrativa é usada no lugar.</p>'}
@@ -435,7 +435,7 @@ setInterval(() => {
 // ─── Perfil do estabelecimento ───────────────────────────────────────────────
 function renderEstPhoto(path) {
   $('#est-photo').innerHTML = path
-    ? `<img src="${esc(path)}" alt="Foto do estabelecimento">`
+    ? `<img src="${esc(path)}" alt="Foto do estabelecimento" class="zoomable">`
     : '<span class="empty-note">Sem foto</span>';
 }
 
