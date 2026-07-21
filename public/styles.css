@@ -27,6 +27,18 @@ a { color: var(--green); text-decoration: none; font-weight: 700; }
 a:hover { color: var(--forest); }
 button { font-family: inherit; }
 
+/* ─── Acessibilidade: anel de foco visível por teclado ─── */
+/* :focus-visible só aparece na navegação por teclado, não no clique do mouse.
+   O anel usa --forest com deslocamento para contrastar tanto sobre o creme das
+   páginas quanto sobre os botões verdes. O !important vence os `outline:none`
+   dos campos de formulário — foco visível é justamente o caso em que ele cabe. */
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible, summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2.5px solid var(--forest) !important;
+  outline-offset: 2px;
+}
+
 /* ─── Tipografia editorial ─── */
 /* Fraunces (serif de display) nos títulos; Manrope no restante da interface. */
 :root { --serif: 'Fraunces', Georgia, 'Times New Roman', serif; }

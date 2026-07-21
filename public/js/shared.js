@@ -181,11 +181,25 @@ const msgBubble = (body, mine, meta) => `
 
 // ─── Modais (substituem prompt/confirm nativos) ─────────────────────────────
 function openModal(innerHTML) {
+  const lastFocused = document.activeElement;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${innerHTML}</div>`;
+  overlay.innerHTML = `<div class="modal" role="dialog" aria-modal="true" tabindex="-1">${innerHTML}</div>`;
   document.body.appendChild(overlay);
-  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  // Nomeia o diálogo pelo primeiro título e leva o foco para dentro dele;
+  // ao fechar, devolve o foco para quem abriu (navegação por teclado/leitor).
+  const dialog = overlay.querySelector('.modal');
+  const heading = dialog.querySelector('h1, h2, h3, h4');
+  if (heading) {
+    if (!heading.id) heading.id = 'modal-title-' + Math.random().toString(36).slice(2, 8);
+    dialog.setAttribute('aria-labelledby', heading.id);
+  }
+  (dialog.querySelector('input, textarea, select, button') || dialog).focus();
+  const close = () => {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+    if (lastFocused && lastFocused.focus) lastFocused.focus();
+  };
   const onKey = e => { if (e.key === 'Escape') { close(); overlay.dispatchEvent(new Event('modal-cancel')); } };
   document.addEventListener('keydown', onKey);
   overlay.addEventListener('click', e => {
@@ -205,10 +219,10 @@ function modalForm({ title, fields, confirmText = 'Salvar' }) {
       <form class="modal-form">
         ${fields.map(f => `
           <div class="field">
-            <label>${esc(f.label)}</label>
+            <label for="mf-${f.name}">${esc(f.label)}</label>
             ${f.type === 'textarea'
-              ? `<textarea name="${f.name}" rows="3" placeholder="${esc(f.placeholder || '')}">${esc(f.value || '')}</textarea>`
-              : `<input name="${f.name}" type="${f.type || 'text'}" value="${esc(f.value || '')}" placeholder="${esc(f.placeholder || '')}" ${f.required !== false ? 'required' : ''} ${f.minlength ? `minlength="${f.minlength}"` : ''}>`}
+              ? `<textarea id="mf-${f.name}" name="${f.name}" rows="3" placeholder="${esc(f.placeholder || '')}">${esc(f.value || '')}</textarea>`
+              : `<input id="mf-${f.name}" name="${f.name}" type="${f.type || 'text'}" value="${esc(f.value || '')}" placeholder="${esc(f.placeholder || '')}" ${f.required !== false ? 'required' : ''} ${f.minlength ? `minlength="${f.minlength}"` : ''}>`}
           </div>`).join('')}
         <div class="row-actions modal-actions">
           <button type="submit" class="btn-primary">${esc(confirmText)}</button>
@@ -278,7 +292,7 @@ function showVerifyBanner(me) {
   bar.innerHTML = `
     <span>Confirme seu e-mail (<strong>${esc(me.email)}</strong>) para proteger sua conta.</span>
     <button type="button" class="btn-secondary" id="verify-resend">Reenviar link</button>
-    <button type="button" class="verify-dismiss" title="Fechar">✕</button>`;
+    <button type="button" class="verify-dismiss" aria-label="Fechar" title="Fechar"><span aria-hidden="true">✕</span></button>`;
   main.prepend(bar);
   bar.querySelector('#verify-resend').addEventListener('click', async () => {
     try {

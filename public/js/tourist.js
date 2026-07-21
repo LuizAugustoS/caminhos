@@ -115,7 +115,7 @@ const listingCard = (l, favIds) => `
       </div>
     </div>
     <div class="ex-actions">
-      <button class="btn-fav ${favIds.has(l.id) ? 'on' : ''}" data-action="fav" title="Favoritar">♥</button>
+      <button class="btn-fav ${favIds.has(l.id) ? 'on' : ''}" data-action="fav" aria-label="Favoritar" aria-pressed="${favIds.has(l.id)}" title="Favoritar"><span aria-hidden="true">♥</span></button>
       <button class="btn-secondary" data-action="add-trip">+ Roteiro</button>
       <button class="btn-primary" data-action="chat">Conversar</button>
     </div>
@@ -250,8 +250,8 @@ async function openListingDetail(listingId) {
           </div>
         </div>
         <div class="ex-actions">
-          <button class="btn-fav ${isFav ? 'on' : ''}" data-detail="fav" title="Favoritar">♥</button>
-          <button class="btn-secondary" data-detail="share" title="Compartilhar">${icon('share')}</button>
+          <button class="btn-fav ${isFav ? 'on' : ''}" data-detail="fav" aria-label="Favoritar" aria-pressed="${isFav}" title="Favoritar"><span aria-hidden="true">♥</span></button>
+          <button class="btn-secondary" data-detail="share" aria-label="Compartilhar" title="Compartilhar">${icon('share')}</button>
           <button class="btn-secondary" data-detail="add-trip">+ Roteiro</button>
           <button class="btn-secondary" data-detail="chat">Conversar</button>
           ${canBook ? '<button class="btn-primary" data-detail="book">Reservar</button>' : ''}
@@ -471,12 +471,14 @@ async function toggleFavorite(listingId, btn) {
   if (existing) {
     await CaparaoDB.del('favorites', listingId);
     btn?.classList.remove('on');
+    btn?.setAttribute('aria-pressed', 'false');
     await CaparaoDB.enqueue({ method: 'DELETE', path: `/api/favorites/${listingId}` });
     toast('Removido dos favoritos');
   } else {
     const snapshot = (await CaparaoDB.get('listings', listingId)) || { id: listingId };
     await CaparaoDB.put('favorites', listingId, { listing_id: listingId, ...snapshot });
     btn?.classList.add('on');
+    btn?.setAttribute('aria-pressed', 'true');
     await CaparaoDB.enqueue({ method: 'PUT', path: `/api/favorites/${listingId}` });
     toast('Adicionado aos favoritos ♥');
   }
@@ -558,7 +560,7 @@ async function renderTrips() {
       <span class="trip-meta">${(t.items || []).length} parada${(t.items || []).length === 1 ? '' : 's'}${t.origin === 'ai' ? ' · gerado a partir dos seus gostos' : ''}</span>
       <div class="row-actions">
         <button class="btn-primary" data-action="open">Abrir</button>
-        <button class="btn-reject" data-action="delete" title="Excluir">${icon('close')}</button>
+        <button class="btn-reject" data-action="delete" aria-label="Excluir" title="Excluir">${icon('close')}</button>
       </div>
     </div>`).join('') || '<p class="empty-note">Nenhum roteiro ainda. Crie um e adicione paradas explorando a região — funciona até sem internet.</p>';
 }
@@ -597,8 +599,8 @@ async function renderTripDetail(uid) {
             <div class="row-actions">
               <button class="btn-view" data-action="up" title="Subir">↑</button>
               <button class="btn-view" data-action="down" title="Descer">↓</button>
-              <button class="btn-view" data-action="note" title="Anotação">${icon('edit')}</button>
-              <button class="btn-reject" data-action="remove" title="Remover">${icon('close')}</button>
+              <button class="btn-view" data-action="note" aria-label="Anotação" title="Anotação">${icon('edit')}</button>
+              <button class="btn-reject" data-action="remove" aria-label="Remover" title="Remover">${icon('close')}</button>
             </div>
           </div>`).join('') || '<p class="empty-note">Sem paradas — adicione pela aba Explorar ou crie uma parada livre.</p>'}
       </div>

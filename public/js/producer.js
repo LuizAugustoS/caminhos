@@ -69,11 +69,11 @@ async function loadShowcase() {
         <span class="status-pill status-${l.status}">${STATUS_LABEL[l.status]}</span>
         <div class="row-actions">
           ${l.status === 'approved' ? `
-            <button class="btn-view" data-action="share" title="Copiar link público">${icon('share')}</button>
-            <button class="btn-view" data-action="toggle" title="${l.available ? 'Pausar anúncio' : 'Reativar anúncio'}">${icon(l.available ? 'pause' : 'play')}</button>` : ''}
-          <button class="btn-view" data-action="photo" title="Fotos do anúncio">${icon('image')}</button>
-          <button class="btn-view" data-action="edit" title="Editar">${icon('edit')}</button>
-          <button class="btn-reject" data-action="delete" title="Excluir">${icon('close')}</button>
+            <button class="btn-view" data-action="share" aria-label="Copiar link público" title="Copiar link público">${icon('share')}</button>
+            <button class="btn-view" data-action="toggle" aria-label="${l.available ? 'Pausar anúncio' : 'Reativar anúncio'}" title="${l.available ? 'Pausar anúncio' : 'Reativar anúncio'}">${icon(l.available ? 'pause' : 'play')}</button>` : ''}
+          <button class="btn-view" data-action="photo" aria-label="Fotos do anúncio" title="Fotos do anúncio">${icon('image')}</button>
+          <button class="btn-view" data-action="edit" aria-label="Editar" title="Editar">${icon('edit')}</button>
+          <button class="btn-reject" data-action="delete" aria-label="Excluir" title="Excluir">${icon('close')}</button>
         </div>
       </div>`).join('') || '<p class="empty-note">Nenhum anúncio ainda — crie o primeiro!</p>';
   } catch (err) {
@@ -212,7 +212,7 @@ async function openGalleryManager(id) {
         <div class="gallery-item" data-img="${img.id}">
           <img src="${esc(img.path)}" alt="">
           ${i === 0 ? '<span class="gallery-cover">capa</span>' : ''}
-          <button type="button" class="gallery-del" title="Remover foto">${icon('close')}</button>
+          <button type="button" class="gallery-del" aria-label="Remover foto" title="Remover foto">${icon('close')}</button>
         </div>`).join('') || '<p class="empty-note">Nenhuma foto ainda — a capa ilustrativa é usada no lugar.</p>'}
     </div>
     <div class="row-actions modal-actions">
@@ -260,7 +260,7 @@ const producerBookingRow = b => `
     <div class="row-actions">
       ${b.status === 'pending' ? `
         <button class="btn-approve" data-bk="confirmed">Confirmar</button>
-        <button class="btn-reject" data-bk="declined" title="Recusar">${icon('close')}</button>` : ''}
+        <button class="btn-reject" data-bk="declined" aria-label="Recusar" title="Recusar">${icon('close')}</button>` : ''}
       ${b.status === 'confirmed' ? '<button class="btn-primary" data-bk="completed">Concluir venda</button>' : ''}
     </div>
   </div>`;
