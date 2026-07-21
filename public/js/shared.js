@@ -92,12 +92,16 @@ const initialsOf = name => name.split(/\s+/).map(w => w[0]).join('').slice(0, 2)
 
 const brandHTML = `
   <div class="brand">
-    <div class="brand-mark">
-      <div class="brand-sun"></div>
-      <div class="brand-peak-green"></div>
-      <div class="brand-peak-brown"></div>
-      <div class="brand-bean"></div>
-    </div>
+    <svg class="brand-mark" viewBox="0 0 48 48" width="44" height="44" aria-hidden="true">
+      <defs><clipPath id="cc-mark"><rect width="48" height="48" rx="13"/></clipPath></defs>
+      <g clip-path="url(#cc-mark)">
+        <rect width="48" height="48" fill="#14402E"/>
+        <circle cx="34" cy="15" r="5.5" fill="#E4A85A"/>
+        <path d="M-4 48 L13 25 L28 48 Z" fill="#5E8468"/>
+        <path d="M6 48 L26 19 L48 48 Z" fill="#2F8A5E"/>
+        <path d="M26 22 C21 29 30 31 24 37 C21 40 27 43 25 48" fill="none" stroke="#F2EBDD" stroke-width="2.3" stroke-linecap="round"/>
+      </g>
+    </svg>
     <div class="brand-title">
       <strong>Caminhos do Caparaó</strong>
       <small>Turismo rural · Marketplace</small>
