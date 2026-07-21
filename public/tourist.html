@@ -70,6 +70,23 @@
             <button class="tab" data-kind="map">Mapa</button>
             <button class="tab" data-kind="itineraries">Roteiros prontos</button>
           </div>
+          <div class="explore-filters" id="explore-filters">
+            <label class="filter-field">
+              <span>Cidade</span>
+              <select id="explore-city" aria-label="Filtrar por cidade">
+                <option value="">Todas as cidades</option>
+              </select>
+            </label>
+            <label class="filter-field">
+              <span>Ordenar</span>
+              <select id="explore-sort" aria-label="Ordenar resultados">
+                <option value="relevance">Relevância</option>
+                <option value="price_asc">Menor preço</option>
+                <option value="price_desc">Maior preço</option>
+                <option value="rating">Melhor avaliação</option>
+              </select>
+            </label>
+          </div>
         </div>
         <div class="card-grid" id="explore-grid"></div>
         <div class="explore-map hidden" id="explore-map"></div>

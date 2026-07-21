@@ -45,9 +45,23 @@ let exploreSeq = 0; // descarta respostas atrasadas de buscas anteriores
 const mapsLink = (lat, lng) =>
   `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 
+// Ordenações do lado do cliente (usadas no modo offline, sobre o cache)
+const SORT_FNS = {
+  relevance: null, // mantém a ordem que veio (premium primeiro, recente)
+  price_asc: (a, b) => (a.price_cents ?? Infinity) - (b.price_cents ?? Infinity),
+  price_desc: (a, b) => (b.price_cents ?? -Infinity) - (a.price_cents ?? -Infinity),
+  rating: (a, b) => (b.rating_avg ?? -1) - (a.rating_avg ?? -1) || (b.rating_count ?? 0) - (a.rating_count ?? 0),
+};
+
 async function loadExplore() {
   const seq = ++exploreSeq;
   const q = $('#explore-q').value.trim();
+  const city = $('#explore-city')?.value || '';
+  const sort = $('#explore-sort')?.value || 'relevance';
+  // A barra de filtros só faz sentido nas abas de anúncios (não em mapa,
+  // estabelecimentos ou roteiros prontos).
+  const listingKind = !['places', 'map', 'itineraries'].includes(exploreKind);
+  $('#explore-filters')?.classList.toggle('hidden', !listingKind);
   const isMap = exploreKind === 'map';
   $('#explore-grid').classList.toggle('hidden', isMap);
   $('#explore-map').classList.toggle('hidden', !isMap);
@@ -65,8 +79,10 @@ async function loadExplore() {
         ({ establishments: places } = await api(`/explore/establishments?q=${encodeURIComponent(q)}`));
         for (const e of places) await CaparaoDB.put('establishments', e.id, e);
       } else {
-        const typeParam = exploreKind ? `&type=${exploreKind}` : '';
-        ({ listings } = await api(`/explore/listings?q=${encodeURIComponent(q)}${typeParam}`));
+        const params = new URLSearchParams({ q, sort });
+        if (exploreKind) params.set('type', exploreKind);
+        if (city) params.set('city', city);
+        ({ listings } = await api(`/explore/listings?${params}`));
         for (const l of listings) await CaparaoDB.put('listings', l.id, l);
       }
     } catch { /* cai para o cache local */ }
@@ -83,7 +99,9 @@ async function loadExplore() {
     } else {
       listings = (await CaparaoDB.all('listings'))
         .filter(l => !exploreKind || l.type === exploreKind)
+        .filter(l => !city || norm(l.city) === norm(city))
         .filter(l => !q || norm(l.title).includes(norm(q)) || norm(l.subtitle).includes(norm(q)) || norm(l.producer_name).includes(norm(q)));
+      if (SORT_FNS[sort]) listings = listings.slice().sort(SORT_FNS[sort]);
     }
   }
 
@@ -197,6 +215,24 @@ $('#explore-chips').addEventListener('click', e => {
   $$('#explore-chips .tab').forEach(t => t.classList.toggle('active', t === tab));
   loadExplore();
 });
+$('#explore-city').addEventListener('change', loadExplore);
+$('#explore-sort').addEventListener('change', loadExplore);
+
+// Preenche o filtro de cidade (online busca a lista; offline usa o cache)
+async function loadCities() {
+  let cities = [];
+  if (navigator.onLine) {
+    try { ({ cities } = await api('/explore/cities')); await CaparaoDB.put('kv', 'explore-cities', cities); }
+    catch { /* usa o cache abaixo */ }
+  }
+  if (!cities.length) cities = (await CaparaoDB.get('kv', 'explore-cities')) || [];
+  const sel = $('#explore-city');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Todas as cidades</option>'
+    + cities.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  sel.value = current; // preserva a seleção ao repovoar
+}
+loadCities();
 
 // ─── Detalhe do anúncio ──────────────────────────────────────────────────────
 async function openListingDetail(listingId) {
