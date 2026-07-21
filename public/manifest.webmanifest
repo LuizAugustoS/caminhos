@@ -1,7 +1,7 @@
 {
-  "name": "Caminhos do Caparaó — Admin",
-  "short_name": "Caparaó Admin",
-  "description": "Painel administrativo do marketplace de turismo rural Caminhos do Caparaó",
+  "name": "Caminhos do Caparaó",
+  "short_name": "Caparaó",
+  "description": "Marketplace de turismo rural do Caparaó — explore, monte roteiros offline e converse com produtores locais",
   "lang": "pt-BR",
   "start_url": "/",
   "scope": "/",

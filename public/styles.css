@@ -74,30 +74,10 @@ button { font-family: inherit; }
   border-bottom: 1px solid var(--line);
 }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 250px; }
-.brand-mark { position: relative; width: 48px; height: 44px; }
-.brand-sun {
-  position: absolute; top: 2px; right: 6px; width: 12px; height: 12px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #E9A857, #C0714F);
-  box-shadow: 0 0 8px rgba(233,168,87,.6);
-}
-.brand-peak-green {
-  position: absolute; bottom: 8px; left: 2px; width: 0; height: 0;
-  border-left: 14px solid transparent; border-right: 14px solid transparent;
-  border-bottom: 24px solid var(--green);
-}
-.brand-peak-brown {
-  position: absolute; bottom: 8px; left: 16px; width: 0; height: 0;
-  border-left: 16px solid transparent; border-right: 16px solid transparent;
-  border-bottom: 30px solid var(--brown);
-}
-.brand-bean {
-  position: absolute; bottom: 0; left: 14px; width: 15px; height: 9px;
-  border-radius: 50% 50% 45% 45%; background: #7A4B2E; transform: rotate(-24deg);
-  box-shadow: inset 0 -2px 0 rgba(0,0,0,.18);
-}
-.brand-bean::after {
-  content: ''; position: absolute; left: 48%; top: 1px; bottom: 1px; width: 1.5px;
-  background: var(--cream); border-radius: 2px; transform: rotate(8deg);
+.brand-mark {
+  width: 44px; height: 44px; flex-shrink: 0; display: block;
+  border-radius: 13px;
+  box-shadow: 0 1px 2px rgba(20,64,46,.12);
 }
 .brand-title { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-title strong { font-size: 17px; font-weight: 800; color: var(--forest); letter-spacing: -.2px; }
@@ -463,7 +443,7 @@ body.offline .offline-banner { display: block; }
 .landing { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 56px; flex-wrap: wrap; max-width: 1080px; }
 .landing-hero { flex: 1; min-width: 320px; max-width: 520px; }
 .landing-brand { margin-bottom: 26px; }
-.landing-brand .brand-mark { width: 52px; height: 48px; }
+.landing-brand .brand-mark { width: 52px; height: 52px; border-radius: 15px; }
 .landing-brand .brand-title strong { font-size: 19px; }
 .landing-kicker {
   display: inline-block; margin-bottom: 12px; font-size: 11px; font-weight: 800;
@@ -745,7 +725,7 @@ body.offline .offline-banner { display: block; }
   /* Topbar compacta: cabe tudo sem estourar */
   .topbar { padding: 10px 14px; gap: 10px; }
   .brand { min-width: 0; gap: 8px; }
-  .brand-mark { width: 38px; height: 36px; }
+  .brand-mark { width: 38px; height: 38px; border-radius: 11px; }
   .brand-title strong { font-size: 14px; white-space: nowrap; }
   .brand-title small { display: none; }
   .topbar-right { gap: 8px; }

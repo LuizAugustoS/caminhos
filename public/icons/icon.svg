@@ -1,8 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#14402E"/>
-  <circle cx="368" cy="140" r="36" fill="#E9A857"/>
-  <path d="M96 356 L196 196 L296 356 Z" fill="#1C6B4A"/>
-  <path d="M204 356 L316 176 L428 356 Z" fill="#8AA98F"/>
-  <ellipse cx="256" cy="396" rx="60" ry="34" fill="#7A4B2E" transform="rotate(-18 256 396)"/>
-  <path d="M232 372 Q256 396 244 424" stroke="#F2EBDD" stroke-width="8" fill="none" stroke-linecap="round" transform="rotate(-18 256 396)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="Caminhos do Caparaó">
+  <defs><clipPath id="r"><rect width="48" height="48" rx="13"/></clipPath></defs>
+  <g clip-path="url(#r)">
+    <rect width="48" height="48" fill="#14402E"/>
+    <circle cx="34" cy="15" r="5.5" fill="#E4A85A"/>
+    <path d="M-4 48 L13 25 L28 48 Z" fill="#5E8468"/>
+    <path d="M6 48 L26 19 L48 48 Z" fill="#2F8A5E"/>
+    <path d="M26 22 C21 29 30 31 24 37 C21 40 27 43 25 48" fill="none" stroke="#F2EBDD" stroke-width="2.3" stroke-linecap="round"/>
+  </g>
 </svg>
