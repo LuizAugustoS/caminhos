@@ -27,6 +27,27 @@ a { color: var(--green); text-decoration: none; font-weight: 700; }
 a:hover { color: var(--forest); }
 button { font-family: inherit; }
 
+/* ─── Convite de instalação do PWA ─── */
+.install-bar {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+  z-index: 2500; display: flex; align-items: center; gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 12px 10px 16px; border-radius: 14px;
+  background: var(--forest); color: #F2EBDD;
+  box-shadow: 0 8px 30px rgba(20,64,46,.35);
+  animation: install-in .25s ease;
+}
+@keyframes install-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.install-ico { display: flex; color: #E4A85A; flex-shrink: 0; }
+.install-text { font-size: 13px; font-weight: 600; line-height: 1.35; }
+.install-bar .btn-sm { flex-shrink: 0; }
+.install-close {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 28px; height: 28px; border: none; border-radius: 8px; cursor: pointer;
+  background: rgba(255,255,255,.12); color: #F2EBDD;
+}
+.install-close:hover { background: rgba(255,255,255,.22); }
+
 /* ─── Acessibilidade: anel de foco visível por teclado ─── */
 /* :focus-visible só aparece na navegação por teclado, não no clique do mouse.
    O anel usa --forest com deslocamento para contrastar tanto sobre o creme das

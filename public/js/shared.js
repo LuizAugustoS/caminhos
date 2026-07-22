@@ -142,10 +142,23 @@ function coverTone(l) {
   let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 4;
   return `cover-t${h + 1}`;
 }
+// URL da miniatura (400px) a partir do caminho da imagem grande: mesma
+// convenção do servidor (<nome>_t.<ext>). Grades usam a mini; detalhe usa a
+// grande. Se a mini não existir (imagem antiga sem variante), o handler de
+// erro abaixo troca de volta para a grande.
+const thumbURL = path => (path || '').replace(/(\.[^.]+)$/, '_t$1');
+// Se uma miniatura falhar ao carregar, cai para a imagem grande (data-full).
+document.addEventListener('error', e => {
+  const img = e.target;
+  if (img && img.tagName === 'IMG' && img.dataset.full && img.getAttribute('src') !== img.dataset.full) {
+    img.src = img.dataset.full;
+  }
+}, true);
+
 // Capa do anúncio: foto enviada pelo produtor, ou placeholder editorial
 // (monograma em serifa sobre fundo linho) quando ainda não há foto.
 const coverHTML = (l, cls = 'thumb') => l.image_path
-  ? `<div class="${cls} has-photo"><img src="${esc(l.image_path)}" alt="" loading="lazy"></div>`
+  ? `<div class="${cls} has-photo"><img src="${esc(thumbURL(l.image_path))}" data-full="${esc(l.image_path)}" alt="" loading="lazy"></div>`
   : `<div class="${cls} cover-mono ${coverTone(l)}"><span class="cover-initials">${esc(monogramOf(l))}</span></div>`;
 const thumbHTML = coverHTML; // compat: nome antigo ainda usado nas telas
 
@@ -566,3 +579,47 @@ document.addEventListener('DOMContentLoaded', updateOnlineState);
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
+
+// ─── Convite de instalação do PWA ───────────────────────────────────────────
+// Só nas páginas do app (têm .topbar), nunca quando já instalado ou dispensado.
+(function initInstallPrompt() {
+  const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (isStandalone || localStorage.getItem('pwa-install-dismissed') === '1') return;
+  const onReady = () => {
+    if (!document.querySelector('.topbar')) return; // landing não recebe o convite
+
+    const show = (label, onInstall) => {
+      const bar = document.createElement('div');
+      bar.className = 'install-bar';
+      bar.innerHTML = `
+        <span class="install-ico">${icon('image', 18)}</span>
+        <span class="install-text">${label}</span>
+        ${onInstall ? '<button type="button" class="btn-primary btn-sm" data-install-go>Instalar</button>' : ''}
+        <button type="button" class="install-close" data-install-dismiss aria-label="Dispensar">${icon('close', 16)}</button>`;
+      document.body.appendChild(bar);
+      bar.querySelector('[data-install-dismiss]').addEventListener('click', () => {
+        localStorage.setItem('pwa-install-dismissed', '1'); bar.remove();
+      });
+      bar.querySelector('[data-install-go]')?.addEventListener('click', () => { onInstall(); bar.remove(); });
+      return bar;
+    };
+
+    // Android/Chrome: evento nativo de instalação
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      show('Instale o app para usar offline na serra.', async () => {
+        e.prompt();
+        await e.userChoice.catch(() => {});
+      });
+    }, { once: true });
+
+    // iOS/Safari não dispara beforeinstallprompt — mostra a dica manual
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|crios|fxios|android).)*safari/i.test(navigator.userAgent);
+    if (isIOS && isSafari) {
+      setTimeout(() => show('Instale: toque em Compartilhar e “Adicionar à Tela de Início”.'), 1200);
+    }
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady);
+  else onReady();
+})();

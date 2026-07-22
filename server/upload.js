@@ -5,7 +5,7 @@
 // internet ruim na serra. Campos: avatar, foto do estabelecimento e fotos de
 // anúncio. Aceita JPG/PNG/WebP até 12 MB na entrada; a saída é sempre WebP.
 import multer from 'multer';
-import { putObject, removeObject, UPLOADS_DIR } from './storage.js';
+import { keyFor, putBuffer, thumbKey, removeObject, UPLOADS_DIR } from './storage.js';
 
 export { UPLOADS_DIR };
 
@@ -14,6 +14,10 @@ const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 // pesar; a qualidade WebP 78 é praticamente indistinguível e comprime muito.
 const MAX_DIMENSION = 1600;
 const WEBP_QUALITY = 78;
+// Miniatura para as grades (cards ~300px): baixa muito o tráfego da tela mais
+// pesada num app usado com internet ruim.
+const THUMB_DIMENSION = 400;
+const THUMB_QUALITY = 70;
 
 // Carrega o sharp uma vez. Se não estiver instalado (ou falhar de carregar),
 // o upload segue gravando o original — a otimização é uma melhoria, não um
@@ -39,21 +43,30 @@ const upload = multer({
   },
 });
 
-// Otimiza o buffer para WebP. Devolve { buffer, mimetype }. Em qualquer falha
-// (sharp ausente, imagem corrompida) cai para o original recebido.
-async function optimize(buffer, mimetype) {
+// Gera a versão grande (WebP 1600px) e a miniatura (WebP 400px) e as grava com
+// a convenção de nome <key> e <key>_t. Devolve o caminho público da grande.
+// Se o sharp faltar/falhar, grava o original sem miniatura — a otimização é
+// melhoria, não requisito para publicar uma foto.
+async function optimizeAndStore(buffer, mimetype) {
   const sharp = await loadSharp();
-  if (!sharp) return { buffer, mimetype };
+  if (!sharp) return putBuffer(keyFor(mimetype), buffer, mimetype);
   try {
-    const out = await sharp(buffer)
-      .rotate() // aplica a orientação do EXIF e remove o metadado
-      .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: WEBP_QUALITY })
-      .toBuffer();
-    return { buffer: out, mimetype: 'image/webp' };
+    const base = sharp(buffer).rotate(); // aplica a orientação do EXIF
+    const [full, thumb] = await Promise.all([
+      base.clone().resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: WEBP_QUALITY }).toBuffer(),
+      base.clone().resize({ width: THUMB_DIMENSION, height: THUMB_DIMENSION, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: THUMB_QUALITY }).toBuffer(),
+    ]);
+    const key = keyFor('image/webp');
+    const [publicPath] = await Promise.all([
+      putBuffer(key, full, 'image/webp'),
+      putBuffer(thumbKey(key), thumb, 'image/webp'),
+    ]);
+    return publicPath;
   } catch (e) {
     console.warn('otimização de imagem falhou, gravando original:', e.message);
-    return { buffer, mimetype };
+    return putBuffer(keyFor(mimetype), buffer, mimetype);
   }
 }
 
@@ -65,8 +78,7 @@ export function acceptImage(req, res, next) {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
     try {
-      const { buffer, mimetype } = await optimize(req.file.buffer, req.file.mimetype);
-      req.file.publicPath = await putObject(buffer, mimetype);
+      req.file.publicPath = await optimizeAndStore(req.file.buffer, req.file.mimetype);
       next();
     } catch (e) {
       console.error('upload falhou:', e.message);
