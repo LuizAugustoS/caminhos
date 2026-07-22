@@ -36,6 +36,7 @@ const ICON_PATHS = {
   analytics: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
   settings: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1.5" y1="14" x2="6.5" y2="14"/><line x1="9.5" y1="8" x2="14.5" y2="8"/><line x1="17.5" y1="16" x2="22.5" y2="16"/>',
   volume: '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>',
 };
 const icon = (name, size = 20) =>
   `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ''}</svg>`;
@@ -54,6 +55,9 @@ const STATUS_LABEL = { pending: 'Pendente', in_review: 'Em análise', approved: 
 const PLAN_LABEL = { gratuito: 'Gratuito', profissional: 'Profissional', premium: 'Premium' };
 const planBadge = plan => plan && plan !== 'gratuito'
   ? `<span class="plan-badge plan-${esc(plan)}">${plan === 'premium' ? '★ ' : ''}${PLAN_LABEL[plan] || ''}</span>`
+  : '';
+const verifiedBadge = verified => verified
+  ? `<span class="verified-badge" title="Parceiro verificado">${icon('check', 12)}Verificado</span>`
   : '';
 
 // Avaliação média → "★★★★☆ 4.3 (12)"; sem avaliações → vazio
@@ -258,7 +262,7 @@ async function loadProducers() {
     <div class="producer-row" data-id="${p.id}">
       <div class="avatar lg" style="background:${esc(p.avatar_color)}">${esc(p.initials)}</div>
       <div class="producer-info">
-        <div class="name">${esc(p.name)} ${planBadge(p.plan)}</div>
+        <div class="name">${esc(p.name)} ${verifiedBadge(p.verified)}${planBadge(p.plan)}</div>
         <div class="kind">${esc(p.kind)}</div>
       </div>
       <span class="status-pill status-${p.status}">${STATUS_LABEL[p.status]}</span>
@@ -451,7 +455,7 @@ function producerRowHTML(p) {
     <div class="producer-row" data-id="${p.id}">
       <div class="avatar lg" style="background:${esc(p.avatar_color)}">${esc(p.initials)}</div>
       <div class="producer-info">
-        <div class="name">${esc(p.name)} ${planBadge(p.plan)}</div>
+        <div class="name">${esc(p.name)} ${verifiedBadge(p.verified)}${planBadge(p.plan)}</div>
         <div class="kind">${esc(p.kind)}${p.city ? ' · ' + esc(p.city) : ''}</div>
       </div>
       <span class="status-pill status-${p.status}">${STATUS_LABEL[p.status]}</span>
@@ -513,10 +517,31 @@ function listingQueueRowHTML(l) {
 }
 const TYPE_LABEL_ADMIN = { product: 'Produto', service: 'Serviço', event: 'Evento' };
 
+const REPORT_REASON_LABEL = {
+  spam: 'Spam ou golpe', inapropriado: 'Conteúdo inapropriado',
+  enganoso: 'Informação enganosa', fora_regiao: 'Não é do Caparaó', outro: 'Outro motivo',
+};
+function reportRowHTML(r) {
+  const reasons = (r.reasons || []).map(x => REPORT_REASON_LABEL[x] || x).join(' · ');
+  const detail = (r.details || [])[0];
+  return `
+    <div class="report-row" data-listing="${r.listing_id}">
+      <div class="report-info">
+        <div class="name">${esc(r.title)} <span class="report-count">${r.reports} denúncia${r.reports > 1 ? 's' : ''}</span></div>
+        <div class="kind">${esc(r.producer_name)} · ${esc(reasons)}${detail ? ` — “${esc(detail)}”` : ''}</div>
+      </div>
+      <div class="row-actions">
+        <button class="btn-view" data-report-open aria-label="Ver anúncio" title="Ver anúncio">→</button>
+        <button class="btn-approve" data-report-resolve title="Marcar como resolvida">${icon('check', 15)}</button>
+      </div>
+    </div>`;
+}
+
 async function loadRegistrationsView() {
-  const [{ producers }, { listings }] = await Promise.all([
+  const [{ producers }, { listings }, { reports }] = await Promise.all([
     api('/producers?limit=100'),
     api('/listings?limit=100'),
+    api('/admin/reports'),
   ]);
   const pendProducers = producers.filter(p => p.status === 'pending' || p.status === 'in_review');
   const pendListings = listings.filter(l => l.status === 'pending' || l.status === 'in_review');
@@ -524,7 +549,23 @@ async function loadRegistrationsView() {
     || '<p class="empty-note">Nenhum produtor aguardando revisão.</p>';
   $('#reg-listings').innerHTML = pendListings.map(listingQueueRowHTML).join('')
     || '<p class="empty-note">Nenhum anúncio aguardando revisão.</p>';
+  $('#reg-reports').innerHTML = reports.map(reportRowHTML).join('')
+    || '<p class="empty-note">Nenhuma denúncia aberta.</p>';
 }
+
+$('#reg-reports').addEventListener('click', async e => {
+  const row = e.target.closest('.report-row');
+  if (!row) return;
+  const id = Number(row.dataset.listing);
+  if (e.target.closest('[data-report-open]')) return openListingDetailAdmin(id);
+  if (e.target.closest('[data-report-resolve]')) {
+    try {
+      await api(`/admin/reports/${id}/reviewed`, { method: 'POST' });
+      toast('Denúncia resolvida');
+      loadRegistrationsView();
+    } catch (err) { toast(err.message); }
+  }
+});
 $('#reg-producers').addEventListener('click', e => {
   const btn = e.target.closest('button[data-action]');
   if (btn) review('producers', btn.closest('[data-id]').dataset.id, btn.dataset.action);
@@ -700,6 +741,8 @@ async function loadSettingsView() {
     'listing.approved': 'aprovou o anúncio', 'listing.rejected': 'recusou o anúncio',
     'plan.changed': 'alterou o plano de', 'review.hidden': 'ocultou a', 'review.shown': 'reexibiu a',
     'admin.created': 'criou o admin', 'export.csv': 'exportou',
+    'producer.verified': 'verificou o produtor', 'producer.unverified': 'removeu o selo de',
+    'report.reviewed': 'resolveu a denúncia de',
   };
   $('#settings-audit').innerHTML = entries.length ? `
     <div class="settings-list">
@@ -908,7 +951,7 @@ async function openProducerDetail(id) {
         <div class="avatar lg" style="background:${esc(p.avatar_color)}">${p.avatar_path
           ? `<img src="${esc(p.avatar_path)}" alt="">` : esc(p.initials)}</div>
         <div>
-          <h3>${esc(p.name)} ${planBadge(p.plan)}</h3>
+          <h3>${esc(p.name)} ${verifiedBadge(p.verified)}${planBadge(p.plan)}</h3>
           <span class="sub">${esc(p.kind)}</span>
         </div>
         <span class="status-pill status-${p.status}" style="margin-left:auto">${STATUS_LABEL[p.status]}</span>
@@ -921,6 +964,13 @@ async function openProducerDetail(id) {
             ${key === 'premium' ? '★ ' : ''}${label}</button>`).join('')}
       </div>
       <p class="empty-note" style="margin:4px 0 0">A cobrança do plano é combinada com o parceiro fora da plataforma.</p>
+
+      <h4 class="detail-section">Selo de confiança</h4>
+      <div class="plan-switch">
+        <button class="btn-secondary verified-toggle ${p.verified ? 'on' : ''}" data-verified="${p.verified ? '0' : '1'}">
+          ${p.verified ? 'Remover selo "Verificado"' : 'Marcar como Verificado'}</button>
+      </div>
+      <p class="empty-note" style="margin:4px 0 0">O selo indica um parceiro conferido pela equipe — visível para os turistas, independente do plano.</p>
 
       <h4 class="detail-section">Estabelecimento</h4>
       ${p.photo_path ? `<div class="detail-hero" style="margin-bottom:12px"><img src="${esc(p.photo_path)}" alt="Foto do estabelecimento"></div>` : ''}
@@ -970,6 +1020,15 @@ async function openProducerDetail(id) {
           VIEW_LOADERS[currentView]();
         } catch (err) { toast(err.message); }
       }));
+    overlay.querySelector('[data-verified]')?.addEventListener('click', async () => {
+      const verified = overlay.querySelector('[data-verified]').dataset.verified === '1';
+      try {
+        await api(`/producers/${p.id}/verified`, { method: 'POST', body: JSON.stringify({ verified }) });
+        toast(verified ? `${p.name} marcado como Verificado` : `Selo removido de ${p.name}`);
+        close();
+        VIEW_LOADERS[currentView]();
+      } catch (err) { toast(err.message); }
+    });
     overlay.querySelectorAll('[data-listing]').forEach(row =>
       row.addEventListener('click', () => { close(); openListingDetailAdmin(Number(row.dataset.listing)); }));
   } catch (err) {

@@ -159,6 +159,12 @@ await client.query(
    WHERE name IN ('Apiário Flor da Serra', 'Rancho do Tião', 'Dona Zélia Artesanatos')`
 );
 
+// Selo "Verificado": alguns parceiros conferidos pela equipe (independe do plano)
+await client.query(
+  `UPDATE producers SET verified = true
+   WHERE name IN ('Sítio Boa Esperança', 'Pousada Vale Verde', 'Apiário Flor da Serra')`
+);
+
 // Vincula as contas demo e cria o registro de turista demo
 await client.query(
   `UPDATE producers SET user_id = $1, status = 'approved' WHERE name = 'Sítio Boa Esperança'`,

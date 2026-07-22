@@ -119,7 +119,7 @@ const listingCard = (l, favIds) => `
   <div class="ex-card ${l.plan === 'premium' ? 'plan-featured' : ''}" data-id="${l.id}" data-producer="${l.producer_id}">
     ${thumbHTML(l, 'ex-thumb')}
     <div class="ex-body">
-      <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')} ${planBadge(l.plan)}</span>
+      <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')} ${verifiedBadge(l.verified)}${planBadge(l.plan)}</span>
       <strong class="ex-title">${esc(l.title)}</strong>
       <span class="ex-sub">${esc(l.subtitle || '')}</span>
       ${l.rating_count ? `<span class="ex-rating">${starsHTML(l.rating_avg, l.rating_count)}</span>` : ''}
@@ -145,7 +145,7 @@ const placeCard = e => `
       ? `<div class="ex-thumb has-photo"><img src="${esc(e.photo_path)}" alt="" loading="lazy"></div>`
       : coverHTML({ producer_name: e.name }, 'ex-thumb')}
     <div class="ex-body">
-      <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')} ${planBadge(e.plan)}</span>
+      <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')} ${verifiedBadge(e.verified)}${planBadge(e.plan)}</span>
       <strong class="ex-title">${esc(e.name)}</strong>
       ${e.rating_count ? `<span class="ex-rating">${starsHTML(e.rating_avg, e.rating_count)}</span>` : ''}
       <span class="ex-sub">${esc(e.description || e.kind || '')}</span>
@@ -275,7 +275,7 @@ async function openListingDetail(listingId) {
         <div class="detail-partner">
           <div class="avatar lg" style="background:${esc(l.producer_color || '#1C6B4A')}">${esc(l.producer_initials || '')}</div>
           <div class="detail-partner-info">
-            <strong>${esc(l.est_name || l.producer_name)} ${planBadge(l.plan)}</strong>
+            <strong>${esc(l.est_name || l.producer_name)} ${verifiedBadge(l.verified)}${planBadge(l.plan)}</strong>
             ${partnerLines.map(line => `<small>${esc(line)}</small>`).join('')}
             ${l.lat != null && l.lng != null
               ? `<a class="directions-link" href="${mapsLink(l.lat, l.lng)}" target="_blank" rel="noopener">Como chegar ➚</a>` : ''}
@@ -301,11 +301,13 @@ async function openListingDetail(listingId) {
                 ${r.comment ? `<p>${esc(r.comment)}</p>` : ''}
               </div>`).join('')}
           </div>` : ''}
+        <p class="report-line"><button type="button" class="report-link" data-detail="report">Denunciar anúncio</button></p>
       </div>
     </div>`);
   overlay.querySelector('.modal').classList.add('detail-modal');
   // Carrossel da galeria com setas, dots, swipe e abertura em tela cheia
   wireCarousel(overlay, gallery);
+  overlay.querySelector('[data-detail=report]').addEventListener('click', () => reportListing(l));
   overlay.querySelector('[data-detail=fav]').addEventListener('click', e =>
     toggleFavorite(l.id, e.currentTarget).then(loadExplore));
   overlay.querySelector('[data-detail=share]').addEventListener('click', async () => {
@@ -324,6 +326,48 @@ async function openListingDetail(listingId) {
   overlay.querySelector('[data-detail=book]')?.addEventListener('click', () => {
     close();
     openBookingForm(l);
+  });
+}
+
+// ─── Denúncia de anúncio ─────────────────────────────────────────────────────
+const REPORT_LABELS = {
+  spam: 'Spam ou golpe',
+  inapropriado: 'Conteúdo inapropriado',
+  enganoso: 'Informação enganosa',
+  fora_regiao: 'Não é do Caparaó',
+  outro: 'Outro motivo',
+};
+function reportListing(l) {
+  if (!navigator.onLine) return toast('Conecte-se para denunciar um anúncio');
+  const { overlay, close } = openModal(`
+    <h3>Denunciar anúncio</h3>
+    <p class="modal-msg">Conte à equipe o que há de errado com “${esc(l.title)}”. Sua denúncia não é mostrada ao produtor.</p>
+    <form class="modal-form" id="report-form">
+      <div class="field">
+        <label for="report-reason">Motivo</label>
+        <select id="report-reason">
+          ${Object.entries(REPORT_LABELS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label for="report-detail">Detalhes (opcional)</label>
+        <textarea id="report-detail" rows="3" placeholder="Descreva o problema"></textarea>
+      </div>
+      <div class="row-actions modal-actions">
+        <button type="submit" class="btn-primary">Enviar denúncia</button>
+        <button type="button" class="btn-secondary" data-modal-cancel>Cancelar</button>
+      </div>
+    </form>`);
+  overlay.querySelector('#report-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      const r = await api(`/reports/${l.id}`, { method: 'POST', body: JSON.stringify({
+        reason: overlay.querySelector('#report-reason').value,
+        detail: overlay.querySelector('#report-detail').value,
+      }) });
+      close();
+      toast(r.already ? 'Você já havia denunciado este anúncio' : 'Denúncia enviada — obrigado por avisar');
+    } catch (err) { toast(err.message); }
   });
 }
 

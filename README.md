@@ -7,7 +7,8 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 ## Perfis e funcionalidades
 
 ### 🧭 Turista (`/app`)
-- **Explorar**: busca de produtos, serviços, eventos, estabelecimentos e **roteiros publicados** pela equipe (com "usar como base", que copia para os seus roteiros — funciona offline). Cada busca real alimenta o mapa de calor do admin
+- **Explorar**: busca de produtos, serviços, eventos, estabelecimentos e **roteiros publicados** pela equipe (com "usar como base", que copia para os seus roteiros — funciona offline), com **filtro por cidade** e **ordenação** (relevância, menor/maior preço, melhor avaliação) — tudo funcionando também sobre o cache offline. Cada busca real alimenta o mapa de calor do admin
+- **Confiança**: parceiros conferidos pela equipe exibem o selo **✓ Verificado** (nos cards, no detalhe, no perfil e na página pública, independente do plano); qualquer anúncio pode ser **denunciado** pelo turista, e as denúncias entram numa **fila de moderação** no painel do admin
 - **✨ Montar roteiro pra mim**: o turista informa seus gostos (café, trilhas, cachoeiras…), o tempo disponível, o ritmo e o que quer viver — e uma **IA (ou fluxo N8N) monta o roteiro** usando o catálogo aprovado da plataforma. O roteiro é salvo com as preferências informadas e fica disponível em "Meus Roteiros" para consultar depois (inclusive offline)
 - **Meus Roteiros**: criação e gestão de itinerários personalizados **100% offline-first** — os roteiros vivem no IndexedDB do dispositivo, funcionam sem rede e sincronizam automaticamente quando a conexão volta
 - **Mapa da região**: aba "Mapa" no Explorar com os estabelecimentos parceiros no OpenStreetMap (Leaflet servido localmente, sem chave de API) e botão **"como chegar"** nos cards, no detalhe do anúncio e nos popups do mapa
@@ -25,6 +26,7 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 ### 🛠 Administrador (`/admin`)
 - Painel completo conforme o protótipo: 4 cartões de KPI com gráficos, gestão/moderação de produtores e conteúdo, mapa de calor de buscas 12×6 com indicador de itinerários offline, listas de conteúdo com abas, chat interno e alertas
 - **Moderação de avaliações**: o detalhe do anúncio lista todas as avaliações (inclusive ocultas) com ocultar/exibir — avaliações ocultas saem das médias públicas
+- **Confiança**: alternar o selo **Verificado** de um parceiro (registrado na auditoria) e **fila de denúncias** de anúncios na aba Cadastros — cada denúncia mostra motivo, detalhe e contagem, com atalho para o anúncio e "resolver"
 
 ## Arquitetura offline-first
 
