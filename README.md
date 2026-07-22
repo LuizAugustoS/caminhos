@@ -123,6 +123,8 @@ public/        PWA: landing (index), /app turista, /portal produtor,
 
 ## Deploy (produção)
 
+> 📋 **Guia passo a passo com checklist:** [`DEPLOY.md`](DEPLOY.md) — do zero ao ar, variáveis obrigatórias e opcionais, backup/restauração e smoke pós-deploy.
+
 O app é um único serviço Node + um PostgreSQL — roda em qualquer host (Railway, Render, Fly.io, VPS). Requisitos:
 
 1. **HTTPS obrigatório** — sem ele o PWA não é instalável fora do localhost (as plataformas acima já fornecem TLS)
