@@ -52,7 +52,7 @@ publicPages.get('/p/:id', async (req, res, next) => {
   const { rows: [l] } = await query(
     `SELECT l.id, l.type, l.title, l.subtitle, l.image_path, l.price_cents, l.price_unit,
             l.event_date, l.event_time, l.event_place,
-            p.name AS producer_name, e.name AS est_name, coalesce(e.city, p.city) AS city,
+            p.name AS producer_name, p.verified, e.name AS est_name, coalesce(e.city, p.city) AS city,
             e.address, e.phone, e.open_hours
      FROM listings l
      JOIN producers p ON p.id = l.producer_id AND p.status = 'approved'
@@ -73,7 +73,7 @@ publicPages.get('/p/:id', async (req, res, next) => {
       ${l.subtitle ? `<p>${esc(l.subtitle)}</p>` : ''}
       <p><strong>${esc(fmtPrice(l.price_cents, l.price_unit))}</strong></p>
       ${l.type === 'event' && l.event_date ? `<p>Quando: ${new Date(l.event_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}${l.event_time ? ` · ${esc(l.event_time)}` : ''}${l.event_place ? ` · ${esc(l.event_place)}` : ''}</p>` : ''}
-      <h2>${esc(l.est_name || l.producer_name)}</h2>
+      <h2>${esc(l.est_name || l.producer_name)}${l.verified ? ' <span class="public-verified">✓ Verificado</span>' : ''}</h2>
       <p>${[l.address, l.open_hours ? `Aberto: ${l.open_hours}` : null, l.phone ? `Contato: ${l.phone}` : null].filter(Boolean).map(esc).join('<br>')}</p>`,
   }));
 });
@@ -116,7 +116,7 @@ publicPages.get('/e/:id', async (req, res, next) => {
   if (!/^\d+$/.test(req.params.id)) return next();
   const { rows: [e] } = await query(
     `SELECT e.id, e.name, e.description, e.category, e.city, e.address, e.phone,
-            e.open_hours, e.photo_path, e.lat, e.lng
+            e.open_hours, e.photo_path, e.lat, e.lng, p.verified
      FROM establishments e
      JOIN producers p ON p.id = e.producer_id AND p.status = 'approved'
      WHERE e.id = $1`,
@@ -130,7 +130,7 @@ publicPages.get('/e/:id', async (req, res, next) => {
     bodyHTML: `
       ${e.photo_path ? `<div class="public-hero"><img src="${esc(e.photo_path)}" alt=""></div>` : ''}
       <p class="legal-updated">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')}</p>
-      <h1>${esc(e.name)}</h1>
+      <h1>${esc(e.name)}${e.verified ? ' <span class="public-verified">✓ Verificado</span>' : ''}</h1>
       ${e.description ? `<p>${esc(e.description)}</p>` : ''}
       <p>${[e.address, e.open_hours ? `Aberto: ${e.open_hours}` : null, e.phone ? `Contato: ${e.phone}` : null].filter(Boolean).map(esc).join('<br>')}</p>
       ${e.lat != null && e.lng != null

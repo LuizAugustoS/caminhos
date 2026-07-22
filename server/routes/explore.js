@@ -64,7 +64,7 @@ explore.get('/listings', async (req, res) => {
     `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.listed_at,
             l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place, l.stock,
             p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
-            p.avatar_color AS producer_color, p.plan, coalesce(e.city, p.city) AS city,
+            p.avatar_color AS producer_color, p.plan, p.verified, coalesce(e.city, p.city) AS city,
             r.rating_avg, r.rating_count
      FROM listings l
      JOIN producers p ON p.id = l.producer_id AND p.status = 'approved'
@@ -107,7 +107,7 @@ explore.get('/listings/:id', async (req, res) => {
     `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.listed_at,
             l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place, l.stock,
             p.id AS producer_id, p.name AS producer_name, p.initials AS producer_initials,
-            p.avatar_color AS producer_color, p.kind AS producer_kind, p.plan,
+            p.avatar_color AS producer_color, p.kind AS producer_kind, p.plan, p.verified,
             e.name AS est_name, e.description AS est_description, e.category AS est_category,
             e.city, e.address, e.phone, e.open_hours, e.lat, e.lng
      FROM listings l
@@ -149,7 +149,7 @@ explore.get('/establishments', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 24, 60);
   const { rows } = await query(
     `SELECT e.id, e.name, e.description, e.category, e.city, e.address, e.phone, e.open_hours,
-            e.photo_path, e.lat, e.lng, p.id AS producer_id, p.initials, p.avatar_color, p.kind, p.plan,
+            e.photo_path, e.lat, e.lng, p.id AS producer_id, p.initials, p.avatar_color, p.kind, p.plan, p.verified,
             r.rating_avg, r.rating_count
      FROM establishments e
      JOIN producers p ON p.id = e.producer_id AND p.status = 'approved'

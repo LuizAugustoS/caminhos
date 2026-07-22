@@ -24,6 +24,11 @@ const planBadge = plan => plan && plan !== 'gratuito'
   ? `<span class="plan-badge plan-${esc(plan)}">${plan === 'premium' ? '★ ' : ''}${PLAN_LABEL[plan] || ''}</span>`
   : '';
 
+// Selo "Verificado": reconhecimento da equipe (independe do plano)
+const verifiedBadge = verified => verified
+  ? `<span class="verified-badge" title="Parceiro verificado pela equipe">${icon('check', 12)}Verificado</span>`
+  : '';
+
 // Avaliação média → "★★★★☆ 4.3 (12)"; sem avaliações → vazio
 function starsHTML(avg, count) {
   if (!count) return '';

@@ -13,6 +13,7 @@ const { check, finish } = runner();
   await page.waitForSelector('.ex-card');
   check('turista: cards no Explorar', await page.locator('.ex-card').count() > 0);
   check('turista: selo premium em algum card', await page.locator('.plan-badge.plan-premium').count() > 0);
+  check('turista: selo verificado em algum card', await page.locator('.verified-badge').count() > 0);
 
   // detalhe do Tour (tem avaliações no seed)
   await page.click('.ex-card:has-text("Tour de Colheita") .ex-title');
@@ -21,6 +22,12 @@ const { check, finish } = runner();
   check('turista: avaliações listadas', await page.locator('.review-row').count() >= 1);
   check('turista: botão reservar e compartilhar', await page.locator('[data-detail=book]').count() === 1
     && await page.locator('[data-detail=share]').count() === 1);
+  // denúncia: link abre o formulário com motivo e detalhe
+  await page.click('[data-detail=report]');
+  await page.waitForSelector('#report-form');
+  check('turista: formulário de denúncia', await page.locator('#report-reason').count() === 1
+    && await page.locator('#report-detail').count() === 1);
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
 
   // busca sem acento na barra
@@ -86,10 +93,16 @@ const { check, finish } = runner();
   await page.waitForSelector('#producers-all .producer-row');
   check('admin: lista de produtores', await page.locator('#producers-all .producer-row').count() > 0);
   check('admin: selos de plano nas linhas', await page.locator('#producers-all .plan-badge').count() > 0);
+  check('admin: selo verificado em alguma linha', await page.locator('#producers-all .verified-badge').count() > 0);
   // filtro por plano premium
   await page.click('#producers-plan-filter .tab[data-plan=premium]');
   await page.waitForTimeout(500);
   check('admin: filtro premium retorna linhas', await page.locator('#producers-all .producer-row').count() > 0);
+  // fila de denúncias na aba Cadastros
+  await page.click('#sidenav .nav-item[data-view=registrations]');
+  await page.waitForSelector('#reg-reports');
+  await page.waitForTimeout(400);
+  check('admin: painel de denúncias presente', await page.locator('#reg-reports').count() === 1);
   await page.close();
 }
 

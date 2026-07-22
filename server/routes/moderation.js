@@ -14,7 +14,7 @@ producers.get('/', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 5, 100);
   const q = (req.query.q || '').trim();
   const { rows } = await query(
-    `SELECT id, name, kind, initials, avatar_color, status, city, plan, created_at
+    `SELECT id, name, kind, initials, avatar_color, status, city, plan, verified, created_at
      FROM producers
      WHERE ($1::text IS NULL OR status = $1::approval_status)
        AND ($4::text IS NULL OR plan = $4::producer_plan)
@@ -32,7 +32,7 @@ producers.get('/', async (req, res) => {
 // tudo que o admin precisa para decidir uma aprovação.
 producers.get('/:id', async (req, res) => {
   const { rows } = await query(
-    `SELECT p.id, p.name, p.kind, p.initials, p.avatar_color, p.status, p.city, p.plan,
+    `SELECT p.id, p.name, p.kind, p.initials, p.avatar_color, p.status, p.city, p.plan, p.verified,
             p.created_at, p.reviewed_at,
             e.name AS est_name, e.description AS est_description, e.category AS est_category,
             e.address, e.phone, e.open_hours, e.photo_path, e.lat, e.lng,
@@ -106,6 +106,18 @@ producers.post('/:id/plan', async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ error: 'Produtor não encontrado' });
   audit(req, 'plan.changed', `${rows[0].name} → ${plan}`);
+  res.json(rows[0]);
+});
+
+// Selo "Verificado" — reconhecimento da equipe, independente do plano
+producers.post('/:id/verified', async (req, res) => {
+  const verified = !!(req.body && req.body.verified);
+  const { rows } = await query(
+    `UPDATE producers SET verified = $1 WHERE id = $2 RETURNING id, name, verified`,
+    [verified, req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Produtor não encontrado' });
+  audit(req, verified ? 'producer.verified' : 'producer.unverified', rows[0].name);
   res.json(rows[0]);
 });
 

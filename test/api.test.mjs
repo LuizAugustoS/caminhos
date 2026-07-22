@@ -364,6 +364,48 @@ test('admin: troca de plano, auditoria e CSV', async () => {
   assert.equal((await t('/api/audit')).status, 403);
 });
 
+test('selo verificado: admin alterna e registra na auditoria', async () => {
+  const a = client();
+  await a('/api/login', { method: 'POST', body: {
+    email: 'admin@caminhosdocaparao.com.br', password: 'caparao2026' } });
+  const { producers } = await (await a('/api/producers?limit=1')).json();
+  const id = producers[0].id;
+
+  await a(`/api/producers/${id}/verified`, { method: 'POST', body: { verified: true } });
+  const on = await (await a(`/api/producers/${id}`)).json();
+  assert.equal(on.producer.verified, true);
+  const { entries } = await (await a('/api/audit')).json();
+  assert.ok(entries.some(e => e.action === 'producer.verified'));
+
+  await a(`/api/producers/${id}/verified`, { method: 'POST', body: { verified: false } });
+  const off = await (await a(`/api/producers/${id}`)).json();
+  assert.equal(off.producer.verified, false);
+});
+
+test('denúncia de anúncio: turista denuncia, admin vê e resolve', async () => {
+  const t = client();
+  await t('/api/register', { method: 'POST', body: {
+    name: 'Denunciante', email: `dn-${uniq}@test.com`, password: 'senha1234', role: 'tourist' } });
+  assert.equal((await t('/api/reports/6', { method: 'POST', body: { reason: 'enganoso', detail: 'preço' } })).status, 201);
+  // segunda denúncia do mesmo usuário no mesmo anúncio é tolerada, sem duplicar
+  const dup = await t('/api/reports/6', { method: 'POST', body: { reason: 'spam' } });
+  assert.equal(dup.status, 200);
+  assert.equal((await dup.json()).already, true);
+  // motivo inválido → 400
+  assert.equal((await t('/api/reports/6', { method: 'POST', body: { reason: 'qualquer' } })).status, 400);
+
+  const a = client();
+  await a('/api/login', { method: 'POST', body: {
+    email: 'admin@caminhosdocaparao.com.br', password: 'caparao2026' } });
+  const q = await (await a('/api/admin/reports')).json();
+  const row = q.reports.find(x => x.listing_id === 6);
+  assert.ok(row && row.reports >= 1, 'denúncia aparece na fila do admin');
+
+  assert.equal((await a('/api/admin/reports/6/reviewed', { method: 'POST' })).status, 200);
+  const q2 = await (await a('/api/admin/reports')).json();
+  assert.ok(!q2.reports.some(x => x.listing_id === 6), 'fila zera após resolver');
+});
+
 test('upload de imagem é otimizado e gravado como WebP', async () => {
   // login do produtor e captura do cookie de sessão (multipart não passa pelo
   // client() JSON, então fazemos a chamada crua com FormData)
