@@ -136,6 +136,24 @@ const { check, finish } = runner();
   await page.close();
 }
 
+// ─── Navegação no celular: menu hamburguer ───
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  await login(page, 'turista@demo.com', 'caparao2026');
+  await page.waitForURL('**/app');
+  await page.waitForSelector('.ex-card');
+  check('mobile: botão hambúrguer visível', await page.locator('#nav-toggle').isVisible());
+  check('mobile: abas escondidas por padrão', !(await page.locator('#view-tabs').isVisible()));
+  await page.click('#nav-toggle');
+  await page.waitForTimeout(200);
+  check('mobile: menu abre ao tocar', await page.locator('#view-tabs').isVisible());
+  await page.click('.vtab[data-view=favorites]');
+  await page.waitForTimeout(200);
+  check('mobile: menu fecha ao escolher aba', !(await page.locator('#view-tabs').isVisible()));
+  await page.close();
+}
+
 // ─── Landing: páginas legais e recuperação de senha ───
 {
   const page = await (await browser.newContext()).newPage();

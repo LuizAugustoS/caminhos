@@ -264,6 +264,23 @@ $('#sidenav').addEventListener('click', e => {
   const btn = e.target.closest('.nav-item');
   if (btn) switchView(btn.dataset.view);
 });
+
+// Menu hamburguer (celular): abre/fecha a sidebar
+(function initNavToggle() {
+  const toggle = document.getElementById('nav-toggle');
+  const nav = document.getElementById('sidenav');
+  if (!toggle || !nav) return;
+  const close = () => { nav.classList.remove('open'); toggle.setAttribute('aria-expanded', 'false'); };
+  toggle.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = nav.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  nav.addEventListener('click', e => { if (e.target.closest('.nav-item')) close(); });
+  document.addEventListener('click', e => {
+    if (nav.classList.contains('open') && !nav.contains(e.target) && !toggle.contains(e.target)) close();
+  });
+})();
 document.addEventListener('click', e => {
   const goto = e.target.closest('[data-goto]');
   if (goto) { e.preventDefault(); switchView(goto.dataset.goto); }

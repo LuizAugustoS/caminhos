@@ -23,6 +23,9 @@
     <div class="offline-banner">Você está offline — seus roteiros continuam funcionando e sincronizam quando a conexão voltar.</div>
 
     <header class="topbar">
+      <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menu" aria-controls="view-tabs" aria-expanded="false">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+      </button>
       <div id="brand-slot"></div>
       <div class="topbar-right">
         <div class="sync-pill" id="sync-pill" title="Estado da sincronização offline">
@@ -38,7 +41,7 @@
       </div>
     </header>
 
-    <nav class="view-tabs">
+    <nav class="view-tabs" id="view-tabs">
       <button class="vtab active" data-view="explore">Explorar</button>
       <button class="vtab" data-view="trips">Meus Roteiros</button>
       <button class="vtab" data-view="bookings">Reservas</button>

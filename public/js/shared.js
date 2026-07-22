@@ -580,6 +580,24 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
+// ─── Menu hamburguer (celular): abre/fecha a barra de abas ──────────────────
+function initNavToggle(navId) {
+  const toggle = document.getElementById('nav-toggle');
+  const nav = document.getElementById(navId);
+  if (!toggle || !nav) return;
+  const close = () => { nav.classList.remove('open'); toggle.setAttribute('aria-expanded', 'false'); };
+  toggle.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = nav.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  nav.addEventListener('click', e => { if (e.target.closest('.vtab, .nav-item')) close(); });
+  document.addEventListener('click', e => {
+    if (nav.classList.contains('open') && !nav.contains(e.target) && !toggle.contains(e.target)) close();
+  });
+}
+document.addEventListener('DOMContentLoaded', () => initNavToggle('view-tabs'));
+
 // ─── Convite de instalação do PWA ───────────────────────────────────────────
 // Só nas páginas do app (têm .topbar), nunca quando já instalado ou dispensado.
 (function initInstallPrompt() {
