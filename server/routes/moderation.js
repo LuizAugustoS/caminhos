@@ -173,7 +173,7 @@ listings.get('/:id', async (req, res) => {
   );
   // Todas as avaliações (inclusive ocultas) — o admin modera daqui
   const { rows: revs } = await query(
-    `SELECT r.id, r.rating, r.comment, r.hidden, r.created_at, u.name AS tourist_name
+    `SELECT r.id, r.rating, r.comment, r.hidden, r.created_at, r.reply, r.reply_at, u.name AS tourist_name
      FROM reviews r JOIN users u ON u.id = r.tourist_id
      WHERE r.listing_id = $1
      ORDER BY r.created_at DESC LIMIT 30`,

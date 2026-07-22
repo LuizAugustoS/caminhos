@@ -7,7 +7,7 @@ let editingId = null;
 let currentConvId = null;
 
 // ─── Views ───────────────────────────────────────────────────────────────────
-const VIEWS = { showcase: loadShowcase, bookings: loadBookings, chat: loadConversations, profile: loadProfile };
+const VIEWS = { showcase: loadShowcase, bookings: loadBookings, chat: loadConversations, reviews: loadReviews, profile: loadProfile };
 
 function switchView(name) {
   $$('.vtab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
@@ -313,6 +313,49 @@ const producerBookingRow = b => `
       ${b.status === 'confirmed' ? '<button class="btn-primary" data-bk="completed">Concluir venda</button>' : ''}
     </div>
   </div>`;
+
+// ─── Avaliações recebidas + resposta pública ────────────────────────────────
+async function loadReviews() {
+  try {
+    const { reviews } = await api('/portal/reviews');
+    const box = $('#reviews-list');
+    if (!reviews.length) {
+      box.innerHTML = emptyState({ ico: 'inbox', title: 'Nenhuma avaliação ainda',
+        text: 'As avaliações aparecem aqui depois que turistas concluem reservas com você.' });
+      return;
+    }
+    box.innerHTML = reviews.map(r => `
+      <div class="panel review-manage" data-review="${r.id}">
+        <div class="review-head">
+          <strong>${esc(r.tourist_name)}</strong>
+          <span class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
+          <small>${fmtDate(r.created_at)} · ${esc(r.listing_title)}</small>
+        </div>
+        ${r.comment ? `<p class="review-comment">${esc(r.comment)}</p>` : '<p class="review-comment empty-note">Sem comentário</p>'}
+        ${r.reply ? `<div class="review-reply"><strong>Sua resposta</strong><p>${esc(r.reply)}</p></div>` : ''}
+        <button class="btn-secondary btn-sm" data-reply>${r.reply ? 'Editar resposta' : 'Responder'}</button>
+      </div>`).join('');
+  } catch (err) { if (!err.unauthorized) toast(err.message); }
+}
+
+$('#reviews-list').addEventListener('click', async e => {
+  const btn = e.target.closest('[data-reply]');
+  if (!btn) return;
+  const row = btn.closest('[data-review]');
+  const current = row.querySelector('.review-reply p')?.textContent || '';
+  const values = await modalForm({
+    title: 'Responder à avaliação',
+    confirmText: 'Publicar resposta',
+    fields: [{ name: 'reply', label: 'Sua resposta (pública) — deixe vazio para remover', type: 'textarea',
+      required: false, value: current, placeholder: 'Agradeça, esclareça ou convide o turista a voltar.' }],
+  });
+  if (!values) return;
+  try {
+    await api(`/portal/reviews/${row.dataset.review}/reply`, { method: 'POST', body: JSON.stringify({ reply: values.reply }) });
+    toast(values.reply.trim() ? 'Resposta publicada' : 'Resposta removida');
+    loadReviews();
+  } catch (err) { toast(err.message); }
+});
 
 let bookingsOffset = 0;
 

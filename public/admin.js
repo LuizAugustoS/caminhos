@@ -1200,6 +1200,7 @@ async function openListingDetailAdmin(id) {
                       ${r.hidden ? 'Exibir' : 'Ocultar'}</button>
                   </div>
                   ${r.comment ? `<p>${esc(r.comment)}</p>` : ''}
+                  ${r.reply ? `<div class="review-reply"><strong>Resposta do parceiro</strong><p>${esc(r.reply)}</p></div>` : ''}
                 </div>`).join('')}
             </div>` : ''}
           ${detailActions('listings', l.id, l.status)}

@@ -307,6 +307,13 @@ for (const [title, ri, rating, comment] of demoReviews) {
   );
 }
 
+// Uma resposta pública de exemplo do parceiro à avaliação mais recente
+await client.query(
+  `UPDATE reviews SET reply = $1, reply_at = now() - interval '2 days'
+   WHERE id = (SELECT id FROM reviews ORDER BY created_at DESC LIMIT 1)`,
+  ['Muito obrigado pela visita! Foi um prazer receber vocês — voltem sempre que quiserem repetir a colheita. ☕']
+);
+
 // ─── Transações: ~R$ 96,4 mil no mês corrente + mês anterior menor ────────
 await client.query(`
   INSERT INTO transactions (listing_id, amount_cents, created_at)

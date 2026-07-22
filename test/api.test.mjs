@@ -214,6 +214,17 @@ test('reserva completa: pedido → confirmar → concluir → avaliação', asyn
   // reserva de outra pessoa não pode ser avaliada
   const other = await p('/api/reviews', { method: 'POST', body: { booking_id: bk.id, rating: 1 } });
   assert.equal(other.status, 403); // produtor não é turista
+
+  // o produtor responde à avaliação e a resposta aparece no detalhe público
+  const { reviews } = await (await p('/api/portal/reviews')).json();
+  const mine = reviews.find(r => r.comment === 'Fluxo completo!');
+  assert.ok(mine, 'produtor vê a avaliação recebida');
+  assert.equal((await p(`/api/portal/reviews/${mine.id}/reply`, {
+    method: 'POST', body: { reply: 'Obrigado pela visita!' } })).status, 200);
+  const withReply = await (await fetch(`${BASE}/api/explore/listings/6`)).json();
+  assert.ok(withReply.reviews.some(r => r.reply === 'Obrigado pela visita!'), 'resposta visível no detalhe');
+  // responder a avaliação inexistente / de outro parceiro → 404
+  assert.equal((await p('/api/portal/reviews/999999/reply', { method: 'POST', body: { reply: 'x' } })).status, 404);
 });
 
 test('paginação do chat: página + carregar anteriores', async () => {
