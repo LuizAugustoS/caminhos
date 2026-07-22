@@ -43,22 +43,32 @@ async function s3() {
 // URL pública das imagens no S3/R2 (bucket público ou CDN à frente)
 const s3PublicBase = () => (process.env.S3_PUBLIC_URL || '').replace(/\/$/, '');
 
-// Salva o buffer e devolve o caminho/URL público a guardar no banco.
-export async function putObject(buffer, mimetype) {
-  const key = `${randomUUID()}${EXT[mimetype] || ''}`;
+// Gera uma chave (nome de arquivo) aleatória com a extensão do mimetype.
+export const keyFor = mimetype => `${randomUUID()}${EXT[mimetype] || ''}`;
+// Chave da miniatura: insere "_t" antes da extensão (mesma convenção no front).
+export const thumbKey = key => key.replace(/(\.[^.]+)$/, '_t$1');
+const publicPathFor = key => storageDriver === 's3' ? `${s3PublicBase()}/${key}` : `/uploads/${key}`;
+
+// Grava um buffer numa chave específica (usado para a versão grande e a mini).
+export async function putBuffer(key, buffer, mimetype) {
   if (storageDriver === 's3') {
     const { client, cmd } = await s3();
     await client.send(new cmd.PutObjectCommand({
       Bucket: S3_BUCKET, Key: key, Body: buffer, ContentType: mimetype,
       CacheControl: 'public, max-age=2592000, immutable',
     }));
-    return `${s3PublicBase()}/${key}`;
+    return publicPathFor(key);
   }
   await writeFile(join(UPLOADS_DIR, key), buffer);
-  return `/uploads/${key}`;
+  return publicPathFor(key);
 }
 
-// Remove um objeto salvo (ignora caminhos externos e falhas).
+// Salva o buffer numa chave nova e devolve o caminho/URL público.
+export async function putObject(buffer, mimetype) {
+  return putBuffer(keyFor(mimetype), buffer, mimetype);
+}
+
+// Remove um objeto salvo e sua miniatura (ignora caminhos externos e falhas).
 export async function removeObject(publicPath) {
   if (!publicPath) return;
   if (storageDriver === 's3') {
@@ -66,9 +76,14 @@ export async function removeObject(publicPath) {
     if (!base || !publicPath.startsWith(base + '/')) return;
     const key = publicPath.slice(base.length + 1);
     const { client, cmd } = await s3();
-    await client.send(new cmd.DeleteObjectCommand({ Bucket: S3_BUCKET, Key: key })).catch(() => {});
+    for (const k of [key, thumbKey(key)]) {
+      await client.send(new cmd.DeleteObjectCommand({ Bucket: S3_BUCKET, Key: k })).catch(() => {});
+    }
     return;
   }
   if (!publicPath.startsWith('/uploads/')) return;
-  await unlink(join(UPLOADS_DIR, publicPath.slice('/uploads/'.length))).catch(() => {});
+  const key = publicPath.slice('/uploads/'.length);
+  for (const k of [key, thumbKey(key)]) {
+    await unlink(join(UPLOADS_DIR, k)).catch(() => {});
+  }
 }

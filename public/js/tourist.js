@@ -142,7 +142,7 @@ const listingCard = (l, favIds) => `
 const placeCard = e => `
   <div class="ex-card ${e.plan === 'premium' ? 'plan-featured' : ''}" data-producer="${e.producer_id}">
     ${e.photo_path
-      ? `<div class="ex-thumb has-photo"><img src="${esc(e.photo_path)}" alt="" loading="lazy"></div>`
+      ? `<div class="ex-thumb has-photo"><img src="${esc(thumbURL(e.photo_path))}" data-full="${esc(e.photo_path)}" alt="" loading="lazy"></div>`
       : coverHTML({ producer_name: e.name }, 'ex-thumb')}
     <div class="ex-body">
       <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')} ${verifiedBadge(e.verified)}${planBadge(e.plan)}</span>

@@ -37,6 +37,10 @@ const ICON_PATHS = {
   settings: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1.5" y1="14" x2="6.5" y2="14"/><line x1="9.5" y1="8" x2="14.5" y2="8"/><line x1="17.5" y1="16" x2="22.5" y2="16"/>',
   volume: '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
   check: '<polyline points="20 6 9 17 4 12"/>',
+  close: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  'chevron-left': '<polyline points="15 18 9 12 15 6"/>',
+  'chevron-right': '<polyline points="9 18 15 12 9 6"/>',
+  expand: '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>',
 };
 const icon = (name, size = 20) =>
   `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ''}</svg>`;
@@ -45,9 +49,100 @@ const monogramOf = l => (l.producer_name || l.est_name || l.title || '?')
   .split(/\s+/).filter(w => /\p{L}/u.test(w)).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '·';
 const coverTone = l => { const s = l.producer_name || l.est_name || l.title || '';
   let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 4; return `cover-t${h + 1}`; };
+// Miniatura (400px) pela convenção <nome>_t.<ext>; cai para a grande se faltar.
+const thumbURL = path => (path || '').replace(/(\.[^.]+)$/, '_t$1');
+document.addEventListener('error', e => {
+  const img = e.target;
+  if (img && img.tagName === 'IMG' && img.dataset.full && img.getAttribute('src') !== img.dataset.full) {
+    img.src = img.dataset.full;
+  }
+}, true);
 const adminThumb = (l, style = '') => l.image_path
-  ? `<div class="thumb has-photo" style="${style}"><img src="${esc(l.image_path)}" alt="" loading="lazy"></div>`
+  ? `<div class="thumb has-photo" style="${style}"><img src="${esc(thumbURL(l.image_path))}" data-full="${esc(l.image_path)}" alt="" loading="lazy"></div>`
   : `<div class="thumb cover-mono ${coverTone(l)}" style="${style}"><span class="cover-initials">${esc(monogramOf(l))}</span></div>`;
+
+// ─── Galeria: carrossel + tela cheia (bundle do admin é separado do shared) ──
+function openLightbox(images, startIndex = 0) {
+  const list = (Array.isArray(images) ? images : [images]).filter(Boolean);
+  if (!list.length) return;
+  let i = Math.max(0, Math.min(startIndex, list.length - 1));
+  const multi = list.length > 1;
+  const box = document.createElement('div');
+  box.className = 'lightbox';
+  box.setAttribute('role', 'dialog');
+  box.setAttribute('aria-modal', 'true');
+  box.setAttribute('aria-label', 'Foto em tela cheia');
+  box.innerHTML = `
+    <button type="button" class="lb-close" aria-label="Fechar">${icon('close', 22)}</button>
+    ${multi ? `<button type="button" class="lb-nav lb-prev" aria-label="Anterior">${icon('chevron-left', 30)}</button>` : ''}
+    <img class="lb-img" src="${esc(list[i])}" alt="">
+    ${multi ? `<button type="button" class="lb-nav lb-next" aria-label="Próxima">${icon('chevron-right', 30)}</button>` : ''}
+    ${multi ? `<div class="lb-dots">${list.map((_, k) => `<span class="lb-dot ${k === i ? 'on' : ''}" data-k="${k}"></span>`).join('')}</div>` : ''}`;
+  document.body.appendChild(box);
+  document.body.classList.add('no-scroll');
+  const lastFocused = document.activeElement;
+  const img = box.querySelector('.lb-img');
+  const show = n => {
+    i = (n + list.length) % list.length;
+    img.src = list[i];
+    box.querySelectorAll('.lb-dot').forEach((d, k) => d.classList.toggle('on', k === i));
+  };
+  const close = () => {
+    box.remove();
+    document.body.classList.remove('no-scroll');
+    document.removeEventListener('keydown', onKey);
+    if (lastFocused && lastFocused.focus) lastFocused.focus();
+  };
+  const onKey = e => {
+    if (e.key === 'Escape') close();
+    else if (multi && e.key === 'ArrowLeft') show(i - 1);
+    else if (multi && e.key === 'ArrowRight') show(i + 1);
+  };
+  document.addEventListener('keydown', onKey);
+  box.querySelector('.lb-close').addEventListener('click', close);
+  box.querySelector('.lb-prev')?.addEventListener('click', () => show(i - 1));
+  box.querySelector('.lb-next')?.addEventListener('click', () => show(i + 1));
+  box.querySelectorAll('.lb-dot').forEach(d => d.addEventListener('click', () => show(Number(d.dataset.k))));
+  box.addEventListener('click', e => { if (e.target === box) close(); });
+  box.querySelector('.lb-close').focus();
+}
+
+function carouselHTML(images, cls = 'detail-hero') {
+  const list = (images || []).filter(Boolean);
+  if (!list.length) return '';
+  const nav = list.length > 1 ? `
+    <button type="button" class="carousel-nav carousel-prev" aria-label="Foto anterior">${icon('chevron-left', 24)}</button>
+    <button type="button" class="carousel-nav carousel-next" aria-label="Próxima foto">${icon('chevron-right', 24)}</button>
+    <div class="carousel-dots">${list.map((_, k) => `<span class="carousel-dot ${k === 0 ? 'on' : ''}" data-k="${k}"></span>`).join('')}</div>` : '';
+  return `<div class="${cls} carousel${list.length === 1 ? ' is-single' : ''}" data-carousel>
+    <img class="carousel-img" src="${esc(list[0])}" alt="" data-lb>
+    <button type="button" class="carousel-zoom" aria-label="Ver em tela cheia" data-lb>${icon('expand', 16)}</button>
+    ${nav}
+  </div>`;
+}
+
+// Foto do estabelecimento (img.zoomable) abre em tela cheia
+document.addEventListener('click', e => {
+  const z = e.target.closest('img.zoomable');
+  if (z && z.getAttribute('src')) openLightbox([z.getAttribute('src')]);
+});
+
+function wireCarousel(root, images) {
+  const el = root.querySelector('[data-carousel]');
+  if (!el) return;
+  const list = (images || []).filter(Boolean);
+  let i = 0;
+  const img = el.querySelector('.carousel-img');
+  const show = n => {
+    i = (n + list.length) % list.length;
+    img.src = list[i];
+    el.querySelectorAll('.carousel-dot').forEach((d, k) => d.classList.toggle('on', k === i));
+  };
+  el.querySelector('.carousel-prev')?.addEventListener('click', () => show(i - 1));
+  el.querySelector('.carousel-next')?.addEventListener('click', () => show(i + 1));
+  el.querySelectorAll('.carousel-dot').forEach(d => d.addEventListener('click', () => show(Number(d.dataset.k))));
+  el.querySelectorAll('[data-lb]').forEach(t => t.addEventListener('click', () => openLightbox(list, i)));
+}
 
 const STATUS_LABEL = { pending: 'Pendente', in_review: 'Em análise', approved: 'Aprovado', rejected: 'Recusado' };
 
@@ -973,7 +1068,7 @@ async function openProducerDetail(id) {
       <p class="empty-note" style="margin:4px 0 0">O selo indica um parceiro conferido pela equipe — visível para os turistas, independente do plano.</p>
 
       <h4 class="detail-section">Estabelecimento</h4>
-      ${p.photo_path ? `<div class="detail-hero" style="margin-bottom:12px"><img src="${esc(p.photo_path)}" alt="Foto do estabelecimento"></div>` : ''}
+      ${p.photo_path ? `<div class="detail-hero" style="margin-bottom:12px"><img class="zoomable" src="${esc(p.photo_path)}" alt="Foto do estabelecimento"></div>` : ''}
       <div class="settings-list">
         ${infoLine('Descrição', p.est_description)}
         ${infoLine('Categoria', p.est_category)}
@@ -1042,9 +1137,7 @@ async function openListingDetailAdmin(id) {
     const l = await api(`/listings/${id}`);
     const gallery = l.images?.length ? l.images : (l.image_path ? [l.image_path] : []);
     const hero = gallery.length
-      ? `<div class="detail-hero"><img id="detail-hero-img" src="${esc(gallery[0])}" alt=""></div>
-         ${gallery.length > 1 ? `<div class="gallery-strip">${gallery.map((p, i) =>
-           `<img src="${esc(p)}" data-gi="${i}" class="${i === 0 ? 'on' : ''}" alt="" loading="lazy">`).join('')}</div>` : ''}`
+      ? carouselHTML(gallery, 'detail-hero')
       : `<div class="detail-hero cover-mono ${coverTone(l)}"><span class="cover-initials">${esc(monogramOf(l))}</span></div>`;
     const { overlay, close } = openAdminModal(`
       <div class="detail-modal-inner">
@@ -1112,10 +1205,7 @@ async function openListingDetailAdmin(id) {
         openListingDetailAdmin(id);
       } catch (err) { toast(err.message); }
     }));
-    overlay.querySelectorAll('.gallery-strip img').forEach(t => t.addEventListener('click', () => {
-      overlay.querySelector('#detail-hero-img').src = gallery[Number(t.dataset.gi)];
-      overlay.querySelectorAll('.gallery-strip img').forEach(x => x.classList.toggle('on', x === t));
-    }));
+    wireCarousel(overlay, gallery);
     bindDetailReview(overlay, close, 'listings', l.id);
     overlay.querySelector('[data-producer]').addEventListener('click', () => {
       close();
