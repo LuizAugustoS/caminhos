@@ -142,6 +142,24 @@ test('plano gratuito limita 3 anúncios ativos', async () => {
   assert.match((await r4.json()).error, /Gratuito/);
 });
 
+test('produtor: overview traz o estado dos primeiros passos', async () => {
+  // Produtor recém-cadastrado: sem anúncio nem foto e perfil incompleto
+  const c = client();
+  await c('/api/register', { method: 'POST', body: {
+    name: 'Produtor Novo', email: `pn-${uniq}@test.com`, password: 'senha1234',
+    role: 'producer', establishment: `Sítio Novo ${uniq}`, plan: 'gratuito' } });
+  const ov1 = await (await c('/api/portal/overview')).json();
+  assert.deepEqual(
+    { p: ov1.onboarding.profileComplete, l: ov1.onboarding.hasListing, f: ov1.onboarding.hasPhoto },
+    { p: false, l: false, f: false }, 'começa com tudo pendente');
+
+  // Após publicar um anúncio, hasListing vira true (mas ainda sem foto)
+  await c('/api/portal/listings', { method: 'POST', body: { type: 'product', title: 'Primeiro' } });
+  const ov2 = await (await c('/api/portal/overview')).json();
+  assert.equal(ov2.onboarding.hasListing, true, 'hasListing após publicar');
+  assert.equal(ov2.onboarding.hasPhoto, false, 'ainda sem foto');
+});
+
 test('explorar: premium primeiro e busca sem acento', async () => {
   const { listings } = await (await fetch(`${BASE}/api/explore/listings?limit=10`)).json();
   assert.ok(listings.length > 3);

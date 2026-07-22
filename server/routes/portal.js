@@ -44,6 +44,23 @@ portal.get('/overview', async (req, res) => {
      FROM reviews WHERE producer_id = $1 AND NOT hidden`,
     [req.producer.id]
   );
+  // Primeiros passos: perfil do estabelecimento completo (foto + descrição +
+  // localização no mapa), ter publicado um anúncio e ter uma foto num anúncio.
+  const { rows: [est] } = await query(
+    `SELECT photo_path IS NOT NULL AS has_photo,
+            coalesce(description, '') <> '' AS has_desc,
+            (lat IS NOT NULL AND lng IS NOT NULL) AS has_geo
+     FROM establishments WHERE producer_id = $1`,
+    [req.producer.id]
+  );
+  const { rows: [lc] } = await query(
+    `SELECT count(*) AS total,
+            count(*) FILTER (WHERE EXISTS (
+              SELECT 1 FROM listing_images li WHERE li.listing_id = l.id)) AS with_photo
+     FROM listings l WHERE l.producer_id = $1`,
+    [req.producer.id]
+  );
+
   const active = Number(stats.approved) + Number(stats.pending);
   res.json({
     producer: req.producer,
@@ -51,6 +68,11 @@ portal.get('/overview', async (req, res) => {
     listings: { approved: Number(stats.approved), pending: Number(stats.pending), rejected: Number(stats.rejected) },
     unreadMessages: Number(unread.n),
     rating: { avg: rating.avg, count: Number(rating.n) },
+    onboarding: {
+      profileComplete: !!(est && est.has_photo && est.has_desc && est.has_geo),
+      hasListing: Number(lc.total) > 0,
+      hasPhoto: Number(lc.with_photo) > 0,
+    },
   });
 });
 

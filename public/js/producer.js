@@ -41,6 +41,8 @@ async function loadShowcase() {
     badge.classList.toggle('hidden', !overview.unreadMessages);
     badge.textContent = overview.unreadMessages || '';
 
+    renderOnboarding(overview.onboarding);
+
     const kpis = [
       ['Publicados', overview.listings.approved, '#1C6B4A', 'visíveis para turistas'],
       ['Em revisão', overview.listings.pending, '#C0714F', 'aguardando moderação'],
@@ -80,6 +82,53 @@ async function loadShowcase() {
     if (!err.unauthorized) toast(err.message);
   }
 }
+
+// Primeiros passos do produtor: checklist que some quando tudo está pronto
+// (ou se o produtor dispensar). Cada passo pendente leva direto à ação.
+function renderOnboarding(ob) {
+  const slot = $('#onboarding-slot');
+  if (!slot) return;
+  if (!ob || localStorage.getItem('onb-dismissed') === '1') { slot.innerHTML = ''; return; }
+  const steps = [
+    { done: ob.profileComplete, act: 'profile', label: 'Completar perfil',
+      title: 'Complete o perfil do estabelecimento',
+      text: 'Foto, descrição e localização no mapa deixam sua página confiável.' },
+    { done: ob.hasListing, act: 'listing', label: 'Criar anúncio',
+      title: 'Publique seu primeiro anúncio',
+      text: 'Produto, serviço ou evento — passa pela moderação e vai ao ar.' },
+    { done: ob.hasPhoto, act: 'photo', label: 'Adicionar foto',
+      title: 'Adicione uma foto ao anúncio',
+      text: 'Anúncios com foto recebem muito mais contatos.' },
+  ];
+  const done = steps.filter(s => s.done).length;
+  if (done === steps.length) { slot.innerHTML = ''; return; }
+  slot.innerHTML = `
+    <div class="onboarding">
+      <button type="button" class="onboarding-close" data-onb="dismiss" aria-label="Dispensar">${icon('close', 16)}</button>
+      <div class="onboarding-head">
+        <strong>Primeiros passos</strong>
+        <span class="onboarding-count">${done} de ${steps.length}</span>
+      </div>
+      <div class="onboarding-steps">
+        ${steps.map(s => `
+          <div class="onb-step ${s.done ? 'done' : ''}">
+            <span class="onb-check">${s.done ? icon('check', 15) : ''}</span>
+            <div class="onb-text"><strong>${esc(s.title)}</strong><small>${esc(s.text)}</small></div>
+            ${s.done ? '' : `<button class="btn-secondary btn-sm" data-onb="${s.act}">${esc(s.label)}</button>`}
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+$('#onboarding-slot').addEventListener('click', e => {
+  const btn = e.target.closest('[data-onb]');
+  if (!btn) return;
+  const act = btn.dataset.onb;
+  if (act === 'dismiss') { localStorage.setItem('onb-dismissed', '1'); $('#onboarding-slot').innerHTML = ''; }
+  else if (act === 'profile') switchView('profile');
+  else if (act === 'listing') openListingForm(null);
+  else if (act === 'photo') myListings[0] ? openGalleryManager(myListings[0].id) : openListingForm(null);
+});
 
 // Campos de evento só aparecem quando o tipo é "Evento"
 function syncEventFields() {
