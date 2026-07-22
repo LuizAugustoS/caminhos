@@ -152,6 +152,35 @@ portal.post('/plan-request', async (req, res) => {
   res.status(201).json({ ok: true });
 });
 
+// ─── Avaliações recebidas + direito de resposta ─────────────────────────────
+portal.get('/reviews', async (req, res) => {
+  const { rows } = await query(
+    `SELECT r.id, r.rating, r.comment, r.created_at, r.reply, r.reply_at,
+            l.title AS listing_title, u.name AS tourist_name
+     FROM reviews r
+     JOIN listings l ON l.id = r.listing_id
+     JOIN users u ON u.id = r.tourist_id
+     WHERE r.producer_id = $1 AND NOT r.hidden
+     ORDER BY r.created_at DESC`,
+    [req.producer.id]
+  );
+  res.json({ reviews: rows });
+});
+
+// Cria, edita ou remove (texto vazio) a resposta pública a uma avaliação.
+portal.post('/reviews/:id/reply', async (req, res) => {
+  const reply = (req.body && typeof req.body.reply === 'string' ? req.body.reply : '').trim().slice(0, 1000);
+  const { rows } = await query(
+    `UPDATE reviews
+     SET reply = NULLIF($1, ''), reply_at = CASE WHEN $1 = '' THEN NULL ELSE now() END
+     WHERE id = $2 AND producer_id = $3
+     RETURNING id, reply, reply_at`,
+    [reply, req.params.id, req.producer.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Avaliação não encontrada' });
+  res.json(rows[0]);
+});
+
 function validListing(body) {
   const { type, title, price_cents, stock } = body || {};
   if (!LISTING_TYPES.includes(type)) return 'type deve ser product, service ou event';

@@ -299,6 +299,10 @@ async function openListingDetail(listingId) {
                   <small>${fmtDate(r.created_at)}</small>
                 </div>
                 ${r.comment ? `<p>${esc(r.comment)}</p>` : ''}
+                ${r.reply ? `<div class="review-reply">
+                  <strong>Resposta do parceiro</strong>
+                  <p>${esc(r.reply)}</p>
+                </div>` : ''}
               </div>`).join('')}
           </div>` : ''}
         <p class="report-line"><button type="button" class="report-link" data-detail="report">Denunciar anúncio</button></p>

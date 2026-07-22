@@ -14,7 +14,7 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 - **Mapa da região**: aba "Mapa" no Explorar com os estabelecimentos parceiros no OpenStreetMap (Leaflet servido localmente, sem chave de API) e botão **"como chegar"** nos cards, no detalhe do anúncio e nos popups do mapa
 - **Favoritos**: disponíveis offline
 - **Mensagens**: chat assimétrico com produtores (dúvidas/reservas); envios offline entram na fila e são entregues ao reconectar
-- **Avaliações**: após uma reserva concluída, o turista avalia com 1–5 estrelas e comentário (editável); a média aparece nos cards do Explorar, no detalhe do anúncio e nos estabelecimentos
+- **Avaliações**: após uma reserva concluída, o turista avalia com 1–5 estrelas e comentário (editável); a média aparece nos cards do Explorar, no detalhe do anúncio e nos estabelecimentos. O **produtor tem direito de resposta** — responde publicamente na aba "Avaliações", e a resposta aparece junto da avaliação no detalhe do anúncio
 - **Notificações push**: mensagens e respostas de reserva avisam no aparelho mesmo com o app fechado (ativação em "Minha conta"; requer chaves VAPID no servidor)
 
 ### ☕ Produtor/Comerciante (`/portal`)

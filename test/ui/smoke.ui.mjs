@@ -81,6 +81,11 @@ const { check, finish } = runner();
   await page.waitForSelector('.onboarding');
   check('produtor: checklist de primeiros passos', await page.locator('.onb-step').count() === 3);
   check('produtor: passo de anúncio concluído', await page.locator('.onb-step.done').count() >= 1);
+  // Avaliações: aba lista avaliações e permite responder
+  await page.click('.vtab[data-view=reviews]');
+  await page.waitForSelector('#reviews-list .review-manage');
+  check('produtor: aba de avaliações lista avaliações', await page.locator('#reviews-list .review-manage').count() > 0);
+  check('produtor: botão de responder presente', await page.locator('#reviews-list [data-reply]').count() > 0);
   await page.close();
 }
 

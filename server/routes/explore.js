@@ -129,7 +129,7 @@ explore.get('/listings/:id', async (req, res) => {
     [req.params.id]
   );
   const { rows: revs } = await query(
-    `SELECT r.rating, r.comment, r.created_at, u.name AS tourist_name
+    `SELECT r.rating, r.comment, r.created_at, r.reply, r.reply_at, u.name AS tourist_name
      FROM reviews r JOIN users u ON u.id = r.tourist_id
      WHERE r.listing_id = $1 AND NOT r.hidden
      ORDER BY r.created_at DESC LIMIT 10`,
