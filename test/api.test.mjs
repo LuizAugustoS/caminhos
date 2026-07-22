@@ -154,6 +154,23 @@ test('explorar: premium primeiro e busca sem acento', async () => {
   assert.ok(byCafe.some(l => /Café/.test(l.title)), '"cafe" deve achar "Café"');
 });
 
+test('explorar: filtro por cidade e ordenação', async () => {
+  const { cities } = await (await fetch(`${BASE}/api/explore/cities`)).json();
+  assert.ok(Array.isArray(cities) && cities.length > 0, 'lista de cidades presente');
+
+  const city = cities[0];
+  const { listings: inCity } = await (await fetch(
+    `${BASE}/api/explore/listings?city=${encodeURIComponent(city)}`)).json();
+  assert.ok(inCity.length > 0, 'cidade com anúncios');
+  assert.ok(inCity.every(l => l.city === city), 'todos os anúncios são da cidade filtrada');
+
+  // ordenar por preço muda a sequência (premium primeiro, depois preço)
+  const ids = j => j.listings.map(l => l.id).join(',');
+  const asc = await (await fetch(`${BASE}/api/explore/listings?sort=price_asc&limit=20`)).json();
+  const desc = await (await fetch(`${BASE}/api/explore/listings?sort=price_desc&limit=20`)).json();
+  assert.notEqual(ids(asc), ids(desc), 'ordenar por preço deve mudar a ordem');
+});
+
 test('reserva completa: pedido → confirmar → concluir → avaliação', async () => {
   const t = client();
   await t('/api/register', { method: 'POST', body: {

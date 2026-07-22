@@ -27,6 +27,18 @@ const { check, finish } = runner();
   await page.fill('#explore-q', 'cafe');
   await page.waitForTimeout(600);
   check('turista: busca "cafe" traz resultados', await page.locator('.ex-card').count() > 0);
+
+  // filtro por cidade: opções carregadas e resultados restritos à cidade
+  await page.fill('#explore-q', '');
+  await page.waitForTimeout(400);
+  const cityCount = await page.locator('#explore-city option').count();
+  check('turista: filtro de cidade populado', cityCount > 1);
+  const city = await page.locator('#explore-city option').nth(1).getAttribute('value');
+  await page.selectOption('#explore-city', city);
+  await page.waitForTimeout(600);
+  const types = await page.locator('.ex-card .ex-type').allTextContents();
+  check('turista: filtro de cidade restringe os cards',
+    types.length > 0 && types.every(t => t.includes(city)));
   await page.close();
 }
 

@@ -44,11 +44,21 @@ function trackSearch(q, resultCities) {
   ).catch(err => console.warn('trackSearch falhou:', err.message));
 }
 
+// Ordenações disponíveis. 'relevance' mantém premium primeiro; as demais
+// respeitam o critério pedido, mas sempre com premium à frente em empate.
+const SORTS = {
+  relevance: '(p.plan = \'premium\') DESC, l.listed_at DESC',
+  price_asc: '(p.plan = \'premium\') DESC, l.price_cents ASC NULLS LAST, l.listed_at DESC',
+  price_desc: '(p.plan = \'premium\') DESC, l.price_cents DESC NULLS LAST, l.listed_at DESC',
+  rating: '(p.plan = \'premium\') DESC, r.rating_avg DESC NULLS LAST, r.rating_count DESC, l.listed_at DESC',
+};
+
 explore.get('/listings', async (req, res) => {
-  const { type, q } = req.query;
+  const { type, q, city } = req.query;
   if (type && !['product', 'service', 'event'].includes(type)) {
     return res.status(400).json({ error: 'type deve ser product, service ou event' });
   }
+  const sort = SORTS[req.query.sort] ? req.query.sort : 'relevance';
   const limit = Math.min(Number(req.query.limit) || 24, 60);
   const { rows } = await query(
     `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.listed_at,
@@ -67,12 +77,28 @@ explore.get('/listings', async (req, res) => {
        AND ($2::text = '' OR f_unaccent(l.title) LIKE '%' || f_unaccent($2) || '%'
             OR f_unaccent(l.subtitle) LIKE '%' || f_unaccent($2) || '%'
             OR f_unaccent(p.name) LIKE '%' || f_unaccent($2) || '%')
-     ORDER BY (p.plan = 'premium') DESC, l.listed_at DESC
+       AND ($4::text IS NULL OR f_unaccent(coalesce(e.city, p.city)) = f_unaccent($4))
+     ORDER BY ${SORTS[sort]}
      LIMIT $3`,
-    [type || null, (q || '').trim(), limit]
+    [type || null, (q || '').trim(), limit, (city || '').trim() || null]
   );
   trackSearch((q || '').trim(), rows.map(r => r.city));
   res.json({ listings: rows });
+});
+
+// Cidades com anúncios ativos — alimenta o filtro de cidade do Explorar.
+explore.get('/cities', async (_req, res) => {
+  const { rows } = await query(
+    `SELECT DISTINCT coalesce(e.city, p.city) AS city
+     FROM listings l
+     JOIN producers p ON p.id = l.producer_id AND p.status = 'approved'
+     LEFT JOIN establishments e ON e.producer_id = p.id
+     WHERE l.status = 'approved' AND l.available AND (l.stock IS NULL OR l.stock > 0)
+       AND l.image_label <> 'Foto do anúncio'
+       AND coalesce(e.city, p.city) IS NOT NULL
+     ORDER BY city`
+  );
+  res.json({ cities: rows.map(r => r.city) });
 });
 
 // Detalhe de um anúncio aprovado, com dados do parceiro e do estabelecimento

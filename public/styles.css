@@ -515,6 +515,15 @@ body.offline .offline-banner { display: block; }
 /* ─── Cartões de exploração ─── */
 .explore-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
 .explore-search { max-width: 420px; flex: 1; min-width: 240px; }
+.explore-filters { display: flex; gap: 10px; flex-wrap: wrap; width: 100%; }
+.explore-filters.hidden { display: none; }
+.filter-field { display: flex; align-items: center; gap: 8px; }
+.filter-field > span { font-size: 12px; font-weight: 700; color: var(--muted-2); }
+.filter-field select {
+  border: 1px solid #E3D8C2; border-radius: 10px; background: var(--cream);
+  padding: 8px 12px; font: 600 13px 'Manrope', sans-serif; color: var(--ink); cursor: pointer;
+}
+.filter-field select:hover { border-color: var(--sage); }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
 .ex-card {
   background: #FFFFFF; border: 1px solid var(--card-border); border-radius: 13px; padding: 15px;
