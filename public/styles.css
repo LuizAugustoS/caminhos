@@ -893,6 +893,38 @@ body.no-scroll { overflow: hidden; }
   .main { padding: 20px 16px 30px; }
 }
 
+/* ─── Navegação no celular: menu hamburguer ─── */
+/* No desktop o botão some e a navegação aparece normal; no celular a barra de
+   abas (turista/produtor) e a sidebar (admin) viram um painel dispensável. */
+.nav-toggle { display: none; }
+@media (max-width: 760px) {
+  .nav-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 42px; height: 42px; flex-shrink: 0; order: -1;
+    border: 1px solid var(--line); border-radius: 11px;
+    background: var(--cream); color: var(--forest); cursor: pointer;
+  }
+  .nav-toggle[aria-expanded="true"] { background: var(--forest); color: #F2EBDD; border-color: var(--forest); }
+
+  /* Abas do turista/produtor → painel vertical (cancela o scroll horizontal) */
+  .view-tabs {
+    display: none; flex-direction: column; gap: 4px; overflow: visible;
+    margin: 0 12px; padding: 8px; border-radius: 14px;
+    background: #fff; border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(20,64,46,.14);
+  }
+  .view-tabs.open { display: flex; }
+  .view-tabs .vtab { width: 100%; justify-content: flex-start; text-align: left; }
+
+  /* Sidebar do admin → mesmo painel vertical */
+  .sidenav {
+    display: none; width: auto; flex-direction: column; overflow: visible; gap: 4px;
+    margin: 0 12px; padding: 8px; border-radius: 14px;
+    background: #fff; border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(20,64,46,.14);
+  }
+  .sidenav.open { display: flex; }
+  .sidenav .nav-item { width: 100%; }
+}
+
 /* ─── Chat no celular: lista primeiro, conversa ao tocar ─── */
 .thread-back { display: none; }
 @media (max-width: 900px) {
