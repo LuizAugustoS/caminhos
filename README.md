@@ -7,7 +7,7 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 ## Perfis e funcionalidades
 
 ### 🧭 Turista (`/app`)
-- **Explorar**: busca de produtos, serviços, eventos, estabelecimentos e **roteiros publicados** pela equipe (com "usar como base", que copia para os seus roteiros — funciona offline), com **filtro por cidade** e **ordenação** (relevância, menor/maior preço, melhor avaliação) — tudo funcionando também sobre o cache offline. Cada busca real alimenta o mapa de calor do admin
+- **Explorar**: busca de produtos, serviços, eventos, estabelecimentos e **roteiros publicados** pela equipe (com "usar como base", que copia para os seus roteiros — funciona offline), com **filtro por cidade** e **ordenação** (relevância, **perto de mim** por geolocalização, menor/maior preço, melhor avaliação) — tudo funcionando também sobre o cache offline. Cada busca real alimenta o mapa de calor do admin
 - **Confiança**: parceiros conferidos pela equipe exibem o selo **✓ Verificado** (nos cards, no detalhe, no perfil e na página pública, independente do plano); qualquer anúncio pode ser **denunciado** pelo turista, e as denúncias entram numa **fila de moderação** no painel do admin
 - **✨ Montar roteiro pra mim**: o turista informa seus gostos (café, trilhas, cachoeiras…), o tempo disponível, o ritmo e o que quer viver — e uma **IA (ou fluxo N8N) monta o roteiro** usando o catálogo aprovado da plataforma. O roteiro é salvo com as preferências informadas e fica disponível em "Meus Roteiros" para consultar depois (inclusive offline)
 - **Meus Roteiros**: criação e gestão de itinerários personalizados **100% offline-first** — os roteiros vivem no IndexedDB do dispositivo, funcionam sem rede e sincronizam automaticamente quando a conexão volta
@@ -21,6 +21,7 @@ Aplicação **PWA offline-first** (instalável, sem lojas de aplicativos) com ba
 - **Planos de cadastro** (a cobrança acontece fora da plataforma — sem pagamento no app): **Gratuito** (até 3 anúncios, 1 foto por anúncio), **Profissional** (até 10 anúncios, 5 fotos, selo) e **Premium** (anúncios ilimitados, 10 fotos, selo ★ e destaque no topo do Explorar). O produtor escolhe o plano no cadastro; o admin pode trocar o plano de qualquer parceiro pelo painel
 - **Vitrine virtual**: criação rápida de anúncios (produtos, serviços, eventos) com **galeria de fotos** em **carrossel** com visualização em **tela cheia** (várias por anúncio conforme o plano; a primeira é a capa). Toda imagem enviada (JPG/PNG/WebP até 12 MB) é **otimizada no servidor** — auto-orientada pelo EXIF, redimensionada para no máx. 1600px e convertida em **WebP**, o que derruba fotos de vários MB para centenas de KB e deixa o app leve mesmo com internet ruim; servidas em `/uploads` e cacheadas offline pelo PWA. Novos anúncios e edições entram na fila de moderação do admin
 - **Mensagens**: caixa de entrada dedicada com turistas
+- **Desempenho**: painel na vitrine com visualizações (30 dias + série semanal), reservas recebidas, taxa de confirmação e conversas iniciadas
 - **Meu Estabelecimento**: edição do perfil público (descrição, categoria, endereço, contato, horários) e **localização no mapa** — toque para marcar o ponto ou use a própria localização; o marcador aparece no mapa do Explorar
 
 ### 🛠 Administrador (`/admin`)

@@ -40,6 +40,20 @@ const SKELETON_CARD = `
   </div>`;
 
 let exploreSeq = 0; // descarta respostas atrasadas de buscas anteriores
+let geoPos = null;  // posição do turista para o "Perto de mim"
+
+// Pede a geolocalização uma vez e memoiza; resolve null se negada/indisponível.
+function requestGeo() {
+  return new Promise(resolve => {
+    if (geoPos) return resolve(geoPos);
+    if (!navigator.geolocation) { toast('Geolocalização indisponível neste aparelho'); return resolve(null); }
+    navigator.geolocation.getCurrentPosition(
+      p => { geoPos = { lat: p.coords.latitude, lng: p.coords.longitude }; resolve(geoPos); },
+      () => { toast('Não foi possível obter sua localização'); resolve(null); },
+      { timeout: 8000, maximumAge: 300000 }
+    );
+  });
+}
 
 // Link de rota até o estabelecimento (abre o app de mapas do dispositivo)
 const mapsLink = (lat, lng) =>
@@ -82,6 +96,7 @@ async function loadExplore() {
         const params = new URLSearchParams({ q, sort });
         if (exploreKind) params.set('type', exploreKind);
         if (city) params.set('city', city);
+        if (sort === 'distance' && geoPos) params.set('near', `${geoPos.lat},${geoPos.lng}`);
         ({ listings } = await api(`/explore/listings?${params}`));
         for (const l of listings) await CaparaoDB.put('listings', l.id, l);
       }
@@ -216,7 +231,13 @@ $('#explore-chips').addEventListener('click', e => {
   loadExplore();
 });
 $('#explore-city').addEventListener('change', loadExplore);
-$('#explore-sort').addEventListener('change', loadExplore);
+$('#explore-sort').addEventListener('change', async () => {
+  // "Perto de mim" precisa da localização; sem permissão, volta a Relevância.
+  if ($('#explore-sort').value === 'distance' && !geoPos) {
+    if (!(await requestGeo())) { $('#explore-sort').value = 'relevance'; return; }
+  }
+  loadExplore();
+});
 
 // Preenche o filtro de cidade (online busca a lista; offline usa o cache)
 async function loadCities() {

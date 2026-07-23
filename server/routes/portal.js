@@ -181,6 +181,41 @@ portal.post('/reviews/:id/reply', async (req, res) => {
   res.json(rows[0]);
 });
 
+// ─── Insights de desempenho (vitrine) ───────────────────────────────────────
+portal.get('/insights', async (req, res) => {
+  const pid = req.producer.id;
+  // Visualizações agrupadas por "quantos dias atrás" — vira 6 baldes de 7 dias
+  // (do mais antigo ao atual) sem depender de alinhamento de início de semana.
+  const { rows: vw } = await query(
+    `SELECT (CURRENT_DATE - v.day)::int AS ago, sum(v.views)::int AS n
+     FROM listing_views v JOIN listings l ON l.id = v.listing_id
+     WHERE l.producer_id = $1 AND v.day > CURRENT_DATE - 42 AND v.day <= CURRENT_DATE
+     GROUP BY ago`, [pid]
+  );
+  const series = [0, 0, 0, 0, 0, 0];
+  for (const r of vw) {
+    if (r.ago < 0 || r.ago > 41) continue;
+    series[5 - Math.floor(r.ago / 7)] += r.n; // balde 5 = últimos 7 dias
+  }
+  const { rows: [v30] } = await query(
+    `SELECT coalesce(sum(v.views), 0)::int AS total
+     FROM listing_views v JOIN listings l ON l.id = v.listing_id
+     WHERE l.producer_id = $1 AND v.day > CURRENT_DATE - 30`, [pid]
+  );
+  // Reservas por status
+  const { rows: bk } = await query(
+    `SELECT status, count(*)::int AS n FROM bookings WHERE producer_id = $1 GROUP BY status`, [pid]
+  );
+  const bookings = { total: 0, pending: 0, confirmed: 0, declined: 0, completed: 0, cancelled: 0 };
+  for (const r of bk) { bookings[r.status] = r.n; bookings.total += r.n; }
+  const decided = bookings.confirmed + bookings.completed + bookings.declined;
+  const confirmationRate = decided ? (bookings.confirmed + bookings.completed) / decided : null;
+  const { rows: [c] } = await query(
+    `SELECT count(*)::int AS n FROM conversations WHERE producer_id = $1`, [pid]
+  );
+  res.json({ views: { total30d: v30.total, series }, bookings, confirmationRate, conversations: c.n });
+});
+
 function validListing(body) {
   const { type, title, price_cents, stock } = body || {};
   if (!LISTING_TYPES.includes(type)) return 'type deve ser product, service ou event';

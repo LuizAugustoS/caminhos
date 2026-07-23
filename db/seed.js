@@ -314,6 +314,19 @@ await client.query(
   ['Muito obrigado pela visita! Foi um prazer receber vocês — voltem sempre que quiserem repetir a colheita. ☕']
 );
 
+// Visualizações diárias dos últimos 40 dias em cada anúncio aprovado — alimenta
+// os "views em 30 dias" e o painel de desempenho do produtor.
+await client.query(
+  `INSERT INTO listing_views (listing_id, day, views)
+   SELECT l.id, d::date,
+          -- leve tendência de alta rumo ao presente + ruído
+          (2 + floor(random() * 5) + floor((40 - (CURRENT_DATE - d::date)) / 6))::int
+   FROM listings l
+   CROSS JOIN generate_series(CURRENT_DATE - 40, CURRENT_DATE, interval '1 day') AS d
+   WHERE l.status = 'approved'
+   ON CONFLICT (listing_id, day) DO NOTHING`
+);
+
 // ─── Transações: ~R$ 96,4 mil no mês corrente + mês anterior menor ────────
 await client.query(`
   INSERT INTO transactions (listing_id, amount_cents, created_at)

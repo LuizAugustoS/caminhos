@@ -13,10 +13,68 @@ const fmtPrice = (cents, unit) => cents == null
   ? (unit || 'sob consulta')
   : `R$ ${(cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: cents % 100 ? 2 : 0 })}${unit ? ` · ${unit}` : ''}`;
 
-function page({ req, path, title, description, image, bodyHTML }) {
+const absUrl = (req, path) => `${process.env.APP_URL || `${req.protocol}://${req.get('host')}`}${path}`;
+
+// ─── Dados estruturados (schema.org) para resultados ricos no Google ─────────
+function listingJsonLd(l, req) {
+  const seller = l.est_name || l.producer_name;
+  const image = l.image_path ? absUrl(req, l.image_path) : undefined;
+  const rating = l.rating_count ? { aggregateRating: {
+    '@type': 'AggregateRating', ratingValue: Number(l.rating_avg), reviewCount: Number(l.rating_count),
+  } } : {};
+  const offers = {
+    '@type': 'Offer', priceCurrency: 'BRL', availability: 'https://schema.org/InStock',
+    url: absUrl(req, `/p/${l.id}`),
+    ...(l.price_cents != null ? { price: (l.price_cents / 100).toFixed(2) } : {}),
+    ...(seller ? { seller: { '@type': 'Organization', name: seller } } : {}),
+  };
+  if (l.type === 'event') {
+    return {
+      '@context': 'https://schema.org', '@type': 'Event', name: l.title,
+      ...(l.subtitle ? { description: l.subtitle } : {}),
+      ...(image ? { image } : {}),
+      ...(l.event_date ? { startDate: new Date(l.event_date).toISOString().slice(0, 10) } : {}),
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      location: { '@type': 'Place', name: l.event_place || seller || 'Caparaó',
+        address: [l.event_place, l.city].filter(Boolean).join(', ') || 'Caparaó, ES/MG' },
+      offers, ...rating,
+    };
+  }
+  return {
+    '@context': 'https://schema.org', '@type': 'Product', name: l.title,
+    ...(l.subtitle ? { description: l.subtitle } : {}),
+    ...(image ? { image } : {}),
+    ...(seller ? { brand: { '@type': 'Brand', name: seller } } : {}),
+    offers, ...rating,
+  };
+}
+
+function establishmentJsonLd(e, req) {
+  return {
+    '@context': 'https://schema.org', '@type': 'LocalBusiness', name: e.name,
+    ...(e.description ? { description: e.description } : {}),
+    ...(e.photo_path ? { image: absUrl(req, e.photo_path) } : {}),
+    ...(e.phone ? { telephone: e.phone } : {}),
+    address: {
+      '@type': 'PostalAddress',
+      ...(e.address ? { streetAddress: e.address } : {}),
+      ...(e.city ? { addressLocality: e.city } : {}),
+      addressRegion: 'ES/MG', addressCountry: 'BR',
+    },
+    ...(e.lat != null && e.lng != null
+      ? { geo: { '@type': 'GeoCoordinates', latitude: Number(e.lat), longitude: Number(e.lng) } } : {}),
+    url: absUrl(req, `/e/${e.id}`),
+  };
+}
+
+function page({ req, path, title, description, image, bodyHTML, jsonLd }) {
   const base = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
   const url = `${base}${path}`;
   const ogImage = image ? `${base}${image}` : `${base}/icons/icon-512.png`;
+  // JSON-LD (dados estruturados) — o \u003c evita quebrar a tag <script>.
+  const ld = jsonLd
+    ? `\n<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`
+    : '';
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -33,7 +91,7 @@ function page({ req, path, title, description, image, bodyHTML }) {
 <meta property="og:image" content="${esc(ogImage)}">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css">${ld}
 </head>
 <body>
 <div class="backdrop">
@@ -53,10 +111,13 @@ publicPages.get('/p/:id', async (req, res, next) => {
     `SELECT l.id, l.type, l.title, l.subtitle, l.image_path, l.price_cents, l.price_unit,
             l.event_date, l.event_time, l.event_place,
             p.name AS producer_name, p.verified, e.name AS est_name, coalesce(e.city, p.city) AS city,
-            e.address, e.phone, e.open_hours
+            e.address, e.phone, e.open_hours,
+            r.rating_avg, r.rating_count
      FROM listings l
      JOIN producers p ON p.id = l.producer_id AND p.status = 'approved'
      LEFT JOIN establishments e ON e.producer_id = p.id
+     LEFT JOIN (SELECT listing_id, round(avg(rating)::numeric, 1) AS rating_avg, count(*) AS rating_count
+                FROM reviews WHERE NOT hidden GROUP BY listing_id) r ON r.listing_id = l.id
      WHERE l.id = $1 AND l.status = 'approved' AND l.available`,
     [req.params.id]
   );
@@ -66,6 +127,7 @@ publicPages.get('/p/:id', async (req, res, next) => {
     .filter(Boolean).join(' · ');
   res.send(page({
     req, path: `/p/${l.id}`, title: l.title, description: desc, image: l.image_path,
+    jsonLd: listingJsonLd(l, req),
     bodyHTML: `
       ${l.image_path ? `<div class="public-hero"><img src="${esc(l.image_path)}" alt=""></div>` : ''}
       <p class="legal-updated">${TYPE[l.type] || ''} · ${esc(l.city || 'Caparaó')}</p>
@@ -127,6 +189,7 @@ publicPages.get('/e/:id', async (req, res, next) => {
     req, path: `/e/${e.id}`, title: e.name,
     description: [e.category, e.description, e.city].filter(Boolean).join(' · ').slice(0, 200),
     image: e.photo_path,
+    jsonLd: establishmentJsonLd(e, req),
     bodyHTML: `
       ${e.photo_path ? `<div class="public-hero"><img src="${esc(e.photo_path)}" alt=""></div>` : ''}
       <p class="legal-updated">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')}</p>

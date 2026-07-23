@@ -58,8 +58,23 @@ explore.get('/listings', async (req, res) => {
   if (type && !['product', 'service', 'event'].includes(type)) {
     return res.status(400).json({ error: 'type deve ser product, service ou event' });
   }
-  const sort = SORTS[req.query.sort] ? req.query.sort : 'relevance';
+  // "Perto de mim": só vale com uma posição válida (near=lat,lng); senão cai
+  // para relevância. A distância é uma aproximação boa o bastante para ordenar
+  // dentro da região (sem premium à frente — aqui o que importa é a proximidade).
+  const near = parseNear(req.query.near);
+  const wantsDistance = req.query.sort === 'distance' && near;
+  const sort = wantsDistance ? 'distance' : (SORTS[req.query.sort] ? req.query.sort : 'relevance');
   const limit = Math.min(Number(req.query.limit) || 24, 60);
+
+  const params = [type || null, (q || '').trim(), limit, (city || '').trim() || null];
+  let orderBy = SORTS[sort] || SORTS.relevance;
+  if (wantsDistance) {
+    params.push(near.lat, near.lng); // $5, $6
+    orderBy = `(e.lat IS NULL) ASC,
+               (power(e.lat - $5, 2) + power((e.lng - $6) * cos(radians($5)), 2)) ASC,
+               (p.plan = 'premium') DESC, l.listed_at DESC`;
+  }
+
   const { rows } = await query(
     `SELECT l.id, l.type, l.title, l.subtitle, l.glyph, l.image_kind, l.image_path, l.listed_at,
             l.price_cents, l.price_unit, l.event_date, l.event_time, l.event_place, l.stock,
@@ -78,13 +93,22 @@ explore.get('/listings', async (req, res) => {
             OR f_unaccent(l.subtitle) LIKE '%' || f_unaccent($2) || '%'
             OR f_unaccent(p.name) LIKE '%' || f_unaccent($2) || '%')
        AND ($4::text IS NULL OR f_unaccent(coalesce(e.city, p.city)) = f_unaccent($4))
-     ORDER BY ${SORTS[sort]}
+     ORDER BY ${orderBy}
      LIMIT $3`,
-    [type || null, (q || '').trim(), limit, (city || '').trim() || null]
+    params
   );
   trackSearch((q || '').trim(), rows.map(r => r.city));
   res.json({ listings: rows });
 });
+
+// Interpreta near="lat,lng" com validação dos limites geográficos.
+function parseNear(near) {
+  if (typeof near !== 'string') return null;
+  const [lat, lng] = near.split(',').map(Number);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+}
 
 // Cidades com anúncios ativos — alimenta o filtro de cidade do Explorar.
 explore.get('/cities', async (_req, res) => {
