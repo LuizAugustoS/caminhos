@@ -76,6 +76,7 @@ const { check, finish } = runner();
   check('produtor: pill de plano visível', (await page.textContent('#producer-plan')).includes('Plano'));
   await page.waitForSelector('#my-listings .table-row');
   check('produtor: anúncios na vitrine', await page.locator('#my-listings .table-row').count() > 0);
+  check('produtor: empurrão de foto em anúncio sem imagem', await page.locator('#my-listings .needs-photo .photo-nudge').count() > 0);
   check('produtor: KPI de avaliação média', await page.locator('.kpi-card:has-text("Avaliação média")').count() === 1);
   // Painel de desempenho: estatísticas + série de barras
   await page.waitForSelector('#insights-panel:not(.hidden)');

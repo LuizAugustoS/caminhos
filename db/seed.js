@@ -269,6 +269,14 @@ for (const [type, glyph, imageKind, imageLabel, title, subtitle, producerName, d
      priceCents, priceUnit, eventDate, eventTime, eventPlace, coverPath(`${title} ${imageKind}`)]
   );
 }
+// Anúncio recém-criado do produtor demo, ainda SEM foto — exercita o empurrão
+// "adicione uma foto" na vitrine (em revisão, então não aparece no Explorar).
+await client.query(
+  `INSERT INTO listings (producer_id, type, glyph, image_kind, image_label, image_path, title, subtitle, status, listed_at, created_at, price_cents, price_unit)
+   SELECT id, 'product', '◉', 'cafe', 'Foto do anúncio', NULL,
+          'Café Descafeinado Suave — 500g', 'Processo à água · torra clara', 'in_review', CURRENT_DATE, now(), 4200, '500g'
+   FROM producers WHERE name = 'Sítio Boa Esperança' LIMIT 1`
+);
 // Base de anúncios aprovados (invisível nas listas — só compõe o total do painel).
 // Marcados com image_label 'Foto do anúncio', que as telas filtram.
 await client.query(`
