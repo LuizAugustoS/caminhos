@@ -61,11 +61,12 @@ async function loadShowcase() {
       </div>`).join('');
 
     $('#my-listings').innerHTML = listings.map(l => `
-      <div class="table-row listing-cols ${l.available ? '' : 'listing-paused'}" data-id="${l.id}" data-available="${l.available}">
+      <div class="table-row listing-cols ${l.available ? '' : 'listing-paused'}${l.image_path ? '' : ' needs-photo'}" data-id="${l.id}" data-available="${l.available}">
         ${thumbHTML(l)}
         <div class="cell-title">
           <div class="t">${esc(l.title)}${l.available ? '' : ' <span class="paused-pill">pausado</span>'}${l.stock === 0 ? ' <span class="paused-pill">esgotado</span>' : ''}</div>
           <div class="s">${esc(l.subtitle || '')}${l.stock != null ? ` · ${l.stock} em estoque` : ''}${l.status === 'approved' ? ` · ${l.views_30d} visualizaç${l.views_30d == 1 ? 'ão' : 'ões'} em 30 dias` : ''}</div>
+          ${l.image_path ? '' : `<button type="button" class="photo-nudge" data-action="photo">${icon('image', 14)} Adicione uma foto — anúncios com foto recebem mais contatos</button>`}
         </div>
         <span class="cell-date">${TYPE_LABEL[l.type]}</span>
         <span class="cell-date">${fmtDate(l.listed_at)}</span>

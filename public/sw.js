@@ -6,7 +6,7 @@
  *  - Mutações offline NÃO passam por aqui: ficam na fila do IndexedDB (js/idb.js)
  *    e são reenviadas quando a conexão volta, com rotas idempotentes no servidor.
  */
-const VERSION = 'v28';
+const VERSION = 'v29';
 const SHELL_CACHE = `shell-${VERSION}`;
 const DATA_CACHE = `data-${VERSION}`;
 
