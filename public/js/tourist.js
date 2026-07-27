@@ -133,8 +133,9 @@ async function loadExplore() {
 const listingCard = (l, favIds) => `
   <div class="ex-card ${l.plan === 'premium' ? 'plan-featured' : ''}" data-id="${l.id}" data-producer="${l.producer_id}">
     ${thumbHTML(l, 'ex-thumb')}
+    ${l.plan === 'premium' ? '<span class="cover-flag">Premium</span>' : ''}
     <div class="ex-body">
-      <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')} ${verifiedBadge(l.verified)}${planBadge(l.plan)}</span>
+      <span class="ex-type">${TYPE_LABEL[l.type] || ''} · ${esc(l.city || 'Caparaó')}</span>
       <strong class="ex-title">${esc(l.title)}</strong>
       <span class="ex-sub">${esc(l.subtitle || '')}</span>
       ${l.rating_count ? `<span class="ex-rating">${starsHTML(l.rating_avg, l.rating_count)}</span>` : ''}
@@ -145,6 +146,7 @@ const listingCard = (l, favIds) => `
       <div class="ex-producer">
         <div class="avatar sm" style="background:${esc(l.producer_color || '#1C6B4A')}">${esc(l.producer_initials || '')}</div>
         <span>${esc(l.producer_name)}</span>
+        ${verifiedBadge(l.verified)}
       </div>
     </div>
     <div class="ex-actions">
@@ -159,9 +161,10 @@ const placeCard = e => `
     ${e.photo_path
       ? `<div class="ex-thumb has-photo"><img src="${esc(thumbURL(e.photo_path))}" data-full="${esc(e.photo_path)}" alt="" loading="lazy"></div>`
       : coverHTML({ producer_name: e.name }, 'ex-thumb')}
+    ${e.plan === 'premium' ? '<span class="cover-flag">Premium</span>' : ''}
     <div class="ex-body">
-      <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')} ${verifiedBadge(e.verified)}${planBadge(e.plan)}</span>
-      <strong class="ex-title">${esc(e.name)}</strong>
+      <span class="ex-type">${esc(e.category || 'Estabelecimento')} · ${esc(e.city || 'Caparaó')}</span>
+      <strong class="ex-title">${esc(e.name)}${e.verified ? ' ' + verifiedBadge(e.verified) : ''}</strong>
       ${e.rating_count ? `<span class="ex-rating">${starsHTML(e.rating_avg, e.rating_count)}</span>` : ''}
       <span class="ex-sub">${esc(e.description || e.kind || '')}</span>
       <span class="ex-meta">${esc(e.address || '')}${e.open_hours ? ' · ' + esc(e.open_hours) : ''}${e.phone ? ' · ' + esc(e.phone) : ''}</span>

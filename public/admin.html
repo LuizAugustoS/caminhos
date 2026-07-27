@@ -73,22 +73,20 @@
         <section id="view-overview" class="admin-view">
         <div class="page-head">
           <div>
-            <h1>Controle Geral — Admin</h1>
+            <h1>Painel da equipe</h1>
             <p id="page-date">—</p>
           </div>
-          <div style="display:flex; gap:10px;">
-            <button class="btn-secondary" id="btn-export">Exportar relatório</button>
-            <button class="btn-primary">+ Novo cadastro</button>
-          </div>
+          <button class="btn-secondary" id="btn-export">Exportar relatório</button>
         </div>
 
-        <div class="kpi-grid" id="kpi-grid"></div>
+        <!-- Fila de trabalho: o que espera decisão da equipe -->
+        <div class="worklist" id="worklist"></div>
 
         <div class="panel-grid">
           <section class="panel">
             <div class="panel-head">
               <div>
-                <h2>Gestão de Produtores e Conteúdo</h2>
+                <h2>Cadastros de produtores</h2>
                 <span class="sub" id="producers-sub">Aplicações recentes</span>
               </div>
               <a href="#" data-goto="producers">Ver todas →</a>
@@ -99,29 +97,16 @@
           <section class="panel panel-col">
             <div class="panel-head">
               <div>
-                <h2>Monitoramento de Turismo</h2>
-                <span class="sub">Mapa de calor · buscas dos últimos 7 dias</span>
-              </div>
-              <div class="offline-pill" title="Todos os itinerários publicados estão disponíveis para uso offline no PWA">
-                <div class="dot"></div>
-                <span>Itinerários Offline-Prontos</span>
+                <h2>Mais buscados na região</h2>
+                <span class="sub">Destinos procurados nos últimos 7 dias</span>
               </div>
             </div>
-            <div class="heatmap">
-              <div class="heat-grid" id="heat-grid"></div>
-              <div class="heat-peak" id="heat-peak"></div>
-              <div class="heat-legend">
-                <span>baixo</span>
-                <i style="background:#DCE8DD"></i>
-                <i style="background:#8AA98F"></i>
-                <i style="background:#1C6B4A"></i>
-                <i style="background:#14402E"></i>
-                <span>alto</span>
-              </div>
-            </div>
-            <div class="heat-stats" id="heat-stats"></div>
+            <div class="ranklist" id="searched-list"></div>
           </section>
         </div>
+
+        <!-- Números da plataforma, ditos sem drama -->
+        <div class="platform-facts" id="platform-facts"></div>
 
         <section class="panel" style="margin-bottom:20px;">
           <div class="panel-head" style="flex-wrap:wrap; gap:12px;">

@@ -12,7 +12,8 @@ const { check, finish } = runner();
   await page.waitForURL('**/app');
   await page.waitForSelector('.ex-card');
   check('turista: cards no Explorar', await page.locator('.ex-card').count() > 0);
-  check('turista: selo premium em algum card', await page.locator('.plan-badge.plan-premium').count() > 0);
+  check('turista: destaque premium em algum card', await page.locator('.ex-card.plan-featured').count() > 0
+    && await page.locator('.cover-flag').count() > 0);
   check('turista: selo verificado em algum card', await page.locator('.verified-badge').count() > 0);
 
   // detalhe do Tour (tem avaliações no seed)
