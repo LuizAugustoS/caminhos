@@ -177,6 +177,23 @@ await client.query(
 );
 
 // ─── Estabelecimentos dos parceiros em destaque (perfis completos) ────────
+// Capa de paisagem por tema (public/assets/covers/<slug>.webp), escolhida por
+// palavras-chave do título/nome. Gera-se com `node scripts/gen-covers.mjs`.
+function coverFor(text) {
+  const s = (text || '').toLowerCase();
+  if (s.includes('queij')) return 'queijo';
+  if (s.includes('mel ') || s.includes('apiár') || s.includes('apiar')) return 'mel';
+  if (s.includes('festival') || s.includes('prefeitura')) return 'festival';
+  if (s.includes('café') || s.includes('cafe') || s.includes('colheita') || s.includes('torra')) return 'cafe';
+  if (s.includes('cavalgada') || s.includes('rancho') || s.includes('cavalo')) return 'cavalgada';
+  if (s.includes('hospedagem') || s.includes('pousada') || s.includes('vale verde') || s.includes('horta') || s.includes('orgânic')) return 'pousada';
+  if (s.includes('estrela') || s.includes('observação') || s.includes('astro')) return 'estrelas';
+  if (s.includes('artesanato') || s.includes('feira') || s.includes('cesto') || s.includes('fibra') || s.includes('artesã')) return 'arte';
+  if (s.includes('trilha') || s.includes('travessia') || s.includes('guia') || s.includes('pico') || s.includes('trekking') || s.includes('cachoeira')) return 'trilha';
+  return 'trilha';
+}
+const coverPath = text => `/assets/covers/${coverFor(text)}.webp`;
+
 const establishments = [
   ['Sítio Boa Esperança', 'Café especial cultivado a 1.400 m, colhido à mão e torrado na fazenda. Recebe visitas para tour de colheita e degustação, com agendamento.', 'Café e agroturismo', 'Alto Caparaó', 'Estrada da Cachoeira, km 6 — zona rural', '(32) 99145-2087', 'Ter a Dom, 8h às 17h'],
   ['Dona Zélia Artesanatos', 'Peças de fibra de bananeira e palha trançada, com tingimento natural. Ateliê aberto a visitantes e oficinas sob encomenda.', 'Artesanato', 'Ibitirama', 'Rua das Flores, 128 — Centro', '(28) 99961-4410', 'Seg a Sex, 9h às 18h'],
@@ -195,9 +212,9 @@ const establishments = [
 ];
 for (const [name, description, category, city, address, phone, hours] of establishments) {
   await client.query(
-    `INSERT INTO establishments (producer_id, name, description, category, city, address, phone, open_hours)
-     SELECT id, $1, $2, $3, $4, $5, $6, $7 FROM producers WHERE name = $1 LIMIT 1`,
-    [name, description, category, city, address, phone, hours]
+    `INSERT INTO establishments (producer_id, name, description, category, city, address, phone, open_hours, photo_path)
+     SELECT id, $1, $2, $3, $4, $5, $6, $7, $8 FROM producers WHERE name = $1 LIMIT 1`,
+    [name, description, category, city, address, phone, hours, coverPath(`${name} ${category}`)]
   );
 }
 
@@ -239,17 +256,17 @@ const featuredListings = [
   ['event', '✤', 'arte', 'Foto: feira', 'Feira de Artesanato da Serra', 'Edição de inverno · 40 expositores', 'Associação de Artesãos do Caparaó', '2026-07-26', 'approved', null, 'entrada gratuita', '2026-08-01', '9h às 18h', 'Casa de Cultura de Ibitirama'],
   ['event', '⛰', 'sage', 'Foto: observação', 'Noite de Observação de Estrelas', 'Terreirão do Pico · céu Bortle 2', 'Clube Astronômico Capixaba', '2026-08-15', 'in_review', 4000, 'por pessoa', '2026-08-22', '19h às 23h', 'Terreirão do Pico'],
 ];
-// Sem foto real na demo: capa fica com o placeholder editorial (monograma).
-// Produtores reais sobem as próprias fotos pela vitrine.
+// Capa de paisagem por tema na demo (cartão-postal). Produtores reais sobem as
+// próprias fotos pela vitrine — que assumem o lugar da capa temática.
 for (const [type, glyph, imageKind, imageLabel, title, subtitle, producerName, date, status,
             priceCents, priceUnit, eventDate, eventTime, eventPlace] of featuredListings) {
   await client.query(
     `INSERT INTO listings (producer_id, type, glyph, image_kind, image_label, image_path, title, subtitle, status, listed_at, created_at,
                            price_cents, price_unit, event_date, event_time, event_place)
-     SELECT id, $2, $3, $4, $5, NULL, $6, $7, $8, $9, $9::date + time '10:00', $10, $11, $12, $13, $14
+     SELECT id, $2, $3, $4, $5, $15, $6, $7, $8, $9, $9::date + time '10:00', $10, $11, $12, $13, $14
      FROM producers WHERE name = $1 LIMIT 1`,
     [producerName, type, glyph, imageKind, imageLabel, title, subtitle, status, date,
-     priceCents, priceUnit, eventDate, eventTime, eventPlace]
+     priceCents, priceUnit, eventDate, eventTime, eventPlace, coverPath(`${title} ${imageKind}`)]
   );
 }
 // Base de anúncios aprovados (invisível nas listas — só compõe o total do painel).
@@ -312,6 +329,18 @@ await client.query(
   `UPDATE reviews SET reply = $1, reply_at = now() - interval '2 days'
    WHERE id = (SELECT id FROM reviews ORDER BY created_at DESC LIMIT 1)`,
   ['Muito obrigado pela visita! Foi um prazer receber vocês — voltem sempre que quiserem repetir a colheita. ☕']
+);
+
+// Uma denúncia aberta de exemplo, para a fila de moderação do admin não vir vazia.
+await client.query(
+  `INSERT INTO listing_reports (listing_id, reporter_id, reason, detail)
+   SELECT l.id, u.id, 'informacao_incorreta',
+          'O preço anunciado parece desatualizado — confirmei outro valor no contato direto.'
+   FROM listings l
+   CROSS JOIN (SELECT id FROM users WHERE email = $1 LIMIT 1) u
+   WHERE l.status = 'approved'
+   ORDER BY l.id LIMIT 1`,
+  ['turista@demo.com']
 );
 
 // Visualizações diárias dos últimos 40 dias em cada anúncio aprovado — alimenta

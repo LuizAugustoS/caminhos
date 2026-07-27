@@ -369,17 +369,28 @@ test('exclusão de conta (LGPD) remove o acesso', async () => {
   assert.equal((await login('/api/login', { method: 'POST', body: { email, password: 'senha1234' } })).status, 401);
 });
 
-test('dashboard: KPIs com séries reais (sem dados ilustrativos)', async () => {
+test('dashboard: fila de trabalho e totais reais (sem métricas de vaidade)', async () => {
   const a = client();
   await a('/api/login', { method: 'POST', body: {
     email: 'admin@caminhosdocaparao.com.br', password: 'caparao2026' } });
   const d = await (await a('/api/dashboard')).json();
-  const ps = d.kpis.activeProducers.series;
-  assert.ok(Array.isArray(ps) && ps.length === 8, 'série de produtores presente');
-  assert.ok(ps.every(n => Number.isInteger(n)), 'série de produtores numérica');
-  assert.ok(ps.some(n => n > 0), 'série reflete aprovações reais do seed');
-  assert.equal(d.kpis.newTourists.series.length, 8);
-  assert.equal(d.kpis.transactionVolume.series.length, 8);
+  // Fila de trabalho: contadores inteiros do que espera decisão da equipe.
+  for (const k of ['pendingProducers', 'pendingListings', 'openReports']) {
+    assert.ok(Number.isInteger(d.queue[k]) && d.queue[k] >= 0, `fila ${k} é inteiro >= 0`);
+  }
+  // Totais reais da plataforma (o seed tem turistas, produtores e anúncios).
+  assert.ok(d.totals.tourists > 0, 'turistas reais do seed');
+  assert.ok(d.totals.activeProducers > 0, 'produtores ativos reais do seed');
+  assert.ok(d.totals.listings > 0, 'anúncios publicados reais do seed');
+  assert.ok(d.totals.withListingsPct >= 0 && d.totals.withListingsPct <= 100, 'percentual coerente');
+  // Mais buscados: lista ordenada por contagem (quando há eventos de busca).
+  assert.ok(Array.isArray(d.topSearched), 'topSearched é lista');
+  for (let i = 1; i < d.topSearched.length; i++) {
+    assert.ok(d.topSearched[i - 1].searches >= d.topSearched[i].searches, 'ordenado por buscas desc');
+  }
+  // A plataforma não processa pagamento — não deve haver volume transacionado.
+  assert.equal(d.kpis, undefined, 'sem bloco de KPIs de vaidade');
+  assert.equal(d.heatmap, undefined, 'sem mapa de calor');
 });
 
 test('admin: troca de plano, auditoria e CSV', async () => {

@@ -5,14 +5,6 @@ const $ = (sel, root = document) => root.querySelector(sel);
 
 // ─── Utilidades ──────────────────────────────────────────────────────────────
 const fmtInt = n => new Intl.NumberFormat('pt-BR').format(n);
-const fmtPct = n => n == null ? '—' : new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(Math.abs(n)) + '%';
-const fmtMoney = cents => {
-  const reais = cents / 100;
-  if (reais >= 1000) {
-    return 'R$ ' + new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(reais / 1000) + ' mil';
-  }
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(reais);
-};
 const fmtDate = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '');
 const fmtTime = iso => {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -37,6 +29,7 @@ const ICON_PATHS = {
   settings: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1.5" y1="14" x2="6.5" y2="14"/><line x1="9.5" y1="8" x2="14.5" y2="8"/><line x1="17.5" y1="16" x2="22.5" y2="16"/>',
   volume: '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
   check: '<polyline points="20 6 9 17 4 12"/>',
+  flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
   close: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
   'chevron-left': '<polyline points="15 18 9 12 15 6"/>',
   'chevron-right': '<polyline points="9 18 15 12 9 6"/>',
@@ -286,82 +279,55 @@ document.addEventListener('click', e => {
   if (goto) { e.preventDefault(); switchView(goto.dataset.goto); }
 });
 
-// ─── KPIs ────────────────────────────────────────────────────────────────────
-function sparklineSVG(series, color, id) {
-  const max = Math.max(...series, 1);
-  const pts = series.map((v, i) => `${(i / (series.length - 1)) * 100},${38 - (v / max) * 34}`).join(' ');
-  return `<svg viewBox="0 0 100 40" preserveAspectRatio="none" style="width:100%;height:100%;display:block">
-    <defs><linearGradient id="g${id}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${color}" stop-opacity=".28"/>
-      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
-    </linearGradient></defs>
-    <polygon points="0,40 ${pts} 100,40" fill="url(#g${id})"/>
-    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-  </svg>`;
-}
-
-function barsHTML(series, color) {
-  const max = Math.max(...series, 1);
-  return `<div class="kpi-bars">${series.map((v, i) =>
-    `<i style="height:${Math.max(8, (v / max) * 100)}%;background:${i === series.length - 1 ? color : color + '55'}"></i>`).join('')}</div>`;
-}
-
-function donutHTML(pct, color, rest, label) {
-  return `<div class="kpi-donut-wrap">
-    <div class="kpi-donut" style="background:conic-gradient(${color} 0 ${pct}%, ${rest} ${pct}% 100%)"><i>${pct}%</i></div>
-    <div class="kpi-donut-label">${label}</div>
-  </div>`;
-}
-
-function deltaBadge(deltaPct) {
-  if (deltaPct == null) return '';
-  const down = deltaPct < 0;
-  return `<span class="kpi-delta${down ? ' down' : ''}">${down ? '▼' : '▲'} ${fmtPct(deltaPct)}</span>`;
-}
-
-function renderKpis(k) {
-  // Série real de aprovações de produtores (fallback plano se ainda vazia)
-  const producerBars = k.activeProducers.series?.some(v => v > 0)
-    ? k.activeProducers.series : [1, 1, 1, 1, 1, 1, 1, 1];
-  const cards = [
-    {
-      label: 'Novos Turistas', accent: '#1C6B4A', icon: 'tourists', iconBg: '#E4F0E7',
-      value: fmtInt(k.newTourists.value), delta: k.newTourists.deltaPct,
-      caption: 'últimos 30 dias', hint: 'Turistas cadastrados no período',
-      chart: sparklineSVG(k.newTourists.series, '#1C6B4A', 1),
-    },
-    {
-      label: 'Produtores Ativos', accent: '#8AA98F', icon: 'producers', iconBg: '#EDF2EA',
-      value: fmtInt(k.activeProducers.value), delta: k.activeProducers.deltaPct,
-      caption: `${k.activeProducers.withListingsPct}% com anúncios ativos`, hint: 'Produtores e comerciantes verificados',
-      chart: barsHTML(producerBars, '#8AA98F'),
-    },
-    {
-      label: 'Total de Anúncios', accent: '#C0714F', icon: 'listings', iconBg: '#F8EAE1',
-      value: fmtInt(k.totalListings.value), delta: k.totalListings.deltaPct,
-      caption: 'produtos, serviços e eventos', hint: 'Anúncios publicados na plataforma',
-      chart: donutHTML(k.totalListings.productSharePct, '#C0714F', '#EFE3D6', 'café &amp; agro<br>lideram vendas'),
-    },
-    {
-      label: 'Volume de Transações', accent: '#4A3226', icon: 'volume', iconBg: '#F0EADF',
-      value: fmtMoney(k.transactionVolume.valueCents), delta: k.transactionVolume.deltaPct,
-      caption: 'mês corrente', hint: 'Volume bruto transacionado no marketplace',
-      chart: sparklineSVG(k.transactionVolume.series, '#4A3226', 2),
-    },
+// ─── Visão de operação ────────────────────────────────────────────────────────
+// Fila de trabalho: só o que espera decisão da equipe. Cada tile leva à fila.
+function renderWorklist(queue) {
+  const items = [
+    { n: queue.pendingProducers, label: 'produtores aguardando aprovação', goto: 'producers', icon: 'producers' },
+    { n: queue.openReports, label: 'denúncias abertas para revisar', goto: 'registrations', icon: 'flag', warn: true },
+    { n: queue.pendingListings, label: 'anúncios pendentes de publicação', goto: 'publications', icon: 'listings' },
   ];
-  $('#kpi-grid').innerHTML = cards.map(c => `
-    <div class="kpi-card" style="border-top-color:${c.accent}" title="${c.hint}">
-      <div class="kpi-head">
-        <span>${c.label}</span>
-        <div class="kpi-icon" style="background:${c.iconBg};color:${c.accent}">${icon(c.icon, 18)}</div>
+  const clear = items.every(i => i.n === 0);
+  $('#worklist').innerHTML = clear
+    ? `<div class="worklist-clear">${icon('check', 18)} Nada na fila — tudo em dia por aqui.</div>`
+    : items.map(i => `
+      <a class="work-tile${i.n > 0 ? ' has-work' : ''}${i.warn && i.n > 0 ? ' warn' : ''}" href="#" data-goto="${i.goto}">
+        <span class="work-icon">${icon(i.icon, 18)}</span>
+        <span class="work-n">${fmtInt(i.n)}</span>
+        <span class="work-label">${i.label}</span>
+      </a>`).join('');
+}
+
+// Lista ranqueada de destinos buscados (reusada no overview e no analytics).
+function rankRowsHTML(top) {
+  if (!top.length) return '<p class="empty-note">Sem buscas registradas nos últimos 7 dias.</p>';
+  const max = top[0].searches || 1;
+  return top.map((s, i) => `
+    <div class="rank-row">
+      <span class="rank-pos">${i + 1}</span>
+      <div class="rank-body">
+        <span class="rank-name">${esc(s.spot)}</span>
+        <div class="rank-bar"><i style="width:${Math.round((s.searches / max) * 100)}%"></i></div>
       </div>
-      <div class="kpi-value-row">
-        <span class="kpi-value">${c.value}</span>
-        ${deltaBadge(c.delta)}
-      </div>
-      <div class="kpi-chart">${c.chart}</div>
-      <span class="kpi-caption">${c.caption}</span>
+      <span class="rank-n">${fmtInt(s.searches)}</span>
     </div>`).join('');
+}
+
+// O que a região buscou — lista simples, sem mapa de calor.
+function renderSearched(top) {
+  $('#searched-list').innerHTML = rankRowsHTML(top);
+}
+
+// Números reais da plataforma — em uma linha calma, sem cards de vaidade.
+function renderPlatformFacts(t, offlineItineraries) {
+  const facts = [
+    [fmtInt(t.tourists), 'turistas cadastrados'],
+    [fmtInt(t.activeProducers), `produtores ativos · ${t.withListingsPct}% com anúncios`],
+    [fmtInt(t.listings), 'anúncios publicados'],
+    [fmtInt(offlineItineraries), 'roteiros prontos para uso offline'],
+  ];
+  $('#platform-facts').innerHTML = facts.map(([n, label]) =>
+    `<div class="fact"><strong>${n}</strong><span>${label}</span></div>`).join('');
 }
 
 // ─── Produtores ──────────────────────────────────────────────────────────────
@@ -389,25 +355,12 @@ async function loadProducers() {
   return pendingCount;
 }
 
-// ─── Heatmap ─────────────────────────────────────────────────────────────────
-const HEAT_COLORS = ['#E3EBE0', '#CBDCCB', '#8AA98F', '#4E8563', '#1C6B4A', '#14402E'];
-
-function renderHeatmap(h) {
-  $('#heat-grid').innerHTML = h.cells.map(c => `
-    <div class="heat-cell" style="background:${HEAT_COLORS[c.level]}"
-         title="${c.spot ? `${esc(c.spot)} · ${fmtInt(c.searches)} buscas` : 'sem buscas'}"></div>`).join('');
-  if (h.top) {
-    $('#heat-peak').innerHTML = `<strong>Pico: ${esc(h.top.spot)}</strong><small>${fmtInt(h.top.searches)} buscas · trilhas &amp; café</small>`;
-  }
-  $('#heat-stats').innerHTML = `
-    <div class="heat-stat"><strong>${fmtInt(h.weeklySearches)}</strong><small>buscas na semana</small></div>
-    <div class="heat-stat"><strong>${fmtInt(h.offlineItineraries)}</strong><small>itinerários offline</small></div>
-    <div class="heat-stat"><strong class="terra">${h.weeklyDeltaPct >= 0 ? '+' : '−'}${fmtPct(h.weeklyDeltaPct)}</strong><small>vs. semana anterior</small></div>`;
-  if (h.lastSync) {
-    const mins = Math.max(1, Math.round((Date.now() - new Date(h.lastSync).getTime()) / 60000));
-    const note = $('#pwa-sync-note');
-    if (note) note.textContent = `Itinerários offline atualizados há ${mins} min.`;
-  }
+// Nota de sincronização offline no card do PWA (canto do menu).
+function updatePwaNote(lastSync) {
+  if (!lastSync) return;
+  const mins = Math.max(1, Math.round((Date.now() - new Date(lastSync).getTime()) / 60000));
+  const note = $('#pwa-sync-note');
+  if (note) note.textContent = `Itinerários offline atualizados há ${mins} min.`;
 }
 
 // ─── Listas de conteúdo ──────────────────────────────────────────────────────
@@ -482,10 +435,11 @@ async function loadAll() {
       loadProducers(),
       loadChatAndAlerts(),
     ]);
-    renderKpis(dash.kpis);
-    renderHeatmap(dash.heatmap);
+    renderWorklist(dash.queue);
+    renderSearched(dash.topSearched);
+    renderPlatformFacts(dash.totals, dash.offlineItineraries);
     renderNav(pendingCount, chatCount);
-    renderHeatmap(dash.heatmap); // atualiza a nota do PWA depois que a nav existe
+    updatePwaNote(dash.lastSync); // atualiza a nota do PWA depois que a nav existe
     await loadListings();
   } catch (err) {
     if (err.message !== 'unauthorized') {
@@ -780,40 +734,29 @@ $('#internal-form').addEventListener('submit', async e => {
 // ─── Analytics ───────────────────────────────────────────────────────────────
 async function loadAnalyticsView() {
   const dash = await api('/dashboard');
-  const k = dash.kpis, h = dash.heatmap;
+  const t = dash.totals, top = dash.topSearched;
+  const weekSearches = top.reduce((s, x) => s + x.searches, 0);
 
   const cards = [
-    ['Buscas na semana', fmtInt(h.weeklySearches), h.weeklyDeltaPct, '#1C6B4A', 'vs. semana anterior'],
-    ['Novos turistas (30d)', fmtInt(k.newTourists.value), k.newTourists.deltaPct, '#8AA98F', 'vs. período anterior'],
-    ['Volume no mês', fmtMoney(k.transactionVolume.valueCents), k.transactionVolume.deltaPct, '#4A3226', 'vs. mês anterior'],
+    ['Buscas (7 dias)', fmtInt(weekSearches), 'nos destinos monitorados'],
+    ['Turistas cadastrados', fmtInt(t.tourists), 'no total da plataforma'],
+    ['Produtores ativos', fmtInt(t.activeProducers), `${t.withListingsPct}% com anúncios`],
   ];
-  $('#analytics-kpis').innerHTML = cards.map(([label, value, delta, accent, caption]) => `
-    <div class="kpi-card" style="border-top-color:${accent}">
-      <div class="kpi-head"><span>${label}</span></div>
-      <div class="kpi-value-row"><span class="kpi-value">${value}</span>${deltaBadge(delta)}</div>
-      <span class="kpi-caption">${caption}</span>
+  $('#analytics-kpis').innerHTML = cards.map(([label, value, caption]) => `
+    <div class="stat-card">
+      <span class="stat-label">${label}</span>
+      <span class="stat-value">${value}</span>
+      <span class="stat-caption">${caption}</span>
     </div>`).join('');
 
-  // Agrega as buscas do mapa de calor por destino
-  const bySpot = new Map();
-  for (const c of h.cells) {
-    if (c.spot) bySpot.set(c.spot, (bySpot.get(c.spot) || 0) + c.searches);
-  }
-  const top = [...bySpot.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
-  const max = top[0]?.[1] || 1;
-  $('#analytics-spots').innerHTML = top.map(([spot, n]) => `
-    <div class="spot-row">
-      <span class="spot-name">${esc(spot)}</span>
-      <div class="spot-bar"><i style="width:${Math.round((n / max) * 100)}%"></i></div>
-      <span class="spot-n">${fmtInt(n)}</span>
-    </div>`).join('') || '<p class="empty-note">Sem buscas registradas nos últimos 7 dias.</p>';
+  $('#analytics-spots').innerHTML = rankRowsHTML(top);
 
   $('#analytics-summary').innerHTML = `
-    <div class="heat-stats" style="flex-direction:column; gap:10px;">
-      <div class="heat-stat"><strong>${fmtInt(k.activeProducers.value)}</strong><small>produtores ativos · ${k.activeProducers.withListingsPct}% com anúncios</small></div>
-      <div class="heat-stat"><strong>${fmtInt(k.totalListings.value)}</strong><small>anúncios publicados</small></div>
-      <div class="heat-stat"><strong>${fmtInt(h.offlineItineraries)}</strong><small>itinerários prontos para uso offline</small></div>
-      <div class="heat-stat"><strong>${esc(h.top?.spot || '—')}</strong><small>destino em destaque da semana</small></div>
+    <div class="fact-col">
+      <div class="fact"><strong>${fmtInt(t.activeProducers)}</strong><span>produtores ativos · ${t.withListingsPct}% com anúncios</span></div>
+      <div class="fact"><strong>${fmtInt(t.listings)}</strong><span>anúncios publicados</span></div>
+      <div class="fact"><strong>${fmtInt(dash.offlineItineraries)}</strong><span>roteiros prontos para uso offline</span></div>
+      <div class="fact"><strong>${esc(top[0]?.spot || '—')}</strong><span>destino em destaque da semana</span></div>
     </div>`;
 }
 
