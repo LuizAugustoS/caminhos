@@ -82,7 +82,7 @@ select:focus-visible, textarea:focus-visible, summary:focus-visible,
 /* ─── Fundo natural: madeira clara + concreto ─── */
 .backdrop {
   min-height: 100vh;
-  padding: 36px 40px;
+  padding: 0;
   background:
     linear-gradient(135deg, rgba(232,226,214,.92), rgba(214,208,196,.94)),
     repeating-linear-gradient(90deg, #DED5C2 0px, #DED5C2 90px, #D6CCB8 90px, #D6CCB8 92px, #E1D8C6 92px, #E1D8C6 180px),
@@ -90,12 +90,9 @@ select:focus-visible, textarea:focus-visible, summary:focus-visible,
 }
 
 .app-frame {
-  max-width: 1560px;
-  margin: 0 auto;
+  width: 100%;
+  min-height: 100vh;
   background: var(--paper);
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: 0 40px 80px -24px rgba(46,36,26,.35), 0 8px 24px rgba(46,36,26,.12), 0 0 0 1px rgba(74,50,38,.08);
   display: flex;
   flex-direction: column;
 }
@@ -246,6 +243,20 @@ select:focus-visible, textarea:focus-visible, summary:focus-visible,
 .onb-step.done .onb-text strong { color: var(--muted-2); text-decoration: line-through; }
 .onb-text small { font-size: 12px; color: var(--muted-2); }
 .onb-step .btn-sm { flex-shrink: 0; }
+
+/* ─── Painel de desempenho do produtor ─── */
+.insights-panel { margin-bottom: 20px; }
+.ins-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 4px 0 16px; }
+.ins-stat { display: flex; flex-direction: column; gap: 2px; }
+.ins-num { font-family: var(--serif); font-size: 26px; font-weight: 600; color: var(--forest); line-height: 1; }
+.ins-lbl { font-size: 11.5px; font-weight: 600; color: var(--muted-2); }
+.ins-chart {
+  display: flex; align-items: flex-end; gap: 8px; height: 56px;
+  padding: 8px 10px; background: #FBF7EC; border: 1px solid var(--line); border-radius: 12px;
+}
+.ins-bar { flex: 1; min-width: 0; background: linear-gradient(180deg, #4E9A72, var(--green)); border-radius: 4px 4px 2px 2px; }
+.ins-cap { margin: 6px 0 0; font-size: 11px; color: var(--muted-2); font-weight: 600; text-align: center; }
+@media (max-width: 560px) { .ins-stats { grid-template-columns: repeat(2, 1fr); } }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 .kpi-card {
@@ -864,7 +875,6 @@ body.no-scroll { overflow: hidden; }
   .panel-grid, .chat-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 900px) {
-  .backdrop { padding: 12px; }
   /* Admin: sidebar vira barra horizontal rolável no topo do conteúdo */
   .body { flex-direction: column; min-height: 0; }
   .sidenav {

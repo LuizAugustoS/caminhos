@@ -42,6 +42,7 @@ async function loadShowcase() {
     badge.textContent = overview.unreadMessages || '';
 
     renderOnboarding(overview.onboarding);
+    renderInsights();
 
     const kpis = [
       ['Publicados', overview.listings.approved, '#1C6B4A', 'visíveis para turistas'],
@@ -81,6 +82,31 @@ async function loadShowcase() {
   } catch (err) {
     if (!err.unauthorized) toast(err.message);
   }
+}
+
+// Painel de desempenho: visualizações (30d + série), reservas e conversão.
+async function renderInsights() {
+  const el = $('#insights-panel');
+  if (!el) return;
+  try {
+    const ins = await api('/portal/insights');
+    const max = Math.max(1, ...ins.views.series);
+    const bars = ins.views.series
+      .map(n => `<div class="ins-bar" style="height:${Math.round(6 + (n / max) * 46)}px" title="${n} visualizações na semana"></div>`)
+      .join('');
+    const rate = ins.confirmationRate == null ? '—' : `${Math.round(ins.confirmationRate * 100)}%`;
+    el.innerHTML = `
+      <div class="panel-head"><h2>Desempenho</h2></div>
+      <div class="ins-stats">
+        <div class="ins-stat"><span class="ins-num">${ins.views.total30d}</span><span class="ins-lbl">visualizações · 30 dias</span></div>
+        <div class="ins-stat"><span class="ins-num">${ins.bookings.total}</span><span class="ins-lbl">reservas recebidas</span></div>
+        <div class="ins-stat"><span class="ins-num">${rate}</span><span class="ins-lbl">taxa de confirmação</span></div>
+        <div class="ins-stat"><span class="ins-num">${ins.conversations}</span><span class="ins-lbl">conversas iniciadas</span></div>
+      </div>
+      <div class="ins-chart" aria-hidden="true">${bars}</div>
+      <p class="ins-cap">Visualizações por semana (últimas 6)</p>`;
+    el.classList.remove('hidden');
+  } catch { /* silencioso — o desempenho é complementar */ }
 }
 
 // Primeiros passos do produtor: checklist que some quando tudo está pronto

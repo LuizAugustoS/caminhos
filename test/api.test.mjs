@@ -287,6 +287,39 @@ test('página pública do anúncio com OG tags', async () => {
   assert.equal((await fetch(`${BASE}/p/999999`)).status, 404);
 });
 
+test('dados estruturados (JSON-LD) nas páginas públicas', async () => {
+  const grab = html => {
+    const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    return m ? JSON.parse(m[1]) : null;
+  };
+  const p = grab(await (await fetch(`${BASE}/p/6`)).text());
+  assert.ok(p && ['Product', 'Event'].includes(p['@type']), 'anúncio tem Product/Event');
+  assert.equal(p.offers.priceCurrency, 'BRL');
+  const e = grab(await (await fetch(`${BASE}/e/1`)).text());
+  assert.equal(e['@type'], 'LocalBusiness');
+  assert.equal(e.address['@type'], 'PostalAddress');
+});
+
+test('explorar: ordenar "perto de mim" muda pela posição', async () => {
+  const ids = j => j.listings.map(l => l.producer_name).join(',');
+  const iuna = await (await fetch(`${BASE}/api/explore/listings?sort=distance&near=-20.346,-41.535&limit=5`)).json();
+  const ibiti = await (await fetch(`${BASE}/api/explore/listings?sort=distance&near=-20.594,-41.759&limit=5`)).json();
+  assert.ok(iuna.listings.length && ibiti.listings.length);
+  assert.notEqual(ids(iuna), ids(ibiti), 'a ordem muda conforme a proximidade');
+  // near inválido não quebra (cai para relevância)
+  assert.equal((await fetch(`${BASE}/api/explore/listings?sort=distance&near=xyz`)).status, 200);
+});
+
+test('produtor: insights de desempenho', async () => {
+  const p = client();
+  await p('/api/login', { method: 'POST', body: { email: 'produtor@demo.com', password: 'caparao2026' } });
+  const ins = await (await p('/api/portal/insights')).json();
+  assert.ok(Array.isArray(ins.views.series) && ins.views.series.length === 6, 'série de 6 semanas');
+  assert.equal(typeof ins.views.total30d, 'number');
+  assert.ok(ins.bookings && typeof ins.bookings.total === 'number');
+  assert.ok(ins.confirmationRate === null || (ins.confirmationRate >= 0 && ins.confirmationRate <= 1));
+});
+
 test('sitemap.xml e robots.txt', async () => {
   const sm = await fetch(`${BASE}/sitemap.xml`);
   assert.equal(sm.status, 200);

@@ -76,6 +76,10 @@ const { check, finish } = runner();
   await page.waitForSelector('#my-listings .table-row');
   check('produtor: anúncios na vitrine', await page.locator('#my-listings .table-row').count() > 0);
   check('produtor: KPI de avaliação média', await page.locator('.kpi-card:has-text("Avaliação média")').count() === 1);
+  // Painel de desempenho: estatísticas + série de barras
+  await page.waitForSelector('#insights-panel:not(.hidden)');
+  check('produtor: painel de desempenho', await page.locator('.ins-stat').count() === 4
+    && await page.locator('.ins-bar').count() === 6);
 
   // Primeiros passos: card com 3 passos, o de publicar anúncio já concluído
   await page.waitForSelector('.onboarding');

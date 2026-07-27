@@ -84,6 +84,7 @@
               <span>Ordenar</span>
               <select id="explore-sort" aria-label="Ordenar resultados">
                 <option value="relevance">Relevância</option>
+                <option value="distance">Perto de mim</option>
                 <option value="price_asc">Menor preço</option>
                 <option value="price_desc">Maior preço</option>
                 <option value="rating">Melhor avaliação</option>
@@ -200,7 +201,7 @@
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/js/shared.js"></script>
 <script src="/js/idb.js"></script>
