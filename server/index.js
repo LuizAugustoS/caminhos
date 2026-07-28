@@ -104,7 +104,7 @@ app.use('/api/trips', requireRole('tourist'), trips);
 app.use('/api/favorites', requireRole('tourist'), favorites);
 app.use('/api/bookings', requireRole('tourist'), bookings);
 app.use('/api/reviews', requireRole('tourist'), reviews);
-app.use('/api/reports', requireRole('tourist'), reports);
+app.use('/api/reports', requireRole('tourist', 'producer'), reports);
 
 // Turista + produtor (chat assimétrico)
 app.use('/api/conversations', requireRole('tourist', 'producer', 'admin'), conversations);

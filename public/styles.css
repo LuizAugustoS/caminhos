@@ -375,6 +375,15 @@ select:focus-visible, textarea:focus-visible, summary:focus-visible,
   padding: 1px 7px; border-radius: 6px; font-size: 10px; font-weight: 800;
   background: #F4E1D6; color: #A24E28;
 }
+/* Etiqueta do tipo de denúncia (anúncio / produtor / turista) */
+.report-tag {
+  display: inline-block; vertical-align: middle; margin-right: 6px;
+  padding: 1px 8px; border-radius: 6px; font-size: 10px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.report-tag-listing { background: #E9F0EA; color: var(--green-dark); }
+.report-tag-producer { background: #F4EAD9; color: #8A6414; }
+.report-tag-tourist { background: #E7EEF5; color: #3A5A78; }
 .avatar {
   border-radius: 11px; flex-shrink: 0; color: #FFF9EC;
   display: flex; align-items: center; justify-content: center; font-weight: 800;
@@ -790,6 +799,7 @@ body.offline .offline-banner { display: block; }
   padding-bottom: 12px; margin-bottom: 8px; border-bottom: 1px solid #F0E9D8;
 }
 .thread-head:empty { display: none; }
+.thread-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .thread-head strong { color: var(--forest); font-weight: 800; }
 .thread-sep { color: var(--muted-3); font-weight: 600; margin: 0 4px; }
 .conv-thread { display: flex; flex-direction: column; min-height: 420px; }
