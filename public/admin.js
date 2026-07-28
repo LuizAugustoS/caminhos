@@ -635,17 +635,22 @@ const REPORT_REASON_LABEL = {
   spam: 'Spam ou golpe', inapropriado: 'Conteúdo inapropriado',
   enganoso: 'Informação enganosa', fora_regiao: 'Não é do Caparaó', outro: 'Outro motivo',
 };
+const REPORT_TARGET_LABEL = { listing: 'Anúncio', producer: 'Produtor', tourist: 'Turista' };
 function reportRowHTML(r) {
   const reasons = (r.reasons || []).map(x => REPORT_REASON_LABEL[x] || x).join(' · ');
   const detail = (r.details || [])[0];
+  const sub = [REPORT_TARGET_LABEL[r.target_type] || r.target_type, r.target_sub, reasons]
+    .filter(Boolean).map(esc).join(' · ');
   return `
-    <div class="report-row" data-listing="${r.listing_id}">
+    <div class="report-row" data-target-type="${esc(r.target_type)}" data-target-id="${r.target_id}">
       <div class="report-info">
-        <div class="name">${esc(r.title)} <span class="report-count">${r.reports} denúncia${r.reports > 1 ? 's' : ''}</span></div>
-        <div class="kind">${esc(r.producer_name)} · ${esc(reasons)}${detail ? ` — “${esc(detail)}”` : ''}</div>
+        <div class="name"><span class="report-tag report-tag-${esc(r.target_type)}">${esc(REPORT_TARGET_LABEL[r.target_type] || '?')}</span>
+          ${esc(r.target_name || '—')} <span class="report-count">${r.reports} denúncia${r.reports > 1 ? 's' : ''}</span></div>
+        <div class="kind">${sub}${detail ? ` — “${esc(detail)}”` : ''}</div>
       </div>
       <div class="row-actions">
-        <button class="btn-view" data-report-open aria-label="Ver anúncio" title="Ver anúncio">→</button>
+        ${r.target_type === 'listing'
+          ? '<button class="btn-view" data-report-open aria-label="Ver anúncio" title="Ver anúncio">→</button>' : ''}
         <button class="btn-approve" data-report-resolve title="Marcar como resolvida">${icon('check', 15)}</button>
       </div>
     </div>`;
@@ -676,11 +681,13 @@ async function loadReportsView() {
 $('#reports-list').addEventListener('click', async e => {
   const row = e.target.closest('.report-row');
   if (!row) return;
-  const id = Number(row.dataset.listing);
-  if (e.target.closest('[data-report-open]')) return openListingDetailAdmin(id);
+  const { targetType, targetId } = row.dataset;
+  if (e.target.closest('[data-report-open]') && targetType === 'listing') {
+    return openListingDetailAdmin(Number(targetId));
+  }
   if (e.target.closest('[data-report-resolve]')) {
     try {
-      await api(`/admin/reports/${id}/reviewed`, { method: 'POST' });
+      await api(`/admin/reports/${targetType}/${targetId}/reviewed`, { method: 'POST' });
       toast('Denúncia resolvida');
       loadReportsView();
     } catch (err) { toast(err.message); }

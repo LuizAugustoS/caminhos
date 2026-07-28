@@ -9,6 +9,46 @@ let currentConvId = null;
 // ─── Views ───────────────────────────────────────────────────────────────────
 const VIEWS = { showcase: loadShowcase, bookings: loadBookings, chat: loadConversations, reviews: loadReviews, profile: loadProfile };
 
+// Denúncia de turista (abuso no chat). A equipe modera pela fila do admin.
+const REPORT_REASON_OPTIONS = {
+  spam: 'Spam ou golpe', inapropriado: 'Conteúdo inapropriado',
+  enganoso: 'Informação enganosa', fora_regiao: 'Fora do escopo', outro: 'Outro motivo',
+};
+function reportTourist(touristId, name) {
+  if (!navigator.onLine) return toast('Conecte-se para enviar uma denúncia');
+  const { overlay, close } = openModal(`
+    <h3>Denunciar turista</h3>
+    <p class="modal-msg">Sinalize à equipe um comportamento abusivo de “${esc(name)}”. Sua denúncia não é mostrada ao turista.</p>
+    <form class="modal-form" id="rt-form">
+      <div class="field">
+        <label for="rt-reason">Motivo</label>
+        <select id="rt-reason">
+          ${Object.entries(REPORT_REASON_OPTIONS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label for="rt-detail">Detalhes (opcional)</label>
+        <textarea id="rt-detail" rows="3" placeholder="Descreva o ocorrido"></textarea>
+      </div>
+      <div class="row-actions modal-actions">
+        <button type="submit" class="btn-primary">Enviar denúncia</button>
+        <button type="button" class="btn-secondary" data-modal-cancel>Cancelar</button>
+      </div>
+    </form>`);
+  overlay.querySelector('#rt-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      const r = await api('/reports', { method: 'POST', body: JSON.stringify({
+        target_type: 'tourist', target_id: touristId,
+        reason: overlay.querySelector('#rt-reason').value,
+        detail: overlay.querySelector('#rt-detail').value,
+      }) });
+      close();
+      toast(r.already ? 'Você já havia denunciado este turista' : 'Denúncia enviada — obrigado por avisar');
+    } catch (err) { toast(err.message); }
+  });
+}
+
 function switchView(name) {
   $$('.vtab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
   $$('.view').forEach(v => v.classList.toggle('hidden', v.id !== `view-${name}`));
@@ -440,9 +480,11 @@ $('#producer-bookings').addEventListener('click', async e => {
 });
 
 // ─── Mensagens ───────────────────────────────────────────────────────────────
+let producerConvs = [];
 async function loadConversations() {
   try {
     const { conversations, unreadTotal } = await api('/conversations');
+    producerConvs = conversations; // guarda para o thread (id/nome do turista)
     const unread = unreadTotal ?? conversations.reduce((s, c) => s + Number(c.unread || 0), 0);
     const badge = $('#chat-badge');
     badge.classList.toggle('hidden', !unread);
@@ -484,8 +526,12 @@ async function openThread(convId) {
   try {
     const data = await api(`/conversations/${convId}/messages`);
     threadHasMore = data.hasMore; threadOldestId = data.oldestId;
+    const conv = producerConvs.find(c => c.id === convId);
     $('#conv-thread').innerHTML = `
-      <button type="button" class="thread-back" id="thread-back">‹ Conversas</button>
+      <div class="thread-topbar">
+        <button type="button" class="thread-back" id="thread-back">‹ Conversas</button>
+        ${conv ? `<button type="button" class="report-link" id="report-tourist" data-tourist="${conv.tourist_id}" data-name="${esc(conv.tourist_name)}">Denunciar turista</button>` : ''}
+      </div>
       <div class="thread-msgs" id="thread-msgs">
         ${olderBtnHTML()}
         ${data.messages.map(m => msgBubble(m.body, m.sender_id === me.id, fmtTime(m.created_at))).join('')}
@@ -514,6 +560,10 @@ async function openThread(convId) {
       currentConvId = null;
       $('.chat-layout')?.classList.remove('thread-open');
       loadConversations();
+    });
+    $('#report-tourist')?.addEventListener('click', ev => {
+      const b = ev.currentTarget;
+      reportTourist(Number(b.dataset.tourist), b.dataset.name);
     });
     $('#thread-form').addEventListener('submit', async e => {
       e.preventDefault();

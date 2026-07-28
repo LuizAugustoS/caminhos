@@ -339,16 +339,32 @@ await client.query(
   ['Muito obrigado pela visita! Foi um prazer receber vocês — voltem sempre que quiserem repetir a colheita. ☕']
 );
 
-// Uma denúncia aberta de exemplo, para a fila de moderação do admin não vir vazia.
+// Denúncias de exemplo — uma de cada tipo — para a fila de moderação do admin.
+// Anúncio (turista denuncia um anúncio):
 await client.query(
-  `INSERT INTO listing_reports (listing_id, reporter_id, reason, detail)
-   SELECT l.id, u.id, 'informacao_incorreta',
+  `INSERT INTO listing_reports (target_type, target_id, listing_id, reporter_id, reason, detail)
+   SELECT 'listing', l.id, l.id, u.id, 'enganoso',
           'O preço anunciado parece desatualizado — confirmei outro valor no contato direto.'
    FROM listings l
-   CROSS JOIN (SELECT id FROM users WHERE email = $1 LIMIT 1) u
+   CROSS JOIN (SELECT id FROM users WHERE email = 'turista@demo.com' LIMIT 1) u
    WHERE l.status = 'approved'
-   ORDER BY l.id LIMIT 1`,
-  ['turista@demo.com']
+   ORDER BY l.id LIMIT 1`
+);
+// Produtor (turista denuncia um estabelecimento):
+await client.query(
+  `INSERT INTO listing_reports (target_type, target_id, reporter_id, reason, detail)
+   SELECT 'producer', p.id, u.id, 'fora_regiao',
+          'O estabelecimento não parece ficar na região do Caparaó.'
+   FROM (SELECT id FROM producers WHERE name = 'Rancho do Tião' LIMIT 1) p
+   CROSS JOIN (SELECT id FROM users WHERE email = 'turista@demo.com' LIMIT 1) u`
+);
+// Turista (produtor denuncia abuso no chat):
+await client.query(
+  `INSERT INTO listing_reports (target_type, target_id, reporter_id, reason, detail)
+   SELECT 'tourist', t.id, pu.id, 'inapropriado',
+          'Mensagens ofensivas no chat depois de eu recusar uma reserva.'
+   FROM (SELECT id FROM users WHERE email = 'turista@demo.com' LIMIT 1) t
+   CROSS JOIN (SELECT id FROM users WHERE email = 'produtor@demo.com' LIMIT 1) pu`
 );
 
 // Visualizações diárias dos últimos 40 dias em cada anúncio aprovado — alimenta

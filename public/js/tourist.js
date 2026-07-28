@@ -170,6 +170,7 @@ const placeCard = e => `
       <span class="ex-meta">${esc(e.address || '')}${e.open_hours ? ' · ' + esc(e.open_hours) : ''}${e.phone ? ' · ' + esc(e.phone) : ''}</span>
       ${e.lat != null && e.lng != null
         ? `<a class="ex-meta directions-link" href="${mapsLink(e.lat, e.lng)}" target="_blank" rel="noopener">Como chegar ➚</a>` : ''}
+      <button type="button" class="report-link" data-action="report-place" data-name="${esc(e.name)}">Denunciar estabelecimento</button>
     </div>
     <div class="ex-actions">
       <button class="btn-secondary" data-action="add-place">+ Roteiro</button>
@@ -365,11 +366,14 @@ const REPORT_LABELS = {
   fora_regiao: 'Não é do Caparaó',
   outro: 'Outro motivo',
 };
-function reportListing(l) {
-  if (!navigator.onLine) return toast('Conecte-se para denunciar um anúncio');
+// Modal de denúncia genérico: serve para anúncio e estabelecimento (produtor).
+// A denúncia não é mostrada ao denunciado; a equipe modera pela fila do admin.
+function openReport(targetType, targetId, name) {
+  if (!navigator.onLine) return toast('Conecte-se para enviar uma denúncia');
+  const noun = targetType === 'producer' ? 'estabelecimento' : 'anúncio';
   const { overlay, close } = openModal(`
-    <h3>Denunciar anúncio</h3>
-    <p class="modal-msg">Conte à equipe o que há de errado com “${esc(l.title)}”. Sua denúncia não é mostrada ao produtor.</p>
+    <h3>Denunciar ${noun}</h3>
+    <p class="modal-msg">Conte à equipe o que há de errado com “${esc(name)}”. Sua denúncia não é mostrada ao denunciado.</p>
     <form class="modal-form" id="report-form">
       <div class="field">
         <label for="report-reason">Motivo</label>
@@ -389,15 +393,17 @@ function reportListing(l) {
   overlay.querySelector('#report-form').addEventListener('submit', async e => {
     e.preventDefault();
     try {
-      const r = await api(`/reports/${l.id}`, { method: 'POST', body: JSON.stringify({
+      const r = await api('/reports', { method: 'POST', body: JSON.stringify({
+        target_type: targetType, target_id: targetId,
         reason: overlay.querySelector('#report-reason').value,
         detail: overlay.querySelector('#report-detail').value,
       }) });
       close();
-      toast(r.already ? 'Você já havia denunciado este anúncio' : 'Denúncia enviada — obrigado por avisar');
+      toast(r.already ? 'Você já havia enviado esta denúncia' : 'Denúncia enviada — obrigado por avisar');
     } catch (err) { toast(err.message); }
   });
 }
+const reportListing = l => openReport('listing', l.id, l.title);
 
 // ─── Reservas ────────────────────────────────────────────────────────────────
 async function openBookingForm(l) {
@@ -564,6 +570,7 @@ $('#explore-grid').addEventListener('click', async e => {
     return addToTrip(item, card.querySelector('.ex-title').textContent);
   }
   if (btn.dataset.action === 'chat') return startConversation(producerId);
+  if (btn.dataset.action === 'report-place') return openReport('producer', producerId, btn.dataset.name);
 });
 
 // ─── Favoritos ───────────────────────────────────────────────────────────────

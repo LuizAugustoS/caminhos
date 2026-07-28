@@ -456,24 +456,46 @@ test('denúncia de anúncio: turista denuncia, admin vê e resolve', async () =>
   const t = client();
   await t('/api/register', { method: 'POST', body: {
     name: 'Denunciante', email: `dn-${uniq}@test.com`, password: 'senha1234', role: 'tourist' } });
-  assert.equal((await t('/api/reports/6', { method: 'POST', body: { reason: 'enganoso', detail: 'preço' } })).status, 201);
-  // segunda denúncia do mesmo usuário no mesmo anúncio é tolerada, sem duplicar
-  const dup = await t('/api/reports/6', { method: 'POST', body: { reason: 'spam' } });
+  const rep = { target_type: 'listing', target_id: 6, reason: 'enganoso', detail: 'preço' };
+  assert.equal((await t('/api/reports', { method: 'POST', body: rep })).status, 201);
+  // segunda denúncia do mesmo usuário no mesmo alvo é tolerada, sem duplicar
+  const dup = await t('/api/reports', { method: 'POST', body: { target_type: 'listing', target_id: 6, reason: 'spam' } });
   assert.equal(dup.status, 200);
   assert.equal((await dup.json()).already, true);
   // motivo inválido → 400
-  assert.equal((await t('/api/reports/6', { method: 'POST', body: { reason: 'qualquer' } })).status, 400);
+  assert.equal((await t('/api/reports', { method: 'POST', body: { target_type: 'listing', target_id: 6, reason: 'qualquer' } })).status, 400);
+  // tipo de alvo inválido → 400
+  assert.equal((await t('/api/reports', { method: 'POST', body: { target_type: 'planeta', target_id: 6, reason: 'spam' } })).status, 400);
 
   const a = client();
   await a('/api/login', { method: 'POST', body: {
     email: 'admin@caminhosdocaparao.com.br', password: 'caparao2026' } });
   const q = await (await a('/api/admin/reports')).json();
-  const row = q.reports.find(x => x.listing_id === 6);
+  const row = q.reports.find(x => x.target_type === 'listing' && x.target_id === 6);
   assert.ok(row && row.reports >= 1, 'denúncia aparece na fila do admin');
+  assert.ok(row.target_name, 'fila traz o nome do alvo');
 
-  assert.equal((await a('/api/admin/reports/6/reviewed', { method: 'POST' })).status, 200);
+  assert.equal((await a('/api/admin/reports/listing/6/reviewed', { method: 'POST' })).status, 200);
   const q2 = await (await a('/api/admin/reports')).json();
-  assert.ok(!q2.reports.some(x => x.listing_id === 6), 'fila zera após resolver');
+  assert.ok(!q2.reports.some(x => x.target_type === 'listing' && x.target_id === 6), 'fila zera após resolver');
+});
+
+test('denúncia de produtor e de turista (fila genérica de moderação)', async () => {
+  // Turista denuncia um produtor aprovado
+  const t = client();
+  await t('/api/register', { method: 'POST', body: {
+    name: 'Denunciante 2', email: `dn2-${uniq}@test.com`, password: 'senha1234', role: 'tourist' } });
+  assert.equal((await t('/api/reports', { method: 'POST', body: {
+    target_type: 'producer', target_id: 3, reason: 'fora_regiao' } })).status, 201);
+  // Turista NÃO pode denunciar outro turista (papel sem permissão) → 403
+  assert.equal((await t('/api/reports', { method: 'POST', body: {
+    target_type: 'tourist', target_id: 1, reason: 'spam' } })).status, 403);
+
+  const a = client();
+  await a('/api/login', { method: 'POST', body: {
+    email: 'admin@caminhosdocaparao.com.br', password: 'caparao2026' } });
+  const q = await (await a('/api/admin/reports')).json();
+  assert.ok(q.reports.some(x => x.target_type === 'producer' && x.target_id === 3), 'denúncia de produtor na fila');
 });
 
 test('upload de imagem é otimizado e gravado como WebP', async () => {
