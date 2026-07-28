@@ -8,6 +8,46 @@ import { pushToUser } from '../push.js';
 
 export const conversations = Router();
 
+// ─── Moderação (admin): visão de todas as conversas turista ↔ produtor ───────
+// A equipe acompanha os contatos para mediar problemas. Somente leitura: lista
+// as conversas e o histórico de qualquer uma, sem marcar mensagens como lidas
+// (não interfere no estado de leitura dos participantes).
+export const adminConversations = Router();
+
+adminConversations.get('/', async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 60, 100);
+  const { rows } = await query(
+    `SELECT c.id, c.created_at,
+            p.name AS producer_name, p.initials AS producer_initials, p.avatar_color AS producer_color,
+            u.name AS tourist_name,
+            (SELECT body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_message,
+            (SELECT max(m.created_at) FROM messages m WHERE m.conversation_id = c.id) AS last_at,
+            (SELECT count(*) FROM messages m WHERE m.conversation_id = c.id) AS total
+     FROM conversations c
+     JOIN producers p ON p.id = c.producer_id
+     JOIN users u ON u.id = c.tourist_id
+     WHERE EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id)
+     ORDER BY last_at DESC NULLS LAST
+     LIMIT $1`,
+    [limit]
+  );
+  res.json({ conversations: rows });
+});
+
+adminConversations.get('/:id/messages', async (req, res) => {
+  const { rows } = await query(
+    `SELECT m.id, m.body, m.created_at, u.name AS sender_name,
+            (m.sender_id = c.tourist_id) AS from_tourist
+     FROM messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     JOIN users u ON u.id = m.sender_id
+     WHERE m.conversation_id = $1
+     ORDER BY m.created_at, m.id`,
+    [req.params.id]
+  );
+  res.json({ messages: rows });
+});
+
 // Produtor vinculado à conta logada (null para turistas)
 async function myProducerId(userId) {
   const { rows } = await query('SELECT id FROM producers WHERE user_id = $1', [userId]);

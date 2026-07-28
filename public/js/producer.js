@@ -178,12 +178,27 @@ function openListingForm(listing) {
   $('#l-event-time').value = listing?.event_time || '';
   $('#l-event-place').value = listing?.event_place || '';
   syncEventFields();
-  $('#listing-form').classList.remove('hidden');
+  // Abre a modal por cima da vitrine (sem trocar de página) e trava o scroll do fundo.
+  $('#listing-modal').classList.remove('hidden');
+  document.body.classList.add('no-scroll');
   $('#l-title').focus();
 }
 
+// Fecha a modal e devolve o scroll ao corpo da página.
+function closeListingForm() {
+  $('#listing-modal').classList.add('hidden');
+  document.body.classList.remove('no-scroll');
+}
+
 $('#btn-new-listing').addEventListener('click', () => openListingForm(null));
-$('#listing-cancel').addEventListener('click', () => $('#listing-form').classList.add('hidden'));
+$('#listing-cancel').addEventListener('click', closeListingForm);
+$('#listing-close').addEventListener('click', closeListingForm);
+// Fecha ao clicar no fundo escurecido (fora do cartão da modal)
+$('#listing-modal').addEventListener('click', e => { if (e.target.id === 'listing-modal') closeListingForm(); });
+// Fecha com a tecla Esc quando a modal está aberta
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('#listing-modal').classList.contains('hidden')) closeListingForm();
+});
 
 $('#listing-form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -203,7 +218,7 @@ $('#listing-form').addEventListener('submit', async e => {
   try {
     if (editingId) await api(`/portal/listings/${editingId}`, { method: 'PUT', body });
     else await api('/portal/listings', { method: 'POST', body });
-    $('#listing-form').classList.add('hidden');
+    closeListingForm();
     toast('Anúncio enviado para revisão');
     loadShowcase();
   } catch (err) { toast(err.message); }

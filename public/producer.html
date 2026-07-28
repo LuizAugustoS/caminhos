@@ -26,6 +26,9 @@
       <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menu" aria-controls="view-tabs" aria-expanded="false">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
       </button>
+      <button class="home-btn" id="home-btn" aria-label="Voltar ao início" title="Início">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+      </button>
       <div id="brand-slot"></div>
       <div class="topbar-right">
         <span class="plan-badge hidden" id="producer-plan" title="Para mudar de plano, fale com a equipe"></span>
@@ -78,7 +81,12 @@
           <div id="my-listings"></div>
         </section>
 
-        <form class="panel listing-form hidden" id="listing-form">
+        <!-- Modal de novo/editar anúncio: abre sobre a vitrine, sem trocar de página -->
+        <div class="modal-overlay hidden" id="listing-modal">
+        <form class="modal modal-lg listing-form" id="listing-form" role="dialog" aria-modal="true" aria-labelledby="listing-form-title">
+          <button type="button" class="modal-x" id="listing-close" aria-label="Fechar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
           <h2 id="listing-form-title">Novo anúncio</h2>
           <div class="form-grid">
             <div class="field">
@@ -123,11 +131,12 @@
             </div>
           </div>
           <p class="login-hint" style="text-align:left">Todo anúncio novo ou editado passa pela moderação da equipe antes de aparecer para os turistas.</p>
-          <div class="row-actions">
+          <div class="row-actions modal-actions">
             <button type="submit" class="btn-primary" id="listing-save">Enviar para revisão</button>
             <button type="button" class="btn-secondary" id="listing-cancel">Cancelar</button>
           </div>
         </form>
+        </div>
       </section>
 
       <!-- ═══ Reservas ═══ -->

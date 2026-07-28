@@ -393,6 +393,21 @@ test('dashboard: fila de trabalho e totais reais (sem métricas de vaidade)', as
   assert.equal(d.heatmap, undefined, 'sem mapa de calor');
 });
 
+test('admin: moderação de conversas (lista + histórico de uma conversa)', async () => {
+  const a = client();
+  await a('/api/login', { method: 'POST', body: {
+    email: 'admin@caminhosdocaparao.com.br', password: 'caparao2026' } });
+  const { conversations } = await (await a('/api/admin/conversations')).json();
+  assert.ok(Array.isArray(conversations) && conversations.length > 0, 'lista conversas do seed');
+  const c = conversations[0];
+  assert.ok(c.tourist_name && c.producer_name, 'conversa traz turista e produtor');
+  assert.ok(Number(c.total) > 0, 'contagem de mensagens');
+  // Histórico de UMA conversa específica (master-detail)
+  const { messages } = await (await a(`/api/admin/conversations/${c.id}/messages`)).json();
+  assert.ok(Array.isArray(messages) && messages.length > 0, 'histórico da conversa');
+  assert.ok(messages.every(m => typeof m.from_tourist === 'boolean'), 'lado da bolha definido');
+});
+
 test('admin: troca de plano, auditoria e CSV', async () => {
   const a = client();
   const r = await a('/api/login', { method: 'POST', body: {

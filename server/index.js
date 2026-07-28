@@ -11,7 +11,7 @@ import { producers, listings } from './routes/moderation.js';
 import { misc } from './routes/misc.js';
 import { explore } from './routes/explore.js';
 import { trips, favorites } from './routes/trips.js';
-import { conversations } from './routes/chat.js';
+import { conversations, adminConversations } from './routes/chat.js';
 import { portal } from './routes/portal.js';
 import { reviews, adminReviews } from './routes/reviews.js';
 import { reports, adminReports } from './routes/reports.js';
@@ -115,6 +115,7 @@ app.use('/api/portal', requireRole('producer'), portal);
 // Admin
 app.use('/api/admin/reviews', requireRole('admin'), adminReviews);
 app.use('/api/admin/reports', requireRole('admin'), adminReports);
+app.use('/api/admin/conversations', requireRole('admin'), adminConversations);
 app.use('/api/dashboard', requireRole('admin'), dashboard);
 app.use('/api/producers', requireRole('admin'), producers);
 app.use('/api/listings', requireRole('admin'), listings);

@@ -100,7 +100,13 @@ const { check, finish } = runner();
   const page = await (await browser.newContext()).newPage();
   await login(page, 'admin@caminhosdocaparao.com.br', 'caparao2026');
   await page.waitForURL('**/admin');
-  await page.click('#sidenav .nav-item[data-view=producers]');
+  // Submenu pai/filho: expandir "Produtores/Comerciantes" antes de navegar
+  await page.waitForSelector('#sidenav .nav-parent');
+  check('admin: submenu recolhido por padrão', !(await page.locator('#sidenav .nav-group').first().evaluate(el => el.classList.contains('open'))));
+  await page.click('#sidenav .nav-parent');
+  await page.waitForTimeout(300);
+  check('admin: submenu abre ao clicar no pai', await page.locator('#sidenav .nav-group.open').count() > 0);
+  await page.click('#sidenav .nav-child[data-view=producers]');
   await page.waitForSelector('#producers-all .producer-row');
   check('admin: lista de produtores', await page.locator('#producers-all .producer-row').count() > 0);
   check('admin: selos de plano nas linhas', await page.locator('#producers-all .plan-badge').count() > 0);
@@ -109,11 +115,22 @@ const { check, finish } = runner();
   await page.click('#producers-plan-filter .tab[data-plan=premium]');
   await page.waitForTimeout(500);
   check('admin: filtro premium retorna linhas', await page.locator('#producers-all .producer-row').count() > 0);
-  // fila de denúncias na aba Cadastros
-  await page.click('#sidenav .nav-item[data-view=registrations]');
-  await page.waitForSelector('#reg-reports');
+  // seção dedicada de Denúncias (submenu)
+  await page.click('#sidenav .nav-child[data-view=reports]');
+  await page.waitForSelector('#reports-list');
   await page.waitForTimeout(400);
-  check('admin: painel de denúncias presente', await page.locator('#reg-reports').count() === 1);
+  check('admin: seção de denúncias presente', await page.locator('#reports-list').count() === 1);
+  check('admin: denúncia listada na seção', await page.locator('#reports-list .report-row').count() > 0);
+  // botões Aprovar/Recusar com a mesma altura (alinhamento via flexbox)
+  await page.click('#sidenav .nav-child[data-view=registrations]');
+  await page.waitForSelector('#reg-producers .producer-row');
+  const btnSizes = await page.evaluate(() => {
+    const row = document.querySelector('#reg-producers .producer-row');
+    const a = row?.querySelector('.btn-approve')?.getBoundingClientRect().height;
+    const r = row?.querySelector('.btn-reject')?.getBoundingClientRect().height;
+    return { a, r };
+  });
+  check('admin: Aprovar e Recusar com a mesma altura', btnSizes.a && btnSizes.r && Math.abs(btnSizes.a - btnSizes.r) < 1);
   await page.close();
 }
 

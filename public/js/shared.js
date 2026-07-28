@@ -598,6 +598,19 @@ function initNavToggle(navId) {
 }
 document.addEventListener('DOMContentLoaded', () => initNavToggle('view-tabs'));
 
+// Botão "Voltar ao início" (celular): fecha o menu aberto, volta para a
+// primeira aba/seção (Explorar / Minha Vitrine / Visão Geral) e rola ao topo.
+// Genérico: dispara o .click() do primeiro item de navegação, seja .vtab
+// (turista/produtor) ou .nav-item (admin), reaproveitando o roteamento de cada
+// página sem precisar conhecê-lo aqui.
+document.addEventListener('click', e => {
+  if (!e.target.closest('#home-btn')) return;
+  document.querySelectorAll('.view-tabs.open, .sidenav.open').forEach(el => el.classList.remove('open'));
+  document.getElementById('nav-toggle')?.setAttribute('aria-expanded', 'false');
+  document.querySelector('.vtab, #sidenav .nav-item')?.click();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
 // ─── Convite de instalação do PWA ───────────────────────────────────────────
 // Só nas páginas do app (têm .topbar), nunca quando já instalado ou dispensado.
 (function initInstallPrompt() {
