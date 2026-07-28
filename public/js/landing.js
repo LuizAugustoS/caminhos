@@ -48,6 +48,20 @@
     $('#auth-error').textContent = '';
   }));
 
+  // CTAs da landing: abrem o cadastro já com o papel escolhido e rolam até o
+  // formulário. Reaproveitam a aba "Criar conta" e o rádio de papel existentes.
+  function goSignup(role) {
+    document.querySelector('.auth-tabs .tab[data-mode="signup"]')?.click();
+    if (role) {
+      const radio = document.querySelector(`input[name="role"][value="${role}"]`);
+      if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles: true })); }
+    }
+    document.querySelector('.login-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => document.getElementById('f-name')?.focus(), 450);
+  }
+  document.querySelectorAll('[data-signup]').forEach(btn =>
+    btn.addEventListener('click', () => goSignup(btn.dataset.signup)));
+
   // Esqueci minha senha: pede o e-mail e dispara o link de redefinição
   $('#forgot-link').addEventListener('click', async e => {
     e.preventDefault();

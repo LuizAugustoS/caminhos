@@ -210,6 +210,7 @@ const VIEW_LOADERS = {
   tourists: () => loadTouristsView(),
   producers: () => loadProducersView(),
   registrations: () => loadRegistrationsView(),
+  reports: () => loadReportsView(),
   listings: () => loadPubsView(),
   events: () => loadEventsView(),
   chat: () => loadInternalChat(),
@@ -224,29 +225,68 @@ function switchView(name) {
     v.classList.toggle('hidden', v.id !== `view-${name}`));
   document.querySelectorAll('#sidenav .nav-item').forEach(b =>
     b.classList.toggle('active', b.dataset.view === name));
+  // Se a tela ativa é um filho de submenu, garante o grupo pai expandido.
+  const activeChild = document.querySelector('#sidenav .nav-child.active');
+  if (activeChild) {
+    const group = activeChild.closest('.nav-group');
+    group.classList.add('open');
+    group.querySelector('[data-parent]')?.setAttribute('aria-expanded', 'true');
+  }
+  window.scrollTo(0, 0);
   VIEW_LOADERS[name]();
 }
 
-function renderNav(pendingCount, chatCount) {
+const CARET = '<svg class="nav-caret" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+
+function renderNav(pendingCount, chatCount, reportsCount) {
   if (pendingCount != null) navBadges.pending = pendingCount;
   if (chatCount != null) navBadges.chat = chatCount;
+  if (reportsCount != null) navBadges.reports = reportsCount;
+  // Itens simples têm `view`; o item pai tem `children` (submenu expansível).
   const items = [
-    ['overview', 'Visão Geral', 'overview', null],
-    ['tourists', 'Turistas', 'tourists', null],
-    ['producers', 'Produtores/Comerciantes', 'producers', null],
-    ['registrations', 'Cadastros', 'registrations', navBadges.pending || null],
-    ['listings', 'Publicações', 'listings', null],
-    ['events', 'Eventos', 'events', null],
-    ['chat', 'Chat Interno', 'chat', navBadges.chat || null],
-    ['analytics', 'Analytics', 'analytics', null],
-    ['settings', 'Configurações', 'settings', null],
+    { view: 'overview', label: 'Visão Geral', icon: 'overview' },
+    { view: 'tourists', label: 'Turistas', icon: 'tourists' },
+    { label: 'Produtores/Comerciantes', icon: 'producers', children: [
+      { view: 'producers', label: 'Cadastros Atuais' },
+      { view: 'registrations', label: 'Cadastros Pendentes', badge: navBadges.pending || null },
+      { view: 'reports', label: 'Denúncias', badge: navBadges.reports || null },
+    ] },
+    { view: 'listings', label: 'Publicações', icon: 'listings' },
+    { view: 'events', label: 'Eventos', icon: 'events' },
+    { view: 'chat', label: 'Chat Interno', icon: 'chat', badge: navBadges.chat || null },
+    { view: 'analytics', label: 'Analytics', icon: 'analytics' },
+    { view: 'settings', label: 'Configurações', icon: 'settings' },
   ];
-  $('#sidenav').innerHTML = items.map(([ico, label, view, badge]) => `
-    <button class="nav-item${view === currentView ? ' active' : ''}" data-view="${view}">
-      <span class="icon">${icon(ico)}</span>
-      <span>${label}</span>
-      ${badge ? `<span class="nav-badge">${badge}</span>` : ''}
-    </button>`).join('') + `
+  const simpleItem = it => `
+    <button class="nav-item${it.view === currentView ? ' active' : ''}" data-view="${it.view}">
+      <span class="icon">${icon(it.icon)}</span>
+      <span class="nav-label">${it.label}</span>
+      ${it.badge ? `<span class="nav-badge">${it.badge}</span>` : ''}
+    </button>`;
+  const groupItem = it => {
+    // O submenu já abre expandido quando a tela atual é um dos filhos.
+    const open = it.children.some(c => c.view === currentView);
+    // Quando recolhido, um pontinho sinaliza que há pendências nos filhos
+    // (a contagem detalhada aparece nos badges de cada filho ao expandir).
+    const hasWork = it.children.some(c => c.badge);
+    return `
+    <div class="nav-group${open ? ' open' : ''}">
+      <button class="nav-item nav-parent" data-parent aria-expanded="${open}">
+        <span class="icon">${icon(it.icon)}</span>
+        <span class="nav-label">${it.label}</span>
+        ${hasWork ? '<span class="nav-work-dot" title="Há itens aguardando"></span>' : ''}
+        ${CARET}
+      </button>
+      <div class="nav-sub">
+        ${it.children.map(c => `
+          <button class="nav-item nav-child${c.view === currentView ? ' active' : ''}" data-view="${c.view}">
+            <span class="nav-label">${c.label}</span>
+            ${c.badge ? `<span class="nav-badge">${c.badge}</span>` : ''}
+          </button>`).join('')}
+      </div>
+    </div>`;
+  };
+  $('#sidenav').innerHTML = items.map(it => it.children ? groupItem(it) : simpleItem(it)).join('') + `
     <div class="pwa-card">
       <div class="pwa-card-head"><div class="dot"></div><span>PWA sincronizado</span></div>
       <p id="pwa-sync-note">Itinerários offline atualizados.</p>
@@ -254,7 +294,15 @@ function renderNav(pendingCount, chatCount) {
 }
 
 $('#sidenav').addEventListener('click', e => {
-  const btn = e.target.closest('.nav-item');
+  // Clique no item pai: só expande/recolhe o submenu (não troca de tela).
+  const parent = e.target.closest('[data-parent]');
+  if (parent) {
+    const group = parent.closest('.nav-group');
+    const open = group.classList.toggle('open');
+    parent.setAttribute('aria-expanded', String(open));
+    return;
+  }
+  const btn = e.target.closest('.nav-item[data-view]');
   if (btn) switchView(btn.dataset.view);
 });
 
@@ -284,7 +332,7 @@ document.addEventListener('click', e => {
 function renderWorklist(queue) {
   const items = [
     { n: queue.pendingProducers, label: 'produtores aguardando aprovação', goto: 'producers', icon: 'producers' },
-    { n: queue.openReports, label: 'denúncias abertas para revisar', goto: 'registrations', icon: 'flag', warn: true },
+    { n: queue.openReports, label: 'denúncias abertas para revisar', goto: 'reports', icon: 'flag', warn: true },
     { n: queue.pendingListings, label: 'anúncios pendentes de publicação', goto: 'publications', icon: 'listings' },
   ];
   const clear = items.every(i => i.n === 0);
@@ -438,7 +486,7 @@ async function loadAll() {
     renderWorklist(dash.queue);
     renderSearched(dash.topSearched);
     renderPlatformFacts(dash.totals, dash.offlineItineraries);
-    renderNav(pendingCount, chatCount);
+    renderNav(pendingCount, chatCount, dash.queue.openReports);
     updatePwaNote(dash.lastSync); // atualiza a nota do PWA depois que a nav existe
     await loadListings();
   } catch (err) {
@@ -603,11 +651,11 @@ function reportRowHTML(r) {
     </div>`;
 }
 
+// Cadastros Pendentes: só produtores e anúncios aguardando revisão.
 async function loadRegistrationsView() {
-  const [{ producers }, { listings }, { reports }] = await Promise.all([
+  const [{ producers }, { listings }] = await Promise.all([
     api('/producers?limit=100'),
     api('/listings?limit=100'),
-    api('/admin/reports'),
   ]);
   const pendProducers = producers.filter(p => p.status === 'pending' || p.status === 'in_review');
   const pendListings = listings.filter(l => l.status === 'pending' || l.status === 'in_review');
@@ -615,11 +663,17 @@ async function loadRegistrationsView() {
     || '<p class="empty-note">Nenhum produtor aguardando revisão.</p>';
   $('#reg-listings').innerHTML = pendListings.map(listingQueueRowHTML).join('')
     || '<p class="empty-note">Nenhum anúncio aguardando revisão.</p>';
-  $('#reg-reports').innerHTML = reports.map(reportRowHTML).join('')
-    || '<p class="empty-note">Nenhuma denúncia aberta.</p>';
 }
 
-$('#reg-reports').addEventListener('click', async e => {
+// Denúncias: seção dedicada de moderação (apontada pelo submenu).
+async function loadReportsView() {
+  const { reports } = await api('/admin/reports');
+  renderNav(null, null, reports.length);
+  $('#reports-list').innerHTML = reports.map(reportRowHTML).join('')
+    || '<p class="empty-note">Nenhuma denúncia aberta no momento — tudo em ordem.</p>';
+}
+
+$('#reports-list').addEventListener('click', async e => {
   const row = e.target.closest('.report-row');
   if (!row) return;
   const id = Number(row.dataset.listing);
@@ -628,7 +682,7 @@ $('#reg-reports').addEventListener('click', async e => {
     try {
       await api(`/admin/reports/${id}/reviewed`, { method: 'POST' });
       toast('Denúncia resolvida');
-      loadRegistrationsView();
+      loadReportsView();
     } catch (err) { toast(err.message); }
   }
 });
@@ -707,28 +761,69 @@ $('#events-rows').addEventListener('click', e => {
   if (btn) review('listings', btn.closest('[data-id]').dataset.id, btn.dataset.action);
 });
 
-// ─── Chat Interno ────────────────────────────────────────────────────────────
+// ─── Chat Interno: moderação de conversas turista ↔ produtor (master-detail) ──
+// Estado: lista de conversas em memória + a conversa aberta no momento. Só o
+// histórico da conversa selecionada é renderizado no painel de detalhe.
+let adminConvs = [];
+let adminOpenConv = null;
+
 async function loadInternalChat() {
-  const { messages } = await api('/chat?limit=30');
-  const mine = m => currentAdmin && m.sender_name === currentAdmin.name;
-  $('#internal-msgs').innerHTML = messages.slice().reverse().map(m => `
-    <div class="msg ${mine(m) ? 'mine' : ''}">
-      <span class="msg-body">${mine(m) ? '' : `<strong>${esc(m.sender_name)}:</strong> `}${esc(m.body)}</span>
-      <small class="msg-meta">${fmtTime(m.created_at)}</small>
-    </div>`).join('') || '<p class="empty-note">Nenhuma mensagem ainda.</p>';
-  const box = $('#internal-msgs');
-  box.scrollTop = box.scrollHeight;
-  renderNav(null, messages.length);
-}
-$('#internal-form').addEventListener('submit', async e => {
-  e.preventDefault();
-  const body = $('#internal-input').value.trim();
-  if (!body) return;
-  $('#internal-input').value = '';
   try {
-    await api('/chat', { method: 'POST', body: JSON.stringify({ body }) });
-    loadInternalChat();
-  } catch (err) { toast(err.message); }
+    const { conversations } = await api('/admin/conversations');
+    adminConvs = conversations;
+    $('#admin-conv-list').innerHTML = conversations.map(c => `
+      <button type="button" class="conv-row${c.id === adminOpenConv ? ' active' : ''}" data-conv="${c.id}">
+        <div class="avatar md" style="background:${esc(c.producer_color || '#4A3226')}">${esc(c.producer_initials || '')}</div>
+        <div class="conv-info">
+          <strong>${esc(c.tourist_name)} ↔ ${esc(c.producer_name)}</strong>
+          <small>${esc((c.last_message || 'Sem mensagens').slice(0, 52))}</small>
+        </div>
+        <span class="conv-count">${fmtInt(c.total)}</span>
+      </button>`).join('')
+      || '<p class="empty-note">Nenhuma conversa ativa entre turistas e produtores.</p>';
+    // Ao (re)carregar a lista, o detalhe volta ao estado vazio no mobile.
+    if (adminOpenConv == null) $('#admin-chat').classList.remove('thread-open');
+  } catch (err) {
+    if (err.message !== 'unauthorized') toast(err.message);
+  }
+}
+
+// Abre UMA conversa: busca o histórico e renderiza só as mensagens dela,
+// escondendo (não renderizando) as demais. No mobile, oculta a lista.
+async function openAdminConversation(id) {
+  adminOpenConv = id;
+  document.querySelectorAll('#admin-conv-list .conv-row').forEach(r =>
+    r.classList.toggle('active', Number(r.dataset.conv) === id));
+  const conv = adminConvs.find(c => c.id === id);
+  $('#admin-thread-head').innerHTML = conv
+    ? `<strong>${esc(conv.tourist_name)}</strong> <span class="thread-sep">com</span> <strong>${esc(conv.producer_name)}</strong>`
+    : '';
+  $('#admin-thread-msgs').innerHTML = '<p class="empty-note">Carregando…</p>';
+  try {
+    const { messages } = await api(`/admin/conversations/${id}/messages`);
+    // from_tourist decide o lado da bolha (turista à esquerda, produtor à direita)
+    $('#admin-thread-msgs').innerHTML = messages.map(m => `
+      <div class="msg ${m.from_tourist ? '' : 'mine'}">
+        <span class="msg-body"><strong>${esc(m.sender_name)}:</strong> ${esc(m.body)}</span>
+        <small class="msg-meta">${fmtTime(m.created_at)}</small>
+      </div>`).join('') || '<p class="empty-note">Sem mensagens nesta conversa.</p>';
+    const box = $('#admin-thread-msgs');
+    box.scrollTop = box.scrollHeight;
+    $('#admin-chat').classList.add('thread-open'); // mobile: mostra só o detalhe
+  } catch (err) {
+    $('#admin-thread-msgs').innerHTML = `<p class="empty-note">${esc(err.message)}</p>`;
+  }
+}
+
+$('#admin-conv-list').addEventListener('click', e => {
+  const row = e.target.closest('[data-conv]');
+  if (row) openAdminConversation(Number(row.dataset.conv));
+});
+// Botão "voltar" (mobile): fecha o detalhe e volta à lista de conversas
+document.querySelector('[data-thread-back]')?.addEventListener('click', () => {
+  adminOpenConv = null;
+  $('#admin-chat').classList.remove('thread-open');
+  document.querySelectorAll('#admin-conv-list .conv-row').forEach(r => r.classList.remove('active'));
 });
 
 // ─── Analytics ───────────────────────────────────────────────────────────────

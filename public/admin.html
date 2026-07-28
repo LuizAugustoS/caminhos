@@ -25,6 +25,9 @@
       <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menu" aria-controls="sidenav" aria-expanded="false">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
       </button>
+      <button class="home-btn" id="home-btn" aria-label="Voltar ao início" title="Início">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+      </button>
       <div class="brand">
         <svg class="brand-mark" viewBox="0 0 48 48" width="44" height="44" aria-hidden="true">
           <defs><clipPath id="cc-mark-a"><rect width="48" height="48" rx="13"/></clipPath></defs>
@@ -190,11 +193,11 @@
           </section>
         </section>
 
-        <!-- ═══ Cadastros (fila de moderação) ═══ -->
+        <!-- ═══ Cadastros Pendentes (fila de moderação) ═══ -->
         <section id="view-registrations" class="admin-view hidden">
           <div class="page-head">
             <div>
-              <h1>Cadastros</h1>
+              <h1>Cadastros Pendentes</h1>
               <p>Tudo que aguarda a sua revisão — produtores e anúncios</p>
             </div>
           </div>
@@ -208,9 +211,24 @@
               <div class="producer-list" id="reg-listings"></div>
             </section>
           </div>
+        </section>
+
+        <!-- ═══ Denúncias (moderação dedicada) ═══ -->
+        <section id="view-reports" class="admin-view hidden">
+          <div class="page-head">
+            <div>
+              <h1>Denúncias</h1>
+              <p>Moderação de denúncias sobre anúncios, produtores e turistas</p>
+            </div>
+          </div>
           <section class="panel">
-            <div class="panel-head"><h2>Anúncios denunciados</h2></div>
-            <div class="producer-list" id="reg-reports"></div>
+            <div class="panel-head">
+              <div>
+                <h2>Denúncias abertas</h2>
+                <span class="sub">Abra o anúncio para avaliar ou marque como resolvida</span>
+              </div>
+            </div>
+            <div class="producer-list" id="reports-list"></div>
           </section>
         </section>
 
@@ -264,21 +282,32 @@
           </section>
         </section>
 
-        <!-- ═══ Chat Interno ═══ -->
+        <!-- ═══ Chat Interno: conversas turista ↔ produtor (master-detail) ═══ -->
         <section id="view-chat" class="admin-view hidden">
           <div class="page-head">
             <div>
               <h1>Chat Interno</h1>
-              <p>Comunicação da equipe com os parceiros</p>
+              <p>Conversas entre turistas e produtores — acompanhe para mediar</p>
             </div>
           </div>
-          <section class="panel conv-thread" style="max-width:760px;">
-            <div class="thread-msgs" id="internal-msgs" style="max-height:520px;"></div>
-            <form class="thread-form" id="internal-form">
-              <input id="internal-input" type="text" placeholder="Escreva uma mensagem para a equipe…" autocomplete="off">
-              <button type="submit" class="btn-primary">Enviar</button>
-            </form>
-          </section>
+          <div class="chat-layout" id="admin-chat">
+            <!-- Coluna mestre: lista de chats ativos -->
+            <section class="panel conv-list-panel">
+              <div class="panel-head"><h2>Conversas ativas</h2></div>
+              <div class="conv-list" id="admin-conv-list"></div>
+            </section>
+            <!-- Coluna detalhe: só o histórico da conversa selecionada -->
+            <section class="panel conv-thread">
+              <button type="button" class="thread-back" data-thread-back>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                Conversas
+              </button>
+              <div class="thread-head" id="admin-thread-head"></div>
+              <div class="thread-msgs" id="admin-thread-msgs">
+                <p class="empty-note" id="admin-thread-empty">Selecione uma conversa à esquerda para ver o histórico e as mensagens.</p>
+              </div>
+            </section>
+          </div>
         </section>
 
         <!-- ═══ Analytics ═══ -->

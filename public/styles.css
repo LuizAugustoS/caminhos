@@ -23,24 +23,30 @@ body {
   font-family: 'Manrope', 'Helvetica Neue', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   color: var(--ink);
+  /* Guarda global contra overflow horizontal (clip não quebra position:sticky) */
+  overflow-x: clip;
 }
+/* Mídia nunca estoura a largura do container */
+img, svg, video, canvas { max-width: 100%; }
 a { color: var(--green); text-decoration: none; font-weight: 700; }
 a:hover { color: var(--forest); }
 button { font-family: inherit; }
 
 /* ─── Convite de instalação do PWA ─── */
 .install-bar {
-  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+  /* Ancorado por left+right (nunca por 100vw, que inclui a barra de rolagem e
+     causava overflow horizontal no celular). max-width centraliza no desktop. */
+  position: fixed; left: 16px; right: 16px; bottom: 20px; margin: 0 auto;
   z-index: 2500; display: flex; align-items: center; gap: 12px;
-  max-width: calc(100vw - 32px);
+  max-width: 460px; box-sizing: border-box;
   padding: 10px 12px 10px 16px; border-radius: 14px;
   background: var(--forest); color: #F2EBDD;
   box-shadow: 0 8px 30px rgba(20,64,46,.35);
   animation: install-in .25s ease;
 }
-@keyframes install-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes install-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 .install-ico { display: flex; color: #E4A85A; flex-shrink: 0; }
-.install-text { font-size: 13px; font-weight: 600; line-height: 1.35; }
+.install-text { font-size: 13px; font-weight: 600; line-height: 1.35; flex: 1; min-width: 0; }
 .install-bar .btn-sm { flex-shrink: 0; }
 .install-close {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -165,7 +171,7 @@ select:focus-visible, textarea:focus-visible, summary:focus-visible,
 .body { display: flex; align-items: stretch; min-height: 960px; }
 
 .sidenav {
-  width: 250px; flex-shrink: 0;
+  width: 264px; flex-shrink: 0;
   background: linear-gradient(180deg, var(--forest), #0F3324);
   padding: 20px 14px; display: flex; flex-direction: column; gap: 4px;
 }
@@ -183,6 +189,21 @@ select:focus-visible, textarea:focus-visible, summary:focus-visible,
   margin-left: auto; font-size: 10.5px; font-weight: 800;
   background: var(--terra); color: #FFF6EA; border-radius: 20px; padding: 2px 8px;
 }
+.nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ─── Submenu pai/filho da sidebar ─── */
+.nav-group { display: flex; flex-direction: column; }
+.nav-parent .nav-caret { margin-left: auto; color: var(--sage); transition: transform .2s ease; flex-shrink: 0; }
+.nav-work-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--terra); flex-shrink: 0; margin-left: auto; }
+.nav-work-dot + .nav-caret { margin-left: 8px; }
+.nav-group.open > .nav-parent .nav-caret { transform: rotate(180deg); }
+.nav-sub {
+  display: none; flex-direction: column; gap: 2px;
+  margin: 2px 0 2px 16px; padding-left: 12px; border-left: 1px solid rgba(242,235,221,.14);
+}
+.nav-group.open > .nav-sub { display: flex; }
+.nav-child { padding: 9px 12px; font-size: 13px; color: #A6BCA8; }
+.nav-child.active { color: #FFFFFF; }
 .pwa-card {
   margin-top: auto; background: rgba(242,235,221,.08); border: 1px solid rgba(242,235,221,.14);
   border-radius: 14px; padding: 14px;
@@ -387,12 +408,15 @@ select:focus-visible, textarea:focus-visible, summary:focus-visible,
 .status-in_review { background: #F0EADF; color: #6B5946; }
 .status-rejected { background: #FBEFE8; color: #A84D28; }
 
-.row-actions { display: flex; gap: 6px; }
+.row-actions { display: flex; gap: 6px; align-items: center; }
 .btn-approve {
-  height: 30px; min-width: 30px; padding: 0; border-radius: 9px; border: none;
+  /* Flexbox centraliza o glifo e garante a MESMA altura/alinhamento do Recusar */
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 30px; min-width: 30px; padding: 0; border-radius: 9px; border: none; box-sizing: border-box;
   background: var(--green); color: var(--cream); font-size: 13px; font-weight: 800; cursor: pointer;
 }
 .btn-approve.wide { padding: 0 12px; font-size: 12px; }
+.btn-reject { box-sizing: border-box; }
 .btn-approve:hover { background: var(--forest); }
 .btn-reject {
   width: 30px; height: 30px; border-radius: 9px; border: 1px solid #E3CDBD;
@@ -587,6 +611,62 @@ body.offline .offline-banner { display: block; }
 .landing-foot a { color: #7A6A50; font-weight: 700; }
 .landing-foot a:hover { color: var(--forest); }
 .dot-sep { margin: 0 8px; color: #C9BCA2; }
+
+/* ─── Landing: seções de conversão (abaixo da dobra) ─── */
+.lp { max-width: 1080px; margin: 0 auto; padding: 64px 24px 40px; }
+.lp-head { max-width: 620px; margin: 0 auto 40px; text-align: center; }
+.lp-kicker {
+  display: inline-block; margin-bottom: 10px; font-size: 11px; font-weight: 800;
+  letter-spacing: 1.4px; text-transform: uppercase; color: var(--green);
+}
+.lp-head h2 { margin: 0 0 12px; font-size: 30px; color: var(--forest); letter-spacing: -.3px; line-height: 1.15; }
+.lp-head p { margin: 0; font-size: 15px; color: #6B5946; font-weight: 500; line-height: 1.6; }
+.lp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.lp-col {
+  display: flex; flex-direction: column; gap: 18px;
+  background: var(--paper); border: 1px solid var(--card-border); border-radius: 20px; padding: 26px;
+  box-shadow: 0 20px 46px -26px rgba(46,36,26,.28);
+}
+.lp-chip {
+  display: inline-block; font-size: 11.5px; font-weight: 800; letter-spacing: .4px;
+  padding: 5px 12px; border-radius: 20px;
+}
+.lp-chip-turista { background: #E4F0E7; color: var(--green-dark); }
+.lp-chip-produtor { background: #F4EAD9; color: #8A6414; }
+.lp-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.lp-steps li { display: flex; gap: 14px; align-items: flex-start; }
+.lp-num {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--forest); color: var(--cream); font-size: 13px; font-weight: 800;
+}
+.lp-steps li strong { display: block; font-size: 14.5px; font-weight: 800; color: var(--forest); margin-bottom: 3px; }
+.lp-steps li small { font-size: 13px; color: #6B5D46; font-weight: 500; line-height: 1.5; }
+.lp-cta { width: 100%; padding: 12px; font-size: 14px; }
+
+.lp-band {
+  max-width: 1080px; margin: 12px auto 0; padding: 44px 24px; text-align: center;
+  background: linear-gradient(150deg, var(--forest), #0F3324);
+  border-radius: 24px; color: #F2EBDD;
+}
+.lp-band h2 { margin: 0 0 8px; font-size: 26px; color: #FFFFFF; letter-spacing: -.3px; }
+.lp-band p { margin: 0 0 22px; font-size: 14.5px; color: #CFE0D2; font-weight: 500; }
+.lp-band-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn-ghost {
+  padding: 12px 22px; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 700;
+  background: transparent; color: #F2EBDD; border: 1px solid rgba(242,235,221,.45);
+}
+.btn-ghost:hover { background: rgba(242,235,221,.12); }
+/* No fim da página o rodapé sai do modo absoluto (fica no fluxo normal) */
+.lp-foot { position: static; padding: 28px 24px 34px; }
+@media (max-width: 760px) {
+  .lp { padding: 44px 16px 32px; }
+  .lp-head h2 { font-size: 25px; }
+  .lp-cols { grid-template-columns: 1fr; }
+  .lp-band { border-radius: 20px; padding: 36px 20px; }
+  .lp-band h2 { font-size: 22px; }
+}
+
 .auth-tabs { margin-bottom: 20px; }
 .auth-tabs .tab { flex: 1; }
 .role-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -698,6 +778,20 @@ body.offline .offline-banner { display: block; }
 .conv-info { min-width: 0; flex: 1; }
 .conv-info strong { display: block; font-size: 13px; font-weight: 800; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .conv-info small { font-size: 11.5px; color: #756545; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+/* conv-row também é usado como <button> no chat do admin: normaliza o reset */
+.conv-row { width: 100%; font: inherit; background: transparent; }
+.conv-list-panel .conv-list { max-height: 520px; }
+.conv-count {
+  flex-shrink: 0; font-size: 10.5px; font-weight: 800; color: var(--muted-2);
+  background: var(--cream); border-radius: 20px; padding: 2px 8px;
+}
+.thread-head {
+  font-size: 13.5px; color: var(--muted-2); font-weight: 600;
+  padding-bottom: 12px; margin-bottom: 8px; border-bottom: 1px solid #F0E9D8;
+}
+.thread-head:empty { display: none; }
+.thread-head strong { color: var(--forest); font-weight: 800; }
+.thread-sep { color: var(--muted-3); font-weight: 600; margin: 0 4px; }
 .conv-thread { display: flex; flex-direction: column; min-height: 420px; }
 .thread-msgs { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 460px; padding-bottom: 12px; }
 .msg {
@@ -753,11 +847,22 @@ body.offline .offline-banner { display: block; }
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
 .modal {
+  position: relative;
   width: 100%; max-width: 440px; max-height: 86vh; overflow-y: auto;
   background: var(--paper); border-radius: 18px; padding: 24px;
   box-shadow: 0 30px 70px -20px rgba(46,36,26,.5), 0 0 0 1px rgba(74,50,38,.08);
   animation: modalIn .18s ease-out;
 }
+.modal-lg { max-width: 580px; }
+/* Botão de fechar no canto do cartão da modal */
+.modal-x {
+  position: absolute; top: 14px; right: 14px; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--line); background: #FFFFFF; color: var(--muted-2);
+}
+.modal-x:hover { background: var(--cream); color: var(--forest); }
+.listing-form h2 { margin: 0 40px 16px 0; font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--forest); }
 @keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
 .modal h3 { margin: 0 0 14px; font-size: 17px; font-weight: 800; color: var(--forest); }
 .modal-msg { margin: 0 0 16px; font-size: 13.5px; color: #6B5946; font-weight: 500; line-height: 1.5; }
@@ -926,6 +1031,9 @@ body.no-scroll { overflow: hidden; }
 @media (max-width: 640px) {
   .kpi-grid { grid-template-columns: 1fr; }
   .platform-facts { grid-template-columns: 1fr; }
+  /* Todas as grades de cards empilham em coluna única, com respiro entre cards */
+  .card-grid { grid-template-columns: 1fr; gap: 14px; }
+  .panel-grid, .chat-grid, .worklist, .form-grid { grid-template-columns: 1fr; gap: 14px; }
   .profile-info { display: none; }
   /* Topbar compacta: cabe tudo sem estourar */
   .topbar { padding: 10px 14px; gap: 10px; }
@@ -943,33 +1051,37 @@ body.no-scroll { overflow: hidden; }
 /* ─── Navegação no celular: menu hamburguer ─── */
 /* No desktop o botão some e a navegação aparece normal; no celular a barra de
    abas (turista/produtor) e a sidebar (admin) viram um painel dispensável. */
-.nav-toggle { display: none; }
+.nav-toggle, .home-btn { display: none; }
 @media (max-width: 760px) {
-  .nav-toggle {
+  .nav-toggle, .home-btn {
     display: inline-flex; align-items: center; justify-content: center;
     width: 42px; height: 42px; flex-shrink: 0; order: -1;
     border: 1px solid var(--line); border-radius: 11px;
     background: var(--cream); color: var(--forest); cursor: pointer;
   }
   .nav-toggle[aria-expanded="true"] { background: var(--forest); color: #F2EBDD; border-color: var(--forest); }
+  .home-btn:hover, .home-btn:active { background: var(--forest); color: #F2EBDD; border-color: var(--forest); }
 
-  /* Abas do turista/produtor → painel vertical (cancela o scroll horizontal) */
-  .view-tabs {
+  /* Header fixo no topo ao rolar (fica sempre acessível no celular) */
+  .topbar {
+    position: sticky; top: 0; z-index: 900;
+    box-shadow: 0 2px 10px rgba(20,64,46,.10);
+  }
+
+  /* O menu hambúrguer herda as cores SÓLIDAS do menu desktop (verde escuro),
+     não um painel branco de texto apagado. Abas/itens ficam legíveis. */
+  .view-tabs, .sidenav {
     display: none; flex-direction: column; gap: 4px; overflow: visible;
     margin: 0 12px; padding: 8px; border-radius: 14px;
-    background: #fff; border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(20,64,46,.14);
+    background: linear-gradient(180deg, var(--forest), #0F3324);
+    border: 1px solid var(--green-dark); box-shadow: 0 14px 34px rgba(20,64,46,.28);
   }
-  .view-tabs.open { display: flex; }
-  .view-tabs .vtab { width: 100%; justify-content: flex-start; text-align: left; }
-
-  /* Sidebar do admin → mesmo painel vertical */
-  .sidenav {
-    display: none; width: auto; flex-direction: column; overflow: visible; gap: 4px;
-    margin: 0 12px; padding: 8px; border-radius: 14px;
-    background: #fff; border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(20,64,46,.14);
-  }
-  .sidenav.open { display: flex; }
-  .sidenav .nav-item { width: 100%; }
+  .view-tabs.open, .sidenav.open { display: flex; }
+  .view-tabs { width: auto; }
+  .view-tabs .vtab, .sidenav .nav-item { width: 100%; justify-content: flex-start; text-align: left; }
+  /* Texto claro e opaco sobre o painel verde (sem aparência "transparente") */
+  .view-tabs .vtab { color: #EAF2EA; }
+  .view-tabs .vtab.active, .sidenav .nav-item.active { color: #FFFFFF; }
 }
 
 /* ─── Ajustes finos de celular ─── */

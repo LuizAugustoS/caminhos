@@ -529,6 +529,21 @@ await client.query(
   [conv.id, touristUser.id, producerUser.id]
 );
 
+// Segunda conversa (produtor ainda sem resposta) — enriquece a lista de
+// conversas da moderação do admin (master-detail).
+const { rows: [conv2] } = await client.query(
+  `INSERT INTO conversations (tourist_id, producer_id)
+   VALUES ($1, (SELECT id FROM producers WHERE name = 'Pousada Vale Verde'))
+   RETURNING id`,
+  [touristUser.id]
+);
+await client.query(
+  `INSERT INTO messages (conversation_id, sender_id, body, created_at) VALUES
+   ($1, $2, 'Boa tarde! Os chalés aceitam um casal com um cachorro de porte pequeno?', now() - interval '5 hours'),
+   ($1, $2, 'E tem estacionamento no local? Obrigada!', now() - interval '5 hours' + interval '2 minutes')`,
+  [conv2.id, touristUser.id]
+);
+
 // Contas demo já nascem com o e-mail confirmado
 await client.query('UPDATE users SET email_verified_at = now()');
 
