@@ -121,6 +121,15 @@ const { check, finish } = runner();
   await page.waitForTimeout(400);
   check('admin: seção de denúncias presente', await page.locator('#reports-list').count() === 1);
   check('admin: denúncia listada na seção', await page.locator('#reports-list .report-row').count() > 0);
+  check('admin: etiquetas de tipo (anúncio/produtor/turista)', await page.locator('#reports-list .report-tag').count() >= 3);
+  check('admin: ação direta na denúncia (recusar/suspender)', await page.locator('#reports-list [data-report-action]').count() > 0);
+  // Ação direta: suspender o produtor denunciado e resolver a denúncia num clique
+  const prodRow = page.locator('#reports-list .report-row', { has: page.locator('.report-tag-producer') }).first();
+  await prodRow.locator('[data-report-action]').click();
+  await page.waitForSelector('.modal [data-modal-ok]');
+  await page.click('.modal [data-modal-ok]');
+  await page.waitForTimeout(600);
+  check('admin: denúncia de produtor sai da fila após ação', await page.locator('#reports-list .report-tag-producer').count() === 0);
   // botões Aprovar/Recusar com a mesma altura (alinhamento via flexbox)
   await page.click('#sidenav .nav-child[data-view=registrations]');
   await page.waitForSelector('#reg-producers .producer-row');

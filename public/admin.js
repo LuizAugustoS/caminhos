@@ -651,7 +651,11 @@ function reportRowHTML(r) {
       <div class="row-actions">
         ${r.target_type === 'listing'
           ? '<button class="btn-view" data-report-open aria-label="Ver anúncio" title="Ver anúncio">→</button>' : ''}
-        <button class="btn-approve" data-report-resolve title="Marcar como resolvida">${icon('check', 15)}</button>
+        ${r.target_type === 'listing'
+          ? '<button class="btn-reject" data-report-action aria-label="Recusar anúncio" title="Recusar anúncio e resolver">Recusar</button>' : ''}
+        ${r.target_type === 'producer'
+          ? '<button class="btn-reject" data-report-action aria-label="Suspender produtor" title="Suspender produtor e resolver">Suspender</button>' : ''}
+        <button class="btn-approve" data-report-resolve title="Marcar como resolvida (sem punir)">${icon('check', 15)}</button>
       </div>
     </div>`;
 }
@@ -684,6 +688,26 @@ $('#reports-list').addEventListener('click', async e => {
   const { targetType, targetId } = row.dataset;
   if (e.target.closest('[data-report-open]') && targetType === 'listing') {
     return openListingDetailAdmin(Number(targetId));
+  }
+  // Ação direta: recusa o anúncio / suspende o produtor E resolve a denúncia.
+  if (e.target.closest('[data-report-action]')) {
+    const isListing = targetType === 'listing';
+    const ok = await adminConfirm({
+      title: isListing ? 'Recusar anúncio' : 'Suspender produtor',
+      message: isListing
+        ? 'O anúncio sai do ar e a denúncia é marcada como resolvida.'
+        : 'O produtor é suspenso (sai da plataforma) e a denúncia é marcada como resolvida.',
+      confirmText: isListing ? 'Recusar anúncio' : 'Suspender',
+    });
+    if (!ok) return;
+    try {
+      const kind = isListing ? 'listings' : 'producers';
+      await api(`/${kind}/${targetId}/status`, { method: 'POST', body: JSON.stringify({ status: 'rejected' }) });
+      await api(`/admin/reports/${targetType}/${targetId}/reviewed`, { method: 'POST' });
+      toast(isListing ? 'Anúncio recusado e denúncia resolvida' : 'Produtor suspenso e denúncia resolvida');
+      loadReportsView();
+    } catch (err) { toast(err.message); }
+    return;
   }
   if (e.target.closest('[data-report-resolve]')) {
     try {
@@ -1075,6 +1099,24 @@ function openAdminModal(innerHTML) {
     if (e.target === overlay || e.target.closest('[data-modal-cancel]')) close();
   });
   return { overlay, close };
+}
+
+// Confirmação simples (o admin não carrega o modalConfirm do shared.js).
+function adminConfirm({ title, message, confirmText = 'Confirmar' }) {
+  return new Promise(resolve => {
+    const { overlay, close } = openAdminModal(`
+      <h3>${esc(title)}</h3>
+      ${message ? `<p class="modal-msg">${esc(message)}</p>` : ''}
+      <div class="row-actions modal-actions">
+        <button class="btn-reject" data-modal-ok style="width:auto;padding:0 14px">${esc(confirmText)}</button>
+        <button class="btn-secondary" data-modal-cancel>Cancelar</button>
+      </div>`);
+    let done = false;
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay || e.target.closest('[data-modal-cancel]')) { done || resolve(false); done = true; }
+    });
+    overlay.querySelector('[data-modal-ok]').addEventListener('click', () => { done = true; close(); resolve(true); });
+  });
 }
 
 const infoLine = (label, value) => value

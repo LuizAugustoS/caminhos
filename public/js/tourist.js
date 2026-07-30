@@ -1040,6 +1040,10 @@ function connectEvents() {
     if (status_label) toast(`Reserva ${status_label.toLowerCase()}: ${title}`);
     if (!$('#view-bookings').classList.contains('hidden')) renderBookings();
   });
+  // Retorno da equipe sobre uma denúncia que este usuário abriu
+  es.addEventListener('report_reviewed', () => {
+    toast('Sua denúncia foi analisada pela equipe — obrigado por avisar');
+  });
   // EventSource reconecta sozinho; nada a fazer no erro
 }
 

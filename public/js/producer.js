@@ -605,6 +605,10 @@ function connectEvents() {
     if (!$('#view-bookings').classList.contains('hidden')) loadBookings();
     else api('/portal/bookings').then(({ pending }) => setBkBadge(pending)).catch(() => {});
   });
+  // Retorno da equipe sobre uma denúncia que este produtor abriu
+  es.addEventListener('report_reviewed', () => {
+    toast('Sua denúncia foi analisada pela equipe — obrigado por avisar');
+  });
 }
 
 // Rede de segurança: sincronização periódica caso o stream caia

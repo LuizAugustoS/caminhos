@@ -384,6 +384,8 @@ select:focus-visible, textarea:focus-visible, summary:focus-visible,
 .report-tag-listing { background: #E9F0EA; color: var(--green-dark); }
 .report-tag-producer { background: #F4EAD9; color: #8A6414; }
 .report-tag-tourist { background: #E7EEF5; color: #3A5A78; }
+/* Botões de ação da fila de denúncias (texto, não só ícone) */
+.report-row .row-actions .btn-reject { width: auto; padding: 0 12px; height: 30px; font-size: 12px; }
 .avatar {
   border-radius: 11px; flex-shrink: 0; color: #FFF9EC;
   display: flex; align-items: center; justify-content: center; font-weight: 800;

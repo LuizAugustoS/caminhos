@@ -4,6 +4,10 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { audit } from '../audit.js';
+import { notify } from './events.js';
+import { pushToUser } from '../push.js';
+
+const TARGET_NOUN = { listing: 'anúncio', producer: 'produtor', tourist: 'turista' };
 
 export const reports = Router();       // turista/produtor (autenticado)
 export const adminReports = Router();  // admin
@@ -81,15 +85,32 @@ adminReports.get('/', async (_req, res) => {
   res.json({ reports: rows, openCount: c.n });
 });
 
-// Resolver: marca como revisadas todas as denúncias abertas de um alvo.
+// Resolver: marca como revisadas todas as denúncias abertas de um alvo e dá
+// retorno ao(s) denunciante(s) — em tempo real (SSE) e por push (app fechado).
 adminReports.post('/:targetType/:targetId/reviewed', async (req, res) => {
   const { targetType, targetId } = req.params;
   if (!TARGETS[targetType]) return res.status(400).json({ error: 'Tipo inválido' });
+  // Captura os denunciantes ANTES de marcar como revisadas.
+  const { rows: reporters } = await query(
+    `SELECT DISTINCT reporter_id FROM listing_reports
+     WHERE target_type = $1 AND target_id = $2 AND status = 'open' AND reporter_id IS NOT NULL`,
+    [targetType, targetId]
+  );
   const { rows } = await query(
     `UPDATE listing_reports SET status = 'reviewed', reviewed_at = now()
      WHERE target_type = $1 AND target_id = $2 AND status = 'open' RETURNING id`,
     [targetType, targetId]
   );
   audit(req, 'report.reviewed', `${targetType} #${targetId}`);
+  const noun = TARGET_NOUN[targetType] || 'item';
+  for (const { reporter_id } of reporters) {
+    notify(reporter_id, 'report_reviewed', { target_type: targetType });
+    pushToUser(reporter_id, {
+      title: 'Denúncia analisada',
+      body: `Sua denúncia sobre um ${noun} foi analisada pela equipe. Obrigado por ajudar a manter a plataforma segura.`,
+      tag: `report-${targetType}-${targetId}`,
+      url: '/',
+    }).catch(() => {});
+  }
   res.json({ ok: true, resolved: rows.length });
 });
